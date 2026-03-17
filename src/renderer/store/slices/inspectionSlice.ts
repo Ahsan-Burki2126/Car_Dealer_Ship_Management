@@ -1,9 +1,11 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import type { Inspection } from "../../../shared/types";
+import { createSlice } from "@reduxjs/toolkit";
+
+// Old inspection slice - preserved for backward compatibility
+// The new vehicle inspection system uses vehicleInspection field in Vehicle type
 
 interface InspectionState {
-  inspections: Inspection[];
-  currentInspection: Inspection | null;
+  inspections: any[];
+  currentInspection: any | null;
   total: number;
   loading: boolean;
 }
@@ -19,31 +21,11 @@ const inspectionSlice = createSlice({
   name: "inspections",
   initialState,
   reducers: {
-    setLoading: (state, action: PayloadAction<boolean>) => {
+    setLoading: (state, action) => {
       state.loading = action.payload;
-    },
-    setInspections: (
-      state,
-      action: PayloadAction<{ data: Inspection[]; total: number }>,
-    ) => {
-      state.inspections = action.payload.data;
-      state.total = action.payload.total;
-      state.loading = false;
-    },
-    setCurrentInspection: (state, action: PayloadAction<Inspection | null>) => {
-      state.currentInspection = action.payload;
-    },
-    addInspection: (state, action: PayloadAction<Inspection>) => {
-      state.inspections.unshift(action.payload);
-      state.total++;
     },
   },
 });
 
-export const {
-  setLoading,
-  setInspections,
-  setCurrentInspection,
-  addInspection,
-} = inspectionSlice.actions;
+export const { setLoading } = inspectionSlice.actions;
 export default inspectionSlice.reducer;

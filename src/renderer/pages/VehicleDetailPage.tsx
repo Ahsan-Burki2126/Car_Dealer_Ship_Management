@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
@@ -7,14 +7,26 @@ import {
   VEHICLE_EXPENSE_CATEGORIES,
   VEHICLE_STATUSES,
 } from "../../shared/constants";
-import {
-  FiEdit,
-  FiPlus,
-  FiTrash2,
-  FiClipboard,
-  FiArrowLeft,
-} from "react-icons/fi";
+import { FiEdit, FiPlus, FiTrash2, FiArrowLeft, FiPrinter } from "react-icons/fi";
 import { toast } from "react-toastify";
+import { toFileUrl } from "../utils/filePaths";
+import ErrorBoundary from "../components/ErrorBoundary";
+import InspectionReportPrint from "../components/inspection/InspectionReportPrint";
+
+const VehicleInspectionSVG = React.lazy(() =>
+  import("../components/inspection/VehicleInspectionSVG").catch((err) => {
+    console.error("Failed to load inspection component:", err);
+    return {
+      default: () => (
+        <div className="p-6 bg-gray-100 dark:bg-gray-900 rounded-lg border border-gray-300 dark:border-gray-700">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Inspection component failed to load.
+          </p>
+        </div>
+      ),
+    };
+  }),
+);
 
 export default function VehicleDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +34,7 @@ export default function VehicleDetailPage() {
   const navigate = useNavigate();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [expenses, setExpenses] = useState<VehicleExpense[]>([]);
+  const [showPrintReport, setShowPrintReport] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
     category: "paint_repair",
@@ -35,7 +48,7 @@ export default function VehicleDetailPage() {
       loadVehicle();
       loadExpenses();
     }
-  }, [id]);
+  }, [id, user?.id]);
 
   const loadVehicle = async () => {
     const result = await window.api.getVehicleById(id!);
@@ -43,7 +56,8 @@ export default function VehicleDetailPage() {
   };
 
   const loadExpenses = async () => {
-    const result = await window.api.getVehicleExpenses(id!);
+    if (!user) return;
+    const result = await window.api.getVehicleExpenses(user!.id, id!);
     if (result.success) setExpenses(result.data);
   };
 
@@ -102,12 +116,6 @@ export default function VehicleDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Link
-            to={`/inspections/new?vehicleId=${vehicle.id}`}
-            className="btn-secondary flex items-center gap-2"
-          >
-            <FiClipboard /> Inspect
-          </Link>
           {user?.role !== "staff" && (
             <Link
               to={`/vehicles/${vehicle.id}/edit`}
@@ -120,6 +128,19 @@ export default function VehicleDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {vehicle.photo_path && (
+          <div className="card lg:col-span-2">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Vehicle Image
+            </h2>
+            <img
+              src={toFileUrl(vehicle.photo_path)}
+              alt={`${vehicle.make} ${vehicle.model}`}
+              className="w-full max-w-3xl rounded-xl border border-gray-200 object-cover dark:border-gray-700"
+            />
+          </div>
+        )}
+
         {/* Vehicle Info */}
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -255,6 +276,32 @@ export default function VehicleDetailPage() {
               </span>
             </div>
           </div>
+          {(vehicle.seller_photo_path || vehicle.seller_cnic_photo_path) && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {vehicle.seller_photo_path && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">Seller Photo</p>
+                  <img
+                    src={toFileUrl(vehicle.seller_photo_path)}
+                    alt="Seller"
+                    className="w-full max-w-xs rounded-xl border border-gray-200 object-cover dark:border-gray-700"
+                  />
+                </div>
+              )}
+              {vehicle.seller_cnic_photo_path && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Seller CNIC Image
+                  </p>
+                  <img
+                    src={toFileUrl(vehicle.seller_cnic_photo_path)}
+                    alt="Seller CNIC"
+                    className="w-full max-w-sm rounded-xl border border-gray-200 object-cover dark:border-gray-700"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Expenses */}
@@ -373,6 +420,61 @@ export default function VehicleDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Vehicle Inspection Section */}
+      {vehicle.vehicleInspection && (
+        <ErrorBoundary>
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Vehicle Inspection Details
+                </h2>
+                {vehicle.vehicleInspection.markers.length > 0 && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {vehicle.vehicleInspection.markers.length} damage marker
+                    {vehicle.vehicleInspection.markers.length !== 1 ? "s" : ""} recorded
+                    {vehicle.vehicleInspection.inspectorName && (
+                      <> · Inspector: {vehicle.vehicleInspection.inspectorName}</>
+                    )}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setShowPrintReport(true)}
+                className="btn-secondary flex items-center gap-2 text-sm"
+              >
+                <FiPrinter size={15} />
+                Print Inspection Report
+              </button>
+            </div>
+            <Suspense
+              fallback={
+                <div className="p-6 bg-gray-100 dark:bg-gray-900 rounded-lg">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Loading inspection details...
+                  </p>
+                </div>
+              }
+            >
+              <VehicleInspectionSVG
+                inspection={vehicle.vehicleInspection}
+                readonly={true}
+                inspectorName={vehicle.vehicleInspection.inspectorName}
+              />
+            </Suspense>
+          </div>
+        </ErrorBoundary>
+      )}
+
+      {/* Print report modal */}
+      {showPrintReport && vehicle.vehicleInspection && (
+        <InspectionReportPrint
+          vehicle={vehicle}
+          inspection={vehicle.vehicleInspection}
+          onClose={() => setShowPrintReport(false)}
+        />
+      )}
     </div>
   );
 }

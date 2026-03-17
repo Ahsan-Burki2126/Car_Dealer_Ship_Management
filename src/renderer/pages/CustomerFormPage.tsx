@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { toast } from "react-toastify";
 import { FiArrowLeft, FiSave } from "react-icons/fi";
+import { toFileUrl } from "../utils/filePaths";
 
 export default function CustomerFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +18,8 @@ export default function CustomerFormPage() {
     cnic: "",
     phone: "",
     address: "",
+    photo_path: "",
+    cnic_photo_path: "",
     notes: "",
   });
 
@@ -34,9 +37,37 @@ export default function CustomerFormPage() {
         cnic: c.cnic || "",
         phone: c.phone || "",
         address: c.address || "",
+        photo_path: c.photo_path || "",
+        cnic_photo_path: c.cnic_photo_path || "",
         notes: c.notes || "",
       });
     }
+  };
+
+  const handleCustomerImageSelect = async () => {
+    const selected = await window.api.selectImage();
+    if (!selected.success || !selected.data) return;
+
+    const saved = await window.api.saveImage(selected.data, "customers");
+    if (!saved.success || !saved.data) {
+      toast.error(saved.error || "Failed to save customer image");
+      return;
+    }
+
+    update("photo_path", saved.data);
+  };
+
+  const handleCnicImageSelect = async () => {
+    const selected = await window.api.selectImage();
+    if (!selected.success || !selected.data) return;
+
+    const saved = await window.api.saveImage(selected.data, "customer-cnic");
+    if (!saved.success || !saved.data) {
+      toast.error(saved.error || "Failed to save CNIC image");
+      return;
+    }
+
+    update("cnic_photo_path", saved.data);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -123,6 +154,66 @@ export default function CustomerFormPage() {
                 onChange={(e) => update("phone", e.target.value)}
                 className="input-field"
               />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Customer Photo
+              </label>
+              <div className="flex flex-col md:flex-row gap-4">
+                <button
+                  type="button"
+                  onClick={handleCustomerImageSelect}
+                  className="btn-secondary"
+                >
+                  {form.photo_path ? "Replace Photo" : "Upload Photo"}
+                </button>
+                {form.photo_path && (
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={toFileUrl(form.photo_path)}
+                      alt="Customer"
+                      className="w-28 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => update("photo_path", "")}
+                      className="text-sm text-red-600 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                CNIC Image
+              </label>
+              <div className="flex flex-col md:flex-row gap-4">
+                <button
+                  type="button"
+                  onClick={handleCnicImageSelect}
+                  className="btn-secondary"
+                >
+                  {form.cnic_photo_path ? "Replace CNIC Image" : "Upload CNIC Image"}
+                </button>
+                {form.cnic_photo_path && (
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={toFileUrl(form.cnic_photo_path)}
+                      alt="Customer CNIC"
+                      className="w-44 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => update("cnic_photo_path", "")}
+                      className="text-sm text-red-600 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

@@ -60,4 +60,63 @@
   .badge-gray {
     @apply badge bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300;
   }
+
+  /* ── Inspection diagram card ── */
+  .inspection-diagram-card {
+    @apply rounded-xl border border-gray-200 dark:border-gray-700
+           bg-white dark:bg-gray-800 p-4 overflow-hidden;
+  }
+
+  /* The blueprint SVG itself */
+  .inspection-svg {
+    display: block;
+    border-radius: 0.5rem;
+    background: #fff;
+  }
+
+  /* Dark-mode: invert gives white-on-dark look; brightness compensates */
+  .dark .inspection-svg {
+    background: #1f2937;
+  }
+
+  /* Car panel elements tagged with data-panel get smooth fill transitions */
+  [data-panel] {
+    transition: fill 0.12s ease;
+  }
+
+  /* Damage marker group */
+  .damage-marker {
+    transition: opacity 0.15s ease;
+  }
+  .damage-marker circle {
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
+  }
+  .damage-marker:hover {
+    opacity: 1 !important;
+  }
+}
+
+/* ─── Inspection Print Portal ────────────────────────────────────────────────
+   Show/hide is handled purely in JS (InspectionReportPrint.tsx › handlePrint):
+     root.style.display = 'none'   → hides the app
+     portalEl.style.display = 'block' → shows the report
+   This @media print block only sets paper size and forces colour output.
+   ──────────────────────────────────────────────────────────────────────────── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 14mm;
+  }
+
+  /* Force colour printing for SVG fills, strokes and background colours */
+  #inspection-print-portal,
+  #inspection-print-portal * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Avoid page breaks splitting table rows */
+  #inspection-print-portal tr {
+    page-break-inside: avoid;
+  }
 }

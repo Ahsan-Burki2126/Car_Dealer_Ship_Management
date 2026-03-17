@@ -4,6 +4,7 @@ import type { RootState } from "../store";
 import { USER_ROLES } from "../../shared/constants";
 import { toast } from "react-toastify";
 import { FiPlus, FiEdit, FiTrash2, FiUsers } from "react-icons/fi";
+import { confirmDeleteRecord } from "../utils/confirmDelete";
 
 interface UserRecord {
   id: string;
@@ -29,11 +30,12 @@ export default function UsersPage() {
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [currentUser?.id]);
 
   const loadUsers = async () => {
+    if (!currentUser) return;
     setLoading(true);
-    const result = await window.api.getUsers();
+    const result = await window.api.getUsers(currentUser!.id);
     if (result.success) setUsers(result.data || []);
     setLoading(false);
   };
@@ -81,6 +83,18 @@ export default function UsersPage() {
     setShowForm(false);
     setEditId(null);
     setForm({ username: "", password: "", full_name: "", role: "staff" });
+  };
+
+  const handleDelete = async (userId: string) => {
+    if (!currentUser) return;
+    if (!confirmDeleteRecord()) return;
+    const result = await window.api.deleteUser(currentUser.id, userId);
+    if (result.success) {
+      toast.success("User deleted");
+      loadUsers();
+    } else {
+      toast.error(result.error || "Failed to delete user");
+    }
   };
 
   const roleBadge: Record<string, string> = {
@@ -239,12 +253,22 @@ export default function UsersPage() {
                     </td>
                     <td className="table-cell">
                       {u.role !== "super_admin" && (
-                        <button
-                          onClick={() => startEdit(u)}
-                          className="p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded"
-                        >
-                          <FiEdit size={16} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => startEdit(u)}
+                            className="p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded"
+                            title="Edit User"
+                          >
+                            <FiEdit size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(u.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                            title="Delete User"
+                          >
+                            <FiTrash2 size={16} />
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

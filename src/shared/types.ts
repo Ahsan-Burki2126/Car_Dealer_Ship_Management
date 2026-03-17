@@ -43,6 +43,9 @@ export type VehicleStatus =
 
 export interface Vehicle {
   id: string;
+  photo_path?: string;
+  seller_photo_path?: string;
+  seller_cnic_photo_path?: string;
   registration_number: string;
   chassis_number: string;
   engine_number: string;
@@ -62,9 +65,48 @@ export interface Vehicle {
   total_cost: number;
   selling_price?: number;
   notes?: string;
+  vehicleInspection?: VehicleInspection;
   created_by: string;
   created_at: string;
   updated_at: string;
+}
+
+// ---- Vehicle Inspection Types (New SVG-based) ----
+export type DamageType =
+  | "scratch"
+  | "dent"
+  | "repaint"
+  | "rust"
+  | "crack"
+  | "replacement";
+
+export type DamageSeverity =
+  | "P" // Painted
+  | "A1" // Minor Scratch
+  | "A2" // Medium Scratch
+  | "A3" // Major Scratch
+  | "B1" // Minor Dent
+  | "B2" // Medium Dent
+  | "B3" // Major Dent
+  | "U1" // Minor Uneven Paint
+  | "U2" // Repair Mark
+  | "U3"; // Major Repaint
+
+export interface InspectionMarker {
+  id: string;
+  panelId: string;
+  x: number;
+  y: number;
+  damageType: DamageType;
+  severity: DamageSeverity;
+  notes?: string;
+}
+
+export interface VehicleInspection {
+  inspectionDate?: string;
+  inspectorName?: string;
+  markers: InspectionMarker[];
+  completedPanels?: string[];
 }
 
 // ---- Vehicle Expense Types ----
@@ -100,10 +142,12 @@ export interface Customer {
   address: string;
   photo_path?: string;
   cnic_photo_path?: string;
+  notes?: string;
   witness_name?: string;
   witness_father_name?: string;
   witness_cnic?: string;
   witness_phone?: string;
+  witness_cnic_photo_path?: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -111,18 +155,50 @@ export interface Customer {
 
 // ---- Sales Types ----
 export type PaymentType = "cash" | "installment";
+export type CashPaymentMethod = "hard_cash" | "bank_transfer";
 export type SaleStatus = "completed" | "active" | "cancelled";
+export type InstallmentDurationType =
+  | "days"
+  | "months"
+  | "years"
+  | "weekly"
+  | "bi_weekly"
+  | "monthly";
+
+export interface InstallmentScheduleItem {
+  installment_number: number;
+  due_date: string;
+  amount: number;
+}
 
 export interface Sale {
   id: string;
   invoice_number: string;
   date: string;
+  sale_date?: string;
   customer_id: string;
+  customer_name?: string;
+  customer_cnic?: string;
+  customer_phone?: string;
   vehicle_id: string;
   vehicle_price: number;
+  sale_price?: number;
+  vehicle_name?: string;
+  registration_number?: string;
+  chassis_number?: string;
+  engine_number?: string;
   down_payment: number;
   remaining_balance: number;
+  total_paid?: number;
+  balance?: number;
   payment_type: PaymentType;
+  cash_payment_method?: CashPaymentMethod;
+  bank_account_id?: string;
+  bank_account_name?: string;
+  installment_count?: number;
+  installment_frequency?: string;
+  installment_duration_type?: InstallmentDurationType;
+  installment_schedule?: InstallmentScheduleItem[];
   status: SaleStatus;
   notes?: string;
   created_by: string;
@@ -180,59 +256,17 @@ export interface ShowroomExpense {
   created_at: string;
 }
 
-// ---- Inspection Types ----
-export type InspectionPointStatus = "good" | "fair" | "poor" | "not_applicable";
-export type DamageStatus =
-  | "original"
-  | "repainted"
-  | "dented"
-  | "replaced"
-  | "scratched";
-
-export interface Inspection {
+// ---- Bank Accounts ----
+export interface BankAccount {
   id: string;
-  vehicle_id: string;
-  inspector_id: string;
-  inspector_name: string;
-  date: string;
-  overall_score: number;
-  notes?: string;
-  status: "draft" | "completed";
+  name: string;
+  bank_name?: string;
+  account_title?: string;
+  account_number?: string;
+  type: "bank" | "wallet";
+  is_active: boolean;
   created_at: string;
   updated_at: string;
-  // Joined
-  vehicle?: Vehicle;
-  items?: InspectionItem[];
-  damage_map?: DamageMapEntry[];
-  photos?: InspectionPhoto[];
-}
-
-export interface InspectionItem {
-  id: string;
-  inspection_id: string;
-  category: string;
-  item_name: string;
-  status: InspectionPointStatus;
-  score_deduction: number;
-  notes?: string;
-  input_type: "dropdown" | "slider" | "radio" | "text" | "photo";
-  value?: string;
-}
-
-export interface DamageMapEntry {
-  id: string;
-  inspection_id: string;
-  panel: string;
-  status: DamageStatus;
-}
-
-export interface InspectionPhoto {
-  id: string;
-  inspection_id: string;
-  category: string;
-  photo_path: string;
-  caption?: string;
-  created_at: string;
 }
 
 // ---- Audit Log Types ----
@@ -328,6 +362,22 @@ export interface DashboardStats {
   totalExpenses: number;
   pendingInstallments: number;
   overdueInstallments: number;
+  overdueAlerts: Array<{
+    installment_id: string;
+    sale_id: string;
+    customer_name: string;
+    amount: number;
+    due_date: string;
+    invoice_number: string;
+  }>;
   recentSales: Sale[];
   recentActivities: AuditLog[];
+}
+
+export interface BackupRecord {
+  id: string;
+  file_path: string;
+  backup_type: "automatic" | "manual";
+  created_by?: string;
+  created_at: string;
 }

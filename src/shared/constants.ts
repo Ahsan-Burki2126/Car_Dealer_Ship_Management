@@ -38,7 +38,21 @@ export const PAYMENT_TYPES = [
   { value: "installment", label: "Installment Sale" },
 ] as const;
 
+export const CASH_PAYMENT_METHODS = [
+  { value: "hard_cash", label: "Hard Cash" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+] as const;
+
+export const INSTALLMENT_DURATION_TYPES = [
+  { value: "days", label: "Days" },
+  { value: "months", label: "Months" },
+  { value: "years", label: "Years" },
+] as const;
+
 export const INSTALLMENT_FREQUENCIES = [
+  { value: "days", label: "Days" },
+  { value: "months", label: "Months" },
+  { value: "years", label: "Years" },
   { value: "monthly", label: "Monthly" },
   { value: "bi_weekly", label: "Bi-Weekly" },
   { value: "weekly", label: "Weekly" },
@@ -62,10 +76,12 @@ export const INSPECTION_CATEGORIES = [
 
 export const DAMAGE_STATUSES = [
   { value: "original", label: "Original", color: "#10b981" },
+  { value: "scratch", label: "Scratch", color: "#facc15" },
+  { value: "dent", label: "Dent", color: "#f97316" },
   { value: "repainted", label: "Repainted", color: "#f59e0b" },
-  { value: "dented", label: "Dented", color: "#ef4444" },
-  { value: "replaced", label: "Replaced", color: "#8b5cf6" },
-  { value: "scratched", label: "Scratched", color: "#f97316" },
+  { value: "rust", label: "Rust", color: "#92400e" },
+  { value: "cracked", label: "Cracked", color: "#ef4444" },
+  { value: "replaced", label: "Replaced", color: "#dc2626" },
 ] as const;
 
 export const CAR_PANELS = [

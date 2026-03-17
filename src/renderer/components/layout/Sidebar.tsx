@@ -9,11 +9,11 @@ import {
   FiShoppingCart,
   FiCalendar,
   FiDollarSign,
-  FiClipboard,
   FiBarChart2,
   FiShield,
   FiSettings,
   FiUserCheck,
+  FiDatabase,
 } from "react-icons/fi";
 
 const navItems = [
@@ -54,12 +54,6 @@ const navItems = [
     roles: ["super_admin", "admin"],
   },
   {
-    path: "/inspections",
-    label: "Inspections",
-    icon: FiClipboard,
-    roles: ["super_admin", "admin", "staff"],
-  },
-  {
     path: "/reports",
     label: "Reports",
     icon: FiBarChart2,
@@ -67,9 +61,15 @@ const navItems = [
   },
   {
     path: "/audit-logs",
-    label: "Audit Logs",
+    label: "System / Activity Logs",
     icon: FiShield,
     roles: ["super_admin"],
+  },
+  {
+    path: "/backup",
+    label: "Backup",
+    icon: FiDatabase,
+    roles: ["super_admin", "admin"],
   },
   { path: "/users", label: "Users", icon: FiUserCheck, roles: ["super_admin"] },
   {

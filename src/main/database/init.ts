@@ -4,17 +4,25 @@ import { app } from "electron";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 
-let db: Database.Database;
+let db: Database.Database | null = null;
+let dbPath = "";
 
 export function getDatabase(): Database.Database {
   if (!db) {
     const userDataPath = app.getPath("userData");
-    const dbPath = path.join(userDataPath, "dealership.db");
+    dbPath = path.join(userDataPath, "dealership.db");
     db = new Database(dbPath);
     db.pragma("journal_mode = WAL");
     db.pragma("foreign_keys = ON");
   }
   return db;
+}
+
+export function getDatabasePath(): string {
+  if (!dbPath) {
+    dbPath = path.join(app.getPath("userData"), "dealership.db");
+  }
+  return dbPath;
 }
 
 export function initializeDatabase(): void {
@@ -38,10 +46,27 @@ export function initializeDatabase(): void {
     );
 
     -- ============================================================
+    -- BANK ACCOUNTS TABLE
+    -- ============================================================
+    CREATE TABLE IF NOT EXISTS bank_accounts (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      bank_name TEXT,
+      account_title TEXT,
+      account_number TEXT,
+      type TEXT NOT NULL DEFAULT 'bank',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_by TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- ============================================================
     -- VEHICLES TABLE
     -- ============================================================
     CREATE TABLE IF NOT EXISTS vehicles (
       id TEXT PRIMARY KEY,
+      photo_path TEXT,
       registration_number TEXT,
       chassis_number TEXT,
       engine_number TEXT,
@@ -57,15 +82,36 @@ export function initializeDatabase(): void {
       seller_name TEXT,
       seller_cnic TEXT,
       seller_phone TEXT,
+      seller_photo_path TEXT,
+      seller_cnic_photo_path TEXT,
       total_expenses REAL NOT NULL DEFAULT 0,
       total_cost REAL NOT NULL DEFAULT 0,
       selling_price REAL,
       notes TEXT,
+      inspection_points TEXT,
       is_deleted INTEGER NOT NULL DEFAULT 0,
       created_by TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       synced INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    );
+
+    -- ============================================================
+    -- PURCHASES TABLE
+    -- ============================================================
+    CREATE TABLE IF NOT EXISTS purchases (
+      id TEXT PRIMARY KEY,
+      vehicle_id TEXT NOT NULL,
+      seller_customer_id TEXT,
+      purchase_price REAL NOT NULL DEFAULT 0,
+      purchase_date TEXT NOT NULL,
+      notes TEXT,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      synced INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
+      FOREIGN KEY (seller_customer_id) REFERENCES customers(id),
       FOREIGN KEY (created_by) REFERENCES users(id)
     );
 
@@ -110,10 +156,12 @@ export function initializeDatabase(): void {
       address TEXT,
       photo_path TEXT,
       cnic_photo_path TEXT,
+      notes TEXT,
       witness_name TEXT,
       witness_father_name TEXT,
       witness_cnic TEXT,
       witness_phone TEXT,
+      witness_cnic_photo_path TEXT,
       is_deleted INTEGER NOT NULL DEFAULT 0,
       created_by TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -135,6 +183,12 @@ export function initializeDatabase(): void {
       down_payment REAL NOT NULL DEFAULT 0,
       remaining_balance REAL NOT NULL DEFAULT 0,
       payment_type TEXT NOT NULL CHECK(payment_type IN ('cash', 'installment')),
+      installment_count INTEGER NOT NULL DEFAULT 0,
+      installment_frequency TEXT,
+      installment_duration_type TEXT,
+      installment_schedule_json TEXT,
+      cash_payment_method TEXT,
+      bank_account_id TEXT,
       status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('completed', 'active', 'cancelled')),
       notes TEXT,
       is_deleted INTEGER NOT NULL DEFAULT 0,
@@ -144,7 +198,8 @@ export function initializeDatabase(): void {
       synced INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY (customer_id) REFERENCES customers(id),
       FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
-      FOREIGN KEY (created_by) REFERENCES users(id)
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      FOREIGN KEY (bank_account_id) REFERENCES bank_accounts(id)
     );
 
     -- ============================================================
@@ -176,13 +231,15 @@ export function initializeDatabase(): void {
       amount REAL NOT NULL,
       payment_date TEXT NOT NULL,
       payment_method TEXT DEFAULT 'cash',
+      bank_account_id TEXT,
       notes TEXT,
       received_by TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       synced INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY (sale_id) REFERENCES sales(id),
       FOREIGN KEY (installment_id) REFERENCES installments(id),
-      FOREIGN KEY (received_by) REFERENCES users(id)
+      FOREIGN KEY (received_by) REFERENCES users(id),
+      FOREIGN KEY (bank_account_id) REFERENCES bank_accounts(id)
     );
 
     -- ============================================================
@@ -211,6 +268,7 @@ export function initializeDatabase(): void {
       date TEXT NOT NULL,
       overall_score REAL NOT NULL DEFAULT 10.0,
       notes TEXT,
+      inspection_points_snapshot TEXT,
       status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'completed')),
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -242,7 +300,9 @@ export function initializeDatabase(): void {
       id TEXT PRIMARY KEY,
       inspection_id TEXT NOT NULL,
       panel TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'original' CHECK(status IN ('original', 'repainted', 'dented', 'replaced', 'scratched')),
+      status TEXT NOT NULL DEFAULT 'original' CHECK(status IN ('original', 'scratch', 'dent', 'repainted', 'rust', 'cracked', 'replaced')),
+      notes TEXT,
+      photo_paths TEXT,
       FOREIGN KEY (inspection_id) REFERENCES inspections(id) ON DELETE CASCADE
     );
 
@@ -290,10 +350,38 @@ export function initializeDatabase(): void {
     );
 
     -- ============================================================
+    -- BACKUP RECORDS TABLE
+    -- ============================================================
+    CREATE TABLE IF NOT EXISTS backup_records (
+      id TEXT PRIMARY KEY,
+      file_path TEXT NOT NULL,
+      backup_type TEXT NOT NULL CHECK(backup_type IN ('automatic', 'manual')),
+      created_by TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- ============================================================
+    -- IMMUTABILITY TRIGGERS (AUDIT LOGS)
+    -- ============================================================
+    CREATE TRIGGER IF NOT EXISTS trg_audit_logs_no_update
+    BEFORE UPDATE ON audit_logs
+    BEGIN
+      SELECT RAISE(ABORT, 'audit_logs are immutable');
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS trg_audit_logs_no_delete
+    BEFORE DELETE ON audit_logs
+    BEGIN
+      SELECT RAISE(ABORT, 'audit_logs are immutable');
+    END;
+
+    -- ============================================================
     -- INDEXES
     -- ============================================================
+    CREATE INDEX IF NOT EXISTS idx_bank_accounts_active ON bank_accounts(is_active);
     CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
     CREATE INDEX IF NOT EXISTS idx_vehicles_make_model ON vehicles(make, model);
+    CREATE INDEX IF NOT EXISTS idx_purchases_vehicle ON purchases(vehicle_id);
     CREATE INDEX IF NOT EXISTS idx_vehicle_expenses_vehicle ON vehicle_expenses(vehicle_id);
     CREATE INDEX IF NOT EXISTS idx_customers_cnic ON customers(cnic);
     CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
@@ -306,11 +394,36 @@ export function initializeDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_payments_sale ON payments(sale_id);
     CREATE INDEX IF NOT EXISTS idx_inspections_vehicle ON inspections(vehicle_id);
     CREATE INDEX IF NOT EXISTS idx_inspection_items_inspection ON inspection_items(inspection_id);
+    CREATE INDEX IF NOT EXISTS idx_damage_map_inspection ON damage_map(inspection_id);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(affected_entity);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp);
     CREATE INDEX IF NOT EXISTS idx_sync_log_table ON sync_log(table_name, record_id);
+    CREATE INDEX IF NOT EXISTS idx_backup_records_created_at ON backup_records(created_at);
   `);
+
+  ensureColumn(database, "customers", "notes", "TEXT");
+  ensureColumn(database, "customers", "witness_cnic_photo_path", "TEXT");
+  ensureColumn(database, "vehicles", "photo_path", "TEXT");
+  ensureColumn(database, "vehicles", "seller_photo_path", "TEXT");
+  ensureColumn(database, "vehicles", "seller_cnic_photo_path", "TEXT");
+  ensureColumn(database, "vehicles", "inspection_points", "TEXT");
+  ensureColumn(database, "bank_accounts", "bank_name", "TEXT");
+  ensureColumn(database, "sales", "installment_count", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(database, "sales", "installment_frequency", "TEXT");
+  ensureColumn(database, "sales", "installment_duration_type", "TEXT");
+  ensureColumn(database, "sales", "installment_schedule_json", "TEXT");
+  ensureColumn(database, "sales", "cash_payment_method", "TEXT");
+  ensureColumn(database, "sales", "bank_account_id", "TEXT");
+  ensureColumn(database, "payments", "bank_account_id", "TEXT");
+  ensureColumn(database, "inspections", "inspection_points_snapshot", "TEXT");
+  database.exec(`
+    UPDATE bank_accounts
+    SET bank_name = name
+    WHERE bank_name IS NULL OR bank_name = ''
+  `);
+  migrateDamageMap(database);
+  seedDefaultBankAccounts(database);
 
   // Create default super admin if not exists
   const existingAdmin = database
@@ -338,8 +451,100 @@ export function initializeDatabase(): void {
   }
 }
 
+function ensureColumn(
+  database: Database.Database,
+  tableName: string,
+  columnName: string,
+  definition: string,
+): void {
+  const columns = database
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all() as Array<{ name: string }>;
+  if (!columns.some((column) => column.name === columnName)) {
+    database.exec(
+      `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`,
+    );
+  }
+}
+
+function migrateDamageMap(database: Database.Database): void {
+  const columns = database
+    .prepare("PRAGMA table_info(damage_map)")
+    .all() as Array<{ name: string }>;
+  const hasNotes = columns.some((column) => column.name === "notes");
+  const hasPhotoPaths = columns.some((column) => column.name === "photo_paths");
+
+  if (hasNotes && hasPhotoPaths) {
+    return;
+  }
+
+  database.exec(`
+    ALTER TABLE damage_map RENAME TO damage_map_old;
+
+    CREATE TABLE damage_map (
+      id TEXT PRIMARY KEY,
+      inspection_id TEXT NOT NULL,
+      panel TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'original' CHECK(status IN ('original', 'scratch', 'dent', 'repainted', 'rust', 'cracked', 'replaced')),
+      notes TEXT,
+      photo_paths TEXT,
+      FOREIGN KEY (inspection_id) REFERENCES inspections(id) ON DELETE CASCADE
+    );
+
+    INSERT INTO damage_map (id, inspection_id, panel, status, notes, photo_paths)
+    SELECT
+      id,
+      inspection_id,
+      panel,
+      CASE status
+        WHEN 'dented' THEN 'dent'
+        WHEN 'scratched' THEN 'scratch'
+        ELSE status
+      END,
+      '' AS notes,
+      '[]' AS photo_paths
+    FROM damage_map_old;
+
+    DROP TABLE damage_map_old;
+    CREATE INDEX IF NOT EXISTS idx_damage_map_inspection ON damage_map(inspection_id);
+  `);
+}
+
+function seedDefaultBankAccounts(database: Database.Database): void {
+  const count = database
+    .prepare("SELECT COUNT(*) as count FROM bank_accounts")
+    .get() as { count: number };
+
+  if (count.count > 0) {
+    return;
+  }
+
+  const insert = database.prepare(
+    `
+    INSERT INTO bank_accounts (id, name, bank_name, account_title, account_number, type, is_active)
+    VALUES (?, ?, ?, ?, ?, ?, 1)
+  `,
+  );
+
+  const defaults = [
+    { name: "HBL", type: "bank" },
+    { name: "Meezan", type: "bank" },
+    { name: "UBL", type: "bank" },
+    { name: "JazzCash", type: "wallet" },
+    { name: "Easypaisa", type: "wallet" },
+  ];
+
+  const tx = database.transaction(() => {
+    for (const account of defaults) {
+      insert.run(uuidv4(), account.name, account.name, "", "", account.type);
+    }
+  });
+  tx();
+}
+
 export function closeDatabase(): void {
   if (db) {
     db.close();
+    db = null;
   }
 }

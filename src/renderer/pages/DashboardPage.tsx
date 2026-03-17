@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useSelector } from "react-redux";
+import type { RootState } from "../store";
 import {
   FiTruck,
   FiUsers,
@@ -13,15 +15,20 @@ import {
 import type { DashboardStats } from "../../shared/types";
 
 export default function DashboardPage() {
+  const { user } = useSelector((state: RootState) => state.auth);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const isStaff = user?.role === "staff";
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
+    if (user?.id) {
+      loadDashboard();
+    }
+  }, [user?.id]);
 
   const loadDashboard = async () => {
-    const result = await window.api.getDashboardStats();
+    if (!user) return;
+    const result = await window.api.getDashboardStats(user.id);
     if (result.success) setStats(result.data);
     setLoading(false);
   };
@@ -63,36 +70,40 @@ export default function DashboardPage() {
       value: stats.vehiclesOnInstallment,
       icon: FiCalendar,
       color: "bg-orange-500",
-      link: "/installments",
+      link: isStaff ? "/vehicles" : "/installments",
     },
-    {
-      label: "Total Customers",
-      value: stats.totalCustomers,
-      icon: FiUsers,
-      color: "bg-teal-500",
-      link: "/customers",
-    },
-    {
-      label: "Total Sales",
-      value: stats.totalSales,
-      icon: FiShoppingCart,
-      color: "bg-indigo-500",
-      link: "/sales",
-    },
-    {
-      label: "Total Revenue",
-      value: `Rs ${stats.totalRevenue?.toLocaleString() || 0}`,
-      icon: FiDollarSign,
-      color: "bg-emerald-500",
-      link: "/reports",
-    },
-    {
-      label: "Overdue Installments",
-      value: stats.overdueInstallments,
-      icon: FiAlertTriangle,
-      color: "bg-red-500",
-      link: "/installments",
-    },
+    ...(!isStaff
+      ? [
+          {
+            label: "Total Customers",
+            value: stats.totalCustomers,
+            icon: FiUsers,
+            color: "bg-teal-500",
+            link: "/customers",
+          },
+          {
+            label: "Total Sales",
+            value: stats.totalSales,
+            icon: FiShoppingCart,
+            color: "bg-indigo-500",
+            link: "/sales",
+          },
+          {
+            label: "Total Revenue",
+            value: `Rs ${stats.totalRevenue?.toLocaleString() || 0}`,
+            icon: FiDollarSign,
+            color: "bg-emerald-500",
+            link: "/reports",
+          },
+          {
+            label: "Overdue Installments",
+            value: stats.overdueInstallments,
+            icon: FiAlertTriangle,
+            color: "bg-red-500",
+            link: "/installments",
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -106,7 +117,54 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Link
+          to="/vehicles/new"
+          className="card border-l-4 border-l-blue-500 hover:shadow-md transition-shadow"
+        >
+          <p className="text-sm text-gray-500 dark:text-gray-400">Primary Action</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+            Buy Vehicle
+          </p>
+        </Link>
+        {!isStaff && (
+          <Link
+            to="/sales/new"
+            className="card border-l-4 border-l-green-500 hover:shadow-md transition-shadow"
+          >
+            <p className="text-sm text-gray-500 dark:text-gray-400">Primary Action</p>
+            <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+              Sell Vehicle
+            </p>
+          </Link>
+        )}
+      </div>
+
+      {!isStaff && stats.overdueAlerts?.length > 0 && (
+        <div className="card border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10">
+          <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-3">
+            Overdue Installment Alerts
+          </h2>
+          <div className="space-y-2">
+            {stats.overdueAlerts.map((alert) => (
+              <Link
+                key={alert.installment_id}
+                to={`/sales/${alert.sale_id}`}
+                className="block rounded-lg bg-white/80 dark:bg-gray-800/60 p-3 hover:bg-white dark:hover:bg-gray-800"
+              >
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Alert: Customer {alert.customer_name}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-300">
+                  Installment overdue • Amount: Rs {alert.amount.toLocaleString()} • Due:{" "}
+                  {new Date(alert.due_date).toLocaleDateString()}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((card, i) => (
           <Link
@@ -133,9 +191,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent Activity & Sales */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Sales */}
+      {!isStaff && (
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Recent Sales
@@ -175,39 +231,8 @@ export default function DashboardPage() {
             </p>
           )}
         </div>
-
-        {/* Recent Activity */}
-        <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Recent Activity
-          </h2>
-          {stats.recentActivities?.length > 0 ? (
-            <div className="space-y-3">
-              {stats.recentActivities.map((log: any) => (
-                <div
-                  key={log.id}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30"
-                >
-                  <div className="w-2 h-2 rounded-full bg-primary-500 mt-2 flex-shrink-0"></div>
-                  <div className="min-w-0">
-                    <p className="text-sm text-gray-900 dark:text-gray-200">
-                      <span className="font-medium">{log.username}</span>{" "}
-                      {log.action_type} {log.affected_entity}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {new Date(log.timestamp).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              No recent activity.
-            </p>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
+

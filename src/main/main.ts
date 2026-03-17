@@ -1,10 +1,66 @@
-import { app, BrowserWindow, ipcMain, globalShortcut } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  globalShortcut,
+  protocol,
+  net,
+} from "electron";
 import path from "path";
 import http from "http";
+import fs from "fs";
+import { pathToFileURL } from "url";
 import { initializeDatabase, closeDatabase } from "./database/init";
 import { registerIpcHandlers } from "./ipc/handlers";
+import {
+  startAutomaticBackups,
+  stopAutomaticBackups,
+  startAutomaticGoogleDriveBackups,
+  stopAutomaticGoogleDriveBackups,
+} from "./services/backupService";
 
 let mainWindow: BrowserWindow | null = null;
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "local-image",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+    },
+  },
+]);
+
+function registerLocalImageProtocol(): void {
+  protocol.handle("local-image", async (request) => {
+    try {
+      const reqUrl = new URL(request.url);
+      const encodedPath = reqUrl.searchParams.get("path");
+      if (!encodedPath) {
+        return new Response("Missing path", { status: 400 });
+      }
+
+      const requestedPath = decodeURIComponent(encodedPath);
+      const resolvedPath = path.resolve(requestedPath);
+      const imagesRoot = path.resolve(app.getPath("userData"), "images");
+
+      // Limit file serving to the application's managed image directory.
+      if (!resolvedPath.startsWith(imagesRoot)) {
+        return new Response("Forbidden", { status: 403 });
+      }
+
+      if (!fs.existsSync(resolvedPath)) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      return net.fetch(pathToFileURL(resolvedPath).toString());
+    } catch {
+      return new Response("Invalid image request", { status: 400 });
+    }
+  });
+}
 
 function findVitePort(): Promise<number> {
   const candidates = [5173, 5174, 5175, 5176, 5177, 5178, 5179, 5180];
@@ -67,7 +123,10 @@ async function createWindow(): Promise<void> {
 
 app.whenReady().then(() => {
   initializeDatabase();
+  startAutomaticBackups();
+  startAutomaticGoogleDriveBackups();
   registerIpcHandlers();
+  registerLocalImageProtocol();
   createWindow();
 
   app.on("activate", () => {
@@ -78,6 +137,8 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+  stopAutomaticBackups();
+  stopAutomaticGoogleDriveBackups();
   closeDatabase();
   if (process.platform !== "darwin") {
     app.quit();
@@ -85,5 +146,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  stopAutomaticBackups();
+  stopAutomaticGoogleDriveBackups();
   closeDatabase();
 });

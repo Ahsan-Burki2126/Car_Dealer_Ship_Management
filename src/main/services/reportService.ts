@@ -70,6 +70,27 @@ export function getDashboardStats(): DashboardStats {
     )
     .get() as any;
 
+  const overdueAlerts = db
+    .prepare(
+      `
+    SELECT i.id as installment_id, i.sale_id, c.name as customer_name, i.amount, i.due_date, s.invoice_number
+    FROM installments i
+    JOIN sales s ON s.id = i.sale_id
+    JOIN customers c ON c.id = s.customer_id
+    WHERE i.status IN ('pending', 'overdue') AND i.due_date < date('now')
+    ORDER BY i.due_date ASC
+    LIMIT 8
+  `,
+    )
+    .all() as Array<{
+    installment_id: string;
+    sale_id: string;
+    customer_name: string;
+    amount: number;
+    due_date: string;
+    invoice_number: string;
+  }>;
+
   const recentSales = db
     .prepare(
       `
@@ -83,14 +104,6 @@ export function getDashboardStats(): DashboardStats {
     )
     .all() as any[];
 
-  const recentActivities = db
-    .prepare(
-      `
-    SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 10
-  `,
-    )
-    .all() as AuditLog[];
-
   return {
     totalVehicles: vehicles.total,
     vehiclesInStock: vehicles.in_stock,
@@ -102,8 +115,9 @@ export function getDashboardStats(): DashboardStats {
     totalExpenses: expenses.total + vehicleExpenses.total,
     pendingInstallments: pendingInstallments.count,
     overdueInstallments: overdueInstallments.count,
+    overdueAlerts,
     recentSales,
-    recentActivities,
+    recentActivities: [] as AuditLog[],
   };
 }
 

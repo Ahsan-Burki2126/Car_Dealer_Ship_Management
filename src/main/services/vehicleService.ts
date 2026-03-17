@@ -6,36 +6,124 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
   const db = getDatabase();
   const id = uuidv4();
   const totalCost = data.purchase_price || 0;
+  const purchaseDate =
+    data.purchase_date || new Date().toISOString().split("T")[0];
 
-  db.prepare(
-    `
-    INSERT INTO vehicles (id, registration_number, chassis_number, engine_number, make, model, year, color,
-      assembly_country, key_available, status, purchase_price, purchase_date, seller_name, seller_cnic,
-      seller_phone, total_expenses, total_cost, selling_price, notes, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
-  `,
-  ).run(
-    id,
-    data.registration_number || "",
-    data.chassis_number || "",
-    data.engine_number || "",
-    data.make || "",
-    data.model || "",
-    data.year || new Date().getFullYear(),
-    data.color || "",
-    data.assembly_country || "",
-    data.key_available ? 1 : 0,
-    data.status || "purchased",
-    data.purchase_price || 0,
-    data.purchase_date || new Date().toISOString().split("T")[0],
-    data.seller_name || "",
-    data.seller_cnic || "",
-    data.seller_phone || "",
-    totalCost,
-    data.selling_price || null,
-    data.notes || "",
-    userId,
-  );
+  const inspectionJson = data.vehicleInspection
+    ? JSON.stringify(data.vehicleInspection)
+    : null;
+
+  const tx = db.transaction(() => {
+    db.prepare(
+      `
+      INSERT INTO vehicles (id, photo_path, registration_number, chassis_number, engine_number, make, model, year, color,
+        assembly_country, key_available, status, purchase_price, purchase_date, seller_name, seller_cnic,
+        seller_phone, seller_photo_path, seller_cnic_photo_path, total_expenses, total_cost, selling_price, notes, inspection_points, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+    `,
+    ).run(
+      id,
+      data.photo_path || "",
+      data.registration_number || "",
+      data.chassis_number || "",
+      data.engine_number || "",
+      data.make || "",
+      data.model || "",
+      data.year || new Date().getFullYear(),
+      data.color || "",
+      data.assembly_country || "",
+      data.key_available === undefined ? 1 : data.key_available ? 1 : 0,
+      data.status || "in_stock",
+      data.purchase_price || 0,
+      purchaseDate,
+      data.seller_name || "",
+      data.seller_cnic || "",
+      data.seller_phone || "",
+      data.seller_photo_path || "",
+      data.seller_cnic_photo_path || "",
+      totalCost,
+      data.selling_price || null,
+      data.notes || "",
+      inspectionJson,
+      userId,
+    );
+
+    // Seller is also a customer to preserve a single person profile across buy/sell flows.
+    const sellerName = (data.seller_name || "").trim();
+    const sellerCnic = (data.seller_cnic || "").trim();
+    const sellerPhone = (data.seller_phone || "").trim();
+    let sellerCustomerId: string | null = null;
+
+    if (sellerName || sellerCnic || sellerPhone) {
+      const seller = db
+        .prepare(
+          `
+          SELECT id
+          FROM customers
+          WHERE is_deleted = 0 AND (
+            (cnic != '' AND cnic = ?) OR
+            (phone != '' AND phone = ?) OR
+            (name = ? AND name != '')
+          )
+          LIMIT 1
+        `,
+        )
+        .get(sellerCnic, sellerPhone, sellerName) as { id: string } | undefined;
+
+      if (seller) {
+        sellerCustomerId = seller.id;
+        if (data.seller_photo_path || data.seller_cnic_photo_path) {
+          db.prepare(
+            `
+            UPDATE customers
+            SET photo_path = COALESCE(NULLIF(?, ''), photo_path),
+                cnic_photo_path = COALESCE(NULLIF(?, ''), cnic_photo_path),
+                updated_at = datetime('now'),
+                synced = 0
+            WHERE id = ?
+          `,
+          ).run(
+            data.seller_photo_path || "",
+            data.seller_cnic_photo_path || "",
+            sellerCustomerId,
+          );
+        }
+      } else if (sellerName) {
+        sellerCustomerId = uuidv4();
+        db.prepare(
+          `
+          INSERT INTO customers (id, name, father_name, cnic, phone, address, photo_path, cnic_photo_path, created_by)
+          VALUES (?, ?, '', ?, ?, '', ?, ?, ?)
+        `,
+        ).run(
+          sellerCustomerId,
+          sellerName,
+          sellerCnic,
+          sellerPhone,
+          data.seller_photo_path || "",
+          data.seller_cnic_photo_path || "",
+          userId,
+        );
+      }
+    }
+
+    db.prepare(
+      `
+      INSERT INTO purchases (id, vehicle_id, seller_customer_id, purchase_price, purchase_date, notes, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `,
+    ).run(
+      uuidv4(),
+      id,
+      sellerCustomerId,
+      data.purchase_price || 0,
+      purchaseDate,
+      data.notes || "",
+      userId,
+    );
+  });
+
+  tx();
 
   // Audit log
   const user = db
@@ -124,6 +212,7 @@ export function updateVehicle(
   const values: any[] = [];
 
   const fields = [
+    "photo_path",
     "registration_number",
     "chassis_number",
     "engine_number",
@@ -138,6 +227,8 @@ export function updateVehicle(
     "seller_name",
     "seller_cnic",
     "seller_phone",
+    "seller_photo_path",
+    "seller_cnic_photo_path",
     "selling_price",
     "notes",
   ];
@@ -147,6 +238,13 @@ export function updateVehicle(
       updates.push(`${field} = ?`);
       values.push((data as any)[field]);
     }
+  }
+
+  if (data.vehicleInspection !== undefined) {
+    updates.push("inspection_points = ?");
+    values.push(
+      data.vehicleInspection ? JSON.stringify(data.vehicleInspection) : null,
+    );
   }
 
   if (data.key_available !== undefined) {
@@ -246,8 +344,17 @@ export function restoreVehicle(userId: string, id: string): void {
 }
 
 function mapVehicleRow(row: any): Vehicle {
+  let vehicleInspection = undefined;
+  if (row.inspection_points) {
+    try {
+      vehicleInspection = JSON.parse(row.inspection_points);
+    } catch {
+      // ignore malformed JSON
+    }
+  }
   return {
     id: row.id,
+    photo_path: row.photo_path,
     registration_number: row.registration_number,
     chassis_number: row.chassis_number,
     engine_number: row.engine_number,
@@ -263,10 +370,13 @@ function mapVehicleRow(row: any): Vehicle {
     seller_name: row.seller_name,
     seller_cnic: row.seller_cnic,
     seller_phone: row.seller_phone,
+    seller_photo_path: row.seller_photo_path,
+    seller_cnic_photo_path: row.seller_cnic_photo_path,
     total_expenses: row.total_expenses,
     total_cost: row.total_cost,
     selling_price: row.selling_price,
     notes: row.notes,
+    vehicleInspection,
     created_by: row.created_by,
     created_at: row.created_at,
     updated_at: row.updated_at,

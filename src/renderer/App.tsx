@@ -21,13 +21,11 @@ import SaleFormPage from "./pages/SaleFormPage";
 import SaleDetailPage from "./pages/SaleDetailPage";
 import InstallmentsPage from "./pages/InstallmentsPage";
 import ExpensesPage from "./pages/ExpensesPage";
-import InspectionsPage from "./pages/InspectionsPage";
-import InspectionFormPage from "./pages/InspectionFormPage";
-import InspectionDetailPage from "./pages/InspectionDetailPage";
 import ReportsPage from "./pages/ReportsPage";
 import AuditLogsPage from "./pages/AuditLogsPage";
 import UsersPage from "./pages/UsersPage";
 import SettingsPage from "./pages/SettingsPage";
+import BackupPage from "./pages/BackupPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useSelector(
@@ -73,18 +71,86 @@ export default function App() {
         <Route path="vehicles/new" element={<VehicleFormPage />} />
         <Route path="vehicles/:id" element={<VehicleDetailPage />} />
         <Route path="vehicles/:id/edit" element={<VehicleFormPage />} />
-        <Route path="customers" element={<CustomersPage />} />
-        <Route path="customers/new" element={<CustomerFormPage />} />
-        <Route path="customers/:id" element={<CustomerDetailPage />} />
-        <Route path="customers/:id/edit" element={<CustomerFormPage />} />
-        <Route path="sales" element={<SalesPage />} />
-        <Route path="sales/new" element={<SaleFormPage />} />
-        <Route path="sales/:id" element={<SaleDetailPage />} />
-        <Route path="installments" element={<InstallmentsPage />} />
-        <Route path="expenses" element={<ExpensesPage />} />
-        <Route path="inspections" element={<InspectionsPage />} />
-        <Route path="inspections/new" element={<InspectionFormPage />} />
-        <Route path="inspections/:id" element={<InspectionDetailPage />} />
+        <Route
+          path="customers"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <CustomersPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="customers/new"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <CustomerFormPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="customers/:id"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <CustomerDetailPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="customers/:id/edit"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <CustomerFormPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="sales"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <SalesPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="sales/new"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <SaleFormPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="sales/:id"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <SaleDetailPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="sales/:id/edit"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <SaleFormPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="installments"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <InstallmentsPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="expenses"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <ExpensesPage />
+            </RoleRoute>
+          }
+        />
         <Route
           path="reports"
           element={
@@ -106,6 +172,14 @@ export default function App() {
           element={
             <RoleRoute roles={["super_admin"]}>
               <UsersPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="backup"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <BackupPage />
             </RoleRoute>
           }
         />

@@ -31,11 +31,12 @@ export default function InstallmentsPage() {
 
   useEffect(() => {
     loadOverdue();
-  }, []);
+  }, [user?.id]);
 
   const loadOverdue = async () => {
+    if (!user) return;
     setLoading(true);
-    const result = await window.api.getOverdueInstallments();
+    const result = await window.api.getOverdueInstallments(user!.id);
     if (result.success) setInstallments(result.data || []);
     setLoading(false);
   };
@@ -45,7 +46,10 @@ export default function InstallmentsPage() {
     const result = await window.api.payInstallment(
       user!.id,
       paymentModal.id,
-      paymentModal.amount,
+      {
+        amount: paymentModal.amount,
+        payment_date: new Date().toISOString().split("T")[0],
+      },
     );
     if (result.success) {
       toast.success("Payment recorded");

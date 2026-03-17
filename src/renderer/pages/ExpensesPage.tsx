@@ -16,7 +16,7 @@ interface Expense {
   category: string;
   description: string;
   amount: number;
-  expense_date: string;
+  date: string;
   created_at: string;
 }
 
@@ -46,14 +46,15 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     loadExpenses();
-  }, [page, category, dateFrom, dateTo]);
+  }, [page, category, dateFrom, dateTo, user?.id]);
 
   const loadExpenses = async () => {
+    if (!user) return;
     setLoading(true);
-    const result = await window.api.getShowroomExpenses({
+    const result = await window.api.getShowroomExpenses(user!.id, {
       category,
-      date_from: dateFrom,
-      date_to: dateTo,
+      startDate: dateFrom,
+      endDate: dateTo,
       page,
       limit,
     });
@@ -69,6 +70,7 @@ export default function ExpensesPage() {
     const result = await window.api.addShowroomExpense(user!.id, {
       ...form,
       amount: parseFloat(form.amount) || 0,
+      date: form.expense_date,
     });
     if (result.success) {
       toast.success("Expense added");
@@ -269,7 +271,7 @@ export default function ExpensesPage() {
                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   >
                     <td className="table-cell">
-                      {new Date(e.expense_date).toLocaleDateString()}
+                      {new Date(e.date).toLocaleDateString()}
                     </td>
                     <td className="table-cell capitalize">
                       {e.category.replace(/_/g, " ")}

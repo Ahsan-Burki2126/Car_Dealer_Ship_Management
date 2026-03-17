@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import type { RootState } from "../store";
 import {
   FiPlus,
   FiSearch,
   FiEye,
+  FiEdit,
+  FiTrash2,
   FiChevronLeft,
   FiChevronRight,
 } from "react-icons/fi";
+import { toast } from "react-toastify";
+import { confirmDeleteRecord } from "../utils/confirmDelete";
 
 interface Sale {
   id: string;
@@ -28,6 +34,7 @@ const statusBadge: Record<string, string> = {
 };
 
 export default function SalesPage() {
+  const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
   const [sales, setSales] = useState<Sale[]>([]);
   const [total, setTotal] = useState(0);
@@ -39,11 +46,12 @@ export default function SalesPage() {
 
   useEffect(() => {
     loadSales();
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, user?.id]);
 
   const loadSales = async () => {
+    if (!user) return;
     setLoading(true);
-    const result = await window.api.getSales({
+    const result = await window.api.getSales(user!.id, {
       search,
       status: statusFilter,
       page,
@@ -54,6 +62,31 @@ export default function SalesPage() {
       setTotal(result.data.total);
     }
     setLoading(false);
+  };
+
+  const handleDelete = async (saleId: string) => {
+    if (!user) return;
+    if (!confirmDeleteRecord()) return;
+
+    let result = await window.api.deleteSale(user.id, saleId, false);
+    if (
+      !result.success &&
+      user.role === "super_admin" &&
+      String(result.error || "").toLowerCase().includes("confirmation")
+    ) {
+      const proceed = window.confirm(
+        "This sale has installments. As Super Admin, do you want to force delete it and restore vehicle stock?",
+      );
+      if (!proceed) return;
+      result = await window.api.deleteSale(user.id, saleId, true);
+    }
+
+    if (result.success) {
+      toast.success("Sale deleted");
+      loadSales();
+    } else {
+      toast.error(result.error || "Failed to delete sale");
+    }
   };
 
   const totalPages = Math.ceil(total / limit);
@@ -167,12 +200,29 @@ export default function SalesPage() {
                       {new Date(s.sale_date).toLocaleDateString()}
                     </td>
                     <td className="table-cell">
-                      <Link
-                        to={`/sales/${s.id}`}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
-                      >
-                        <FiEye size={16} />
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to={`/sales/${s.id}`}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                          title="View"
+                        >
+                          <FiEye size={16} />
+                        </Link>
+                        <Link
+                          to={`/sales/${s.id}/edit`}
+                          className="p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded"
+                          title="Edit"
+                        >
+                          <FiEdit size={16} />
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(s.id)}
+                          className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                          title="Delete"
+                        >
+                          <FiTrash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

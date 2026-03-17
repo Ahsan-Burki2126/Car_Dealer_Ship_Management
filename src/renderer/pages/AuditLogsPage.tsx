@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import type { RootState } from "../store";
 import {
-  FiSearch,
   FiChevronLeft,
   FiChevronRight,
   FiShield,
@@ -8,13 +9,13 @@ import {
 
 interface AuditLog {
   id: string;
-  user_id: string;
   username: string;
-  action: string;
-  entity_type: string;
-  entity_id: string;
-  details: string;
-  created_at: string;
+  action_type: string;
+  affected_entity: string;
+  entity_id?: string;
+  old_value?: string;
+  new_value?: string;
+  timestamp: string;
 }
 
 const actionBadge: Record<string, string> = {
@@ -24,24 +25,30 @@ const actionBadge: Record<string, string> = {
   delete: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   login:
     "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  payment:
+    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  restore:
+    "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
 };
 
 export default function AuditLogsPage() {
+  const { user } = useSelector((state: RootState) => state.auth);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [entityType, setEntityType] = useState("");
+  const [entity, setEntity] = useState("");
   const [page, setPage] = useState(1);
   const limit = 30;
 
   useEffect(() => {
     loadLogs();
-  }, [page, entityType]);
+  }, [page, entity, user?.id]);
 
   const loadLogs = async () => {
+    if (!user) return;
     setLoading(true);
-    const result = await window.api.getAuditLogs({
-      entity_type: entityType,
+    const result = await window.api.getAuditLogs(user!.id, {
+      entity,
       page,
       limit,
     });
@@ -59,7 +66,7 @@ export default function AuditLogsPage() {
       <div className="flex items-center gap-3">
         <FiShield className="text-blue-600" size={24} />
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Audit Logs
+          System Activity Logs
         </h1>
         <span className="text-sm text-gray-500">({total} entries)</span>
       </div>
@@ -67,25 +74,26 @@ export default function AuditLogsPage() {
       <div className="card">
         <div className="flex gap-4 mb-4">
           <select
-            value={entityType}
+            value={entity}
             onChange={(e) => {
-              setEntityType(e.target.value);
+              setEntity(e.target.value);
               setPage(1);
             }}
             className="input-field w-auto"
           >
             <option value="">All Entities</option>
             {[
-              "user",
-              "vehicle",
-              "customer",
-              "sale",
-              "installment",
-              "inspection",
-              "expense",
-            ].map((e) => (
-              <option key={e} value={e}>
-                {e.charAt(0).toUpperCase() + e.slice(1)}
+              "users",
+              "vehicles",
+              "customers",
+              "sales",
+              "installments",
+              "inspections",
+              "showroom_expenses",
+              "database",
+            ].map((entityValue) => (
+              <option key={entityValue} value={entityValue}>
+                {entityValue.replace(/_/g, " ")}
               </option>
             ))}
           </select>
@@ -125,24 +133,24 @@ export default function AuditLogsPage() {
                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   >
                     <td className="table-cell text-sm whitespace-nowrap">
-                      {new Date(log.created_at).toLocaleString()}
+                      {new Date(log.timestamp).toLocaleString()}
                     </td>
                     <td className="table-cell font-medium">{log.username}</td>
                     <td className="table-cell">
                       <span
-                        className={`text-xs px-2 py-0.5 rounded font-medium ${actionBadge[log.action] || "bg-gray-100 text-gray-700"}`}
+                        className={`text-xs px-2 py-0.5 rounded font-medium ${actionBadge[log.action_type] || "bg-gray-100 text-gray-700"}`}
                       >
-                        {log.action}
+                        {log.action_type}
                       </span>
                     </td>
                     <td className="table-cell">
-                      <span className="capitalize">{log.entity_type}</span>
+                      <span className="capitalize">{log.affected_entity}</span>
                       <span className="text-xs text-gray-400 ml-1">
                         #{log.entity_id?.slice(0, 8)}
                       </span>
                     </td>
                     <td className="table-cell text-sm text-gray-600 dark:text-gray-400 max-w-md truncate">
-                      {log.details || "-"}
+                      {log.new_value || log.old_value || "-"}
                     </td>
                   </tr>
                 ))
@@ -159,14 +167,14 @@ export default function AuditLogsPage() {
             </span>
             <div className="flex gap-2">
               <button
-                onClick={() => setPage((p) => p - 1)}
+                onClick={() => setPage((prev) => prev - 1)}
                 disabled={page === 1}
                 className="btn-secondary p-2 disabled:opacity-50"
               >
                 <FiChevronLeft />
               </button>
               <button
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => setPage((prev) => prev + 1)}
                 disabled={page === totalPages}
                 className="btn-secondary p-2 disabled:opacity-50"
               >

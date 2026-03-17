@@ -3,7 +3,9 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { toast } from "react-toastify";
-import { FiArrowLeft, FiCheck, FiPrinter } from "react-icons/fi";
+import { FiArrowLeft, FiCheck, FiPrinter, FiEdit, FiTrash2 } from "react-icons/fi";
+import { generateInvoicePdf } from "../utils/pdfGenerator";
+import { confirmDeleteRecord } from "../utils/confirmDelete";
 
 interface SaleDetail {
   id: string;
@@ -15,9 +17,13 @@ interface SaleDetail {
   vehicle_id: string;
   vehicle_name: string;
   registration_number: string;
+  chassis_number?: string;
+  engine_number?: string;
   sale_price: number;
   down_payment: number;
   payment_type: string;
+  cash_payment_method?: string;
+  bank_account_name?: string;
   installment_count: number;
   installment_frequency: string;
   status: string;
@@ -60,15 +66,17 @@ export default function SaleDetailPage() {
       loadSale();
       loadInstallments();
     }
-  }, [id]);
+  }, [id, user?.id]);
 
   const loadSale = async () => {
-    const result = await window.api.getSaleById(id!);
+    if (!user) return;
+    const result = await window.api.getSaleById(user!.id, id!);
     if (result.success) setSale(result.data);
   };
 
   const loadInstallments = async () => {
-    const result = await window.api.getInstallments(id!);
+    if (!user) return;
+    const result = await window.api.getInstallments(user!.id, id!);
     if (result.success) setInstallments(result.data || []);
   };
 
@@ -77,7 +85,10 @@ export default function SaleDetailPage() {
     const result = await window.api.payInstallment(
       user!.id,
       paymentModal.installmentId,
-      paymentModal.amount,
+      {
+        amount: paymentModal.amount,
+        payment_date: new Date().toISOString().split("T")[0],
+      },
     );
     if (result.success) {
       toast.success("Payment recorded");
@@ -97,6 +108,64 @@ export default function SaleDetailPage() {
     sale.sale_price > 0
       ? Math.round((sale.total_paid / sale.sale_price) * 100)
       : 0;
+
+  const handleExportInvoice = async () => {
+    const doc = generateInvoicePdf({
+      invoice_number: sale.invoice_number,
+      sale_date: sale.sale_date,
+      customer_name: sale.customer_name,
+      customer_cnic: sale.customer_cnic,
+      customer_phone: sale.customer_phone,
+      vehicle_name: sale.vehicle_name,
+      registration_number: sale.registration_number,
+      chassis_number: sale.chassis_number,
+      engine_number: sale.engine_number,
+      sale_price: sale.sale_price,
+      down_payment: sale.down_payment,
+      payment_type: sale.payment_type,
+      notes: sale.notes,
+      installments: installments.map((installment) => ({
+        number: installment.installment_number,
+        due_date: installment.due_date,
+        amount: installment.amount,
+      })),
+    });
+
+    const saved = await window.api.savePdf(
+      new Uint8Array(doc.output("arraybuffer")),
+      `${sale.invoice_number}.pdf`,
+    );
+    if (saved.success && saved.data) {
+      toast.success("Invoice PDF saved");
+    } else if (!saved.success) {
+      toast.error(saved.error || "Failed to save invoice");
+    }
+  };
+
+  const handleDeleteSale = async () => {
+    if (!user) return;
+    if (!confirmDeleteRecord()) return;
+
+    let result = await window.api.deleteSale(user.id, sale.id, false);
+    if (
+      !result.success &&
+      user.role === "super_admin" &&
+      String(result.error || "").toLowerCase().includes("confirmation")
+    ) {
+      const proceed = window.confirm(
+        "This sale has installments. As Super Admin, do you want to force delete it and restore vehicle stock?",
+      );
+      if (!proceed) return;
+      result = await window.api.deleteSale(user.id, sale.id, true);
+    }
+
+    if (result.success) {
+      toast.success("Sale deleted");
+      navigate("/sales");
+    } else {
+      toast.error(result.error || "Failed to delete sale");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -120,6 +189,26 @@ export default function SaleDetailPage() {
         >
           {sale.status}
         </span>
+      </div>
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => navigate(`/sales/${sale.id}/edit`)}
+          className="btn-secondary flex items-center gap-2"
+        >
+          <FiEdit /> Edit Sale
+        </button>
+        <button
+          onClick={handleDeleteSale}
+          className="btn-secondary text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+        >
+          <FiTrash2 /> Delete Sale
+        </button>
+        <button
+          onClick={handleExportInvoice}
+          className="btn-secondary flex items-center gap-2"
+        >
+          <FiPrinter /> Export Invoice PDF
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -193,6 +282,16 @@ export default function SaleDetailPage() {
               <div className="flex justify-between">
                 <dt className="text-gray-500">Down Payment</dt>
                 <dd>{formatCurrency(sale.down_payment)}</dd>
+              </div>
+            )}
+            {sale.payment_type === "cash" && (
+              <div className="flex justify-between">
+                <dt className="text-gray-500">Method</dt>
+                <dd>
+                  {sale.cash_payment_method === "bank_transfer"
+                    ? `Bank Transfer${sale.bank_account_name ? ` (${sale.bank_account_name})` : ""}`
+                    : "Hard Cash"}
+                </dd>
               </div>
             )}
             <div className="flex justify-between">

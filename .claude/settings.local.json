@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(head -5 \"d:/Automobile Dealership Management and Inspection System/public/assets/Ahsan''''s Car Blueprint Black & White.svg\")",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

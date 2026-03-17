@@ -9,8 +9,8 @@ export function addCustomer(userId: string, data: Partial<Customer>): Customer {
   db.prepare(
     `
     INSERT INTO customers (id, name, father_name, cnic, phone, address, photo_path, cnic_photo_path,
-      witness_name, witness_father_name, witness_cnic, witness_phone, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      notes, witness_name, witness_father_name, witness_cnic, witness_phone, witness_cnic_photo_path, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
   ).run(
     id,
@@ -21,10 +21,12 @@ export function addCustomer(userId: string, data: Partial<Customer>): Customer {
     data.address || "",
     data.photo_path || "",
     data.cnic_photo_path || "",
+    data.notes || "",
     data.witness_name || "",
     data.witness_father_name || "",
     data.witness_cnic || "",
     data.witness_phone || "",
+    data.witness_cnic_photo_path || "",
     userId,
   );
 
@@ -115,10 +117,12 @@ export function updateCustomer(
     "address",
     "photo_path",
     "cnic_photo_path",
+    "notes",
     "witness_name",
     "witness_father_name",
     "witness_cnic",
     "witness_phone",
+    "witness_cnic_photo_path",
   ];
 
   for (const field of fields) {
@@ -185,10 +189,12 @@ function mapCustomerRow(row: any): Customer {
     address: row.address,
     photo_path: row.photo_path,
     cnic_photo_path: row.cnic_photo_path,
+    notes: row.notes,
     witness_name: row.witness_name,
     witness_father_name: row.witness_father_name,
     witness_cnic: row.witness_cnic,
     witness_phone: row.witness_phone,
+    witness_cnic_photo_path: row.witness_cnic_photo_path,
     created_by: row.created_by,
     created_at: row.created_at,
     updated_at: row.updated_at,

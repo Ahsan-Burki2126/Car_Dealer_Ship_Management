@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useSelector } from "react-redux";
+import type { RootState } from "../store";
 import { FiArrowLeft, FiEdit, FiFileText } from "react-icons/fi";
+import { toFileUrl } from "../utils/filePaths";
 
 interface CustomerDetail {
   id: string;
@@ -9,6 +12,13 @@ interface CustomerDetail {
   cnic: string;
   phone: string;
   address: string;
+  photo_path?: string;
+  cnic_photo_path?: string;
+  witness_name?: string;
+  witness_father_name?: string;
+  witness_cnic?: string;
+  witness_phone?: string;
+  witness_cnic_photo_path?: string;
   notes: string;
   created_at: string;
 }
@@ -35,6 +45,7 @@ interface LedgerData {
 }
 
 export default function CustomerDetailPage() {
+  const { user } = useSelector((state: RootState) => state.auth);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
@@ -50,7 +61,7 @@ export default function CustomerDetailPage() {
       loadCustomer();
       loadLedger();
     }
-  }, [id]);
+  }, [id, user?.id]);
 
   const loadCustomer = async () => {
     const result = await window.api.getCustomerById(id!);
@@ -58,7 +69,8 @@ export default function CustomerDetailPage() {
   };
 
   const loadLedger = async () => {
-    const result = await window.api.getCustomerLedger(id!);
+    if (!user) return;
+    const result = await window.api.getCustomerLedger(user!.id, id!);
     if (result.success)
       setLedger(
         result.data || {
@@ -109,6 +121,10 @@ export default function CustomerDetailPage() {
               ["CNIC", customer.cnic || "-"],
               ["Phone", customer.phone || "-"],
               ["Address", customer.address || "-"],
+              ["Witness Name", customer.witness_name || "-"],
+              ["Witness Father Name", customer.witness_father_name || "-"],
+              ["Witness CNIC", customer.witness_cnic || "-"],
+              ["Witness Phone", customer.witness_phone || "-"],
               ["Notes", customer.notes || "-"],
               [
                 "Registered",
@@ -169,6 +185,47 @@ export default function CustomerDetailPage() {
           </div>
         </div>
       </div>
+
+      {(customer.photo_path || customer.cnic_photo_path || customer.witness_cnic_photo_path) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {customer.photo_path && (
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Customer Photo
+              </h2>
+              <img
+                src={toFileUrl(customer.photo_path)}
+                alt={customer.name}
+                className="max-w-full rounded-xl border border-gray-200 dark:border-gray-700"
+              />
+            </div>
+          )}
+          {customer.cnic_photo_path && (
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                CNIC Image
+              </h2>
+              <img
+                src={toFileUrl(customer.cnic_photo_path)}
+                alt={`${customer.name} CNIC`}
+                className="max-w-full rounded-xl border border-gray-200 dark:border-gray-700"
+              />
+            </div>
+          )}
+          {customer.witness_cnic_photo_path && (
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Witness CNIC Image
+              </h2>
+              <img
+                src={toFileUrl(customer.witness_cnic_photo_path)}
+                alt={`${customer.name} Witness CNIC`}
+                className="max-w-full rounded-xl border border-gray-200 dark:border-gray-700"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Ledger */}
       <div className="card">

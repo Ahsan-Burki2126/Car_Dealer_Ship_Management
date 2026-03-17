@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import type { RootState } from "../store";
 import {
   FiTrendingUp,
   FiDollarSign,
@@ -36,6 +38,7 @@ interface InventoryReport {
 }
 
 export default function ReportsPage() {
+  const { user } = useSelector((state: RootState) => state.auth);
   const [tab, setTab] = useState<ReportTab>("sales");
   const [period, setPeriod] = useState("monthly");
   const [salesReport, setSalesReport] = useState<SalesReport | null>(null);
@@ -46,18 +49,19 @@ export default function ReportsPage() {
 
   useEffect(() => {
     loadReport();
-  }, [tab, period]);
+  }, [tab, period, user?.id]);
 
   const loadReport = async () => {
+    if (!user) return;
     setLoading(true);
     if (tab === "sales") {
-      const result = await window.api.getSalesReport(period);
+      const result = await window.api.getSalesReport(user!.id, period);
       if (result.success) setSalesReport(result.data);
     } else if (tab === "profit") {
-      const result = await window.api.getProfitReport();
+      const result = await window.api.getProfitReport(user!.id);
       if (result.success) setProfitReport(result.data || []);
     } else {
-      const result = await window.api.getInventoryReport();
+      const result = await window.api.getInventoryReport(user!.id);
       if (result.success) setInventoryReport(result.data);
     }
     setLoading(false);

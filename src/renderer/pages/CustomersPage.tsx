@@ -12,6 +12,7 @@ import {
   FiChevronLeft,
   FiChevronRight,
 } from "react-icons/fi";
+import { confirmDeleteRecord } from "../utils/confirmDelete";
 
 interface Customer {
   id: string;
@@ -47,8 +48,8 @@ export default function CustomersPage() {
     setLoading(false);
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete customer "${name}"?`)) return;
+  const handleDelete = async (id: string) => {
+    if (!confirmDeleteRecord()) return;
     const result = await window.api.deleteCustomer(user!.id, id);
     if (result.success) {
       toast.success("Customer deleted");
@@ -147,7 +148,7 @@ export default function CustomersPage() {
                           <FiEdit size={16} />
                         </Link>
                         <button
-                          onClick={() => handleDelete(c.id, c.name)}
+                          onClick={() => handleDelete(c.id)}
                           className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                         >
                           <FiTrash2 size={16} />

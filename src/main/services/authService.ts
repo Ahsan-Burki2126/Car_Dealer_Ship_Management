@@ -89,7 +89,7 @@ export function createUser(
 ): User {
   const db = getDatabase();
   const admin = db
-    .prepare("SELECT role FROM users WHERE id = ?")
+    .prepare("SELECT role, username FROM users WHERE id = ?")
     .get(adminId) as any;
 
   if (!admin || admin.role !== "super_admin") {
@@ -255,4 +255,58 @@ export function changePassword(
   db.prepare(
     "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?",
   ).run(newHash, userId);
+}
+
+export function deleteUser(adminId: string, userId: string): void {
+  const db = getDatabase();
+  const admin = db
+    .prepare("SELECT role, username FROM users WHERE id = ?")
+    .get(adminId) as { role: UserRole; username: string } | undefined;
+  if (!admin || admin.role !== "super_admin") {
+    throw new Error("Only Super Admin can delete users");
+  }
+  if (adminId === userId) {
+    throw new Error("You cannot delete your own account");
+  }
+
+  const existing = db
+    .prepare("SELECT id, username, role, is_active FROM users WHERE id = ?")
+    .get(userId) as
+    | { id: string; username: string; role: UserRole; is_active: number }
+    | undefined;
+  if (!existing) {
+    throw new Error("User not found");
+  }
+  if (!existing.is_active) {
+    throw new Error("User is already deleted");
+  }
+
+  if (existing.role === "super_admin") {
+    const superAdminCount = db
+      .prepare(
+        "SELECT COUNT(*) as count FROM users WHERE role = 'super_admin' AND is_active = 1",
+      )
+      .get() as { count: number };
+    if (superAdminCount.count <= 1) {
+      throw new Error("Cannot delete the last active Super Admin");
+    }
+  }
+
+  db.prepare(
+    "UPDATE users SET is_active = 0, updated_at = datetime('now') WHERE id = ?",
+  ).run(userId);
+
+  db.prepare(
+    `
+    INSERT INTO audit_logs (id, user_id, username, role, action_type, affected_entity, entity_id, old_value, timestamp)
+    VALUES (?, ?, ?, ?, 'delete', 'users', ?, ?, datetime('now'))
+  `,
+  ).run(
+    uuidv4(),
+    adminId,
+    admin.username,
+    admin.role,
+    userId,
+    JSON.stringify({ username: existing.username, role: existing.role }),
+  );
 }

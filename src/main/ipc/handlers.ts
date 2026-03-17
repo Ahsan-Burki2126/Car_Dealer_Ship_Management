@@ -2,19 +2,41 @@ import { ipcMain, dialog, app } from "electron";
 import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
+import { getDatabase } from "../database/init";
 import * as authService from "../services/authService";
 import * as vehicleService from "../services/vehicleService";
 import * as vehicleExpenseService from "../services/vehicleExpenseService";
 import * as customerService from "../services/customerService";
 import * as salesService from "../services/salesService";
 import * as showroomExpenseService from "../services/showroomExpenseService";
-import * as inspectionService from "../services/inspectionService";
 import * as reportService from "../services/reportService";
+import * as bankAccountService from "../services/bankAccountService";
+import * as backupService from "../services/backupService";
+import type { UserRole } from "../../shared/types";
 
 function handleError(error: unknown): { success: false; error: string } {
   const message =
     error instanceof Error ? error.message : "An unexpected error occurred";
   return { success: false, error: message };
+}
+
+function getUserRole(userId: string): UserRole {
+  const db = getDatabase();
+  const user = db
+    .prepare("SELECT role FROM users WHERE id = ? AND is_active = 1")
+    .get(userId) as { role: UserRole } | undefined;
+  if (!user) {
+    throw new Error("Unauthorized user");
+  }
+  return user.role;
+}
+
+function requireRole(userId: string, roles: UserRole[]): UserRole {
+  const role = getUserRole(userId);
+  if (!roles.includes(role)) {
+    throw new Error("You do not have permission for this action");
+  }
+  return role;
 }
 
 export function registerIpcHandlers(): void {
@@ -44,6 +66,7 @@ export function registerIpcHandlers(): void {
     "auth:createUser",
     async (_event, adminId: string, data: any) => {
       try {
+        requireRole(adminId, ["super_admin"]);
         const user = authService.createUser(adminId, data);
         return { success: true, data: user };
       } catch (e) {
@@ -52,8 +75,9 @@ export function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.handle("auth:getUsers", async () => {
+  ipcMain.handle("auth:getUsers", async (_event, requesterId: string) => {
     try {
+      requireRole(requesterId, ["super_admin"]);
       return { success: true, data: authService.getUsers() };
     } catch (e) {
       return handleError(e);
@@ -64,7 +88,21 @@ export function registerIpcHandlers(): void {
     "auth:updateUser",
     async (_event, adminId: string, userId: string, data: any) => {
       try {
+        requireRole(adminId, ["super_admin"]);
         authService.updateUser(adminId, userId, data);
+        return { success: true };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "auth:deleteUser",
+    async (_event, adminId: string, userId: string) => {
+      try {
+        requireRole(adminId, ["super_admin"]);
+        authService.deleteUser(adminId, userId);
         return { success: true };
       } catch (e) {
         return handleError(e);
@@ -92,6 +130,7 @@ export function registerIpcHandlers(): void {
   // =========== VEHICLES ===========
   ipcMain.handle("vehicles:add", async (_event, userId: string, data: any) => {
     try {
+      requireRole(userId, ["super_admin", "admin", "staff"]);
       const vehicle = vehicleService.addVehicle(userId, data);
       return { success: true, data: vehicle };
     } catch (e) {
@@ -109,8 +148,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("vehicles:getById", async (_event, id: string) => {
     try {
-      const vehicle = vehicleService.getVehicleById(id);
-      return { success: true, data: vehicle };
+      return { success: true, data: vehicleService.getVehicleById(id) };
     } catch (e) {
       return handleError(e);
     }
@@ -120,6 +158,7 @@ export function registerIpcHandlers(): void {
     "vehicles:update",
     async (_event, userId: string, id: string, data: any) => {
       try {
+        requireRole(userId, ["super_admin", "admin", "staff"]);
         const vehicle = vehicleService.updateVehicle(userId, id, data);
         return { success: true, data: vehicle };
       } catch (e) {
@@ -132,6 +171,7 @@ export function registerIpcHandlers(): void {
     "vehicles:delete",
     async (_event, userId: string, id: string) => {
       try {
+        requireRole(userId, ["super_admin", "admin"]);
         vehicleService.deleteVehicle(userId, id);
         return { success: true };
       } catch (e) {
@@ -144,6 +184,7 @@ export function registerIpcHandlers(): void {
     "vehicles:restore",
     async (_event, userId: string, id: string) => {
       try {
+        requireRole(userId, ["super_admin"]);
         vehicleService.restoreVehicle(userId, id);
         return { success: true };
       } catch (e) {
@@ -157,6 +198,7 @@ export function registerIpcHandlers(): void {
     "vehicleExpenses:add",
     async (_event, userId: string, vehicleId: string, data: any) => {
       try {
+        requireRole(userId, ["super_admin", "admin"]);
         const expense = vehicleExpenseService.addVehicleExpense(
           userId,
           vehicleId,
@@ -171,8 +213,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "vehicleExpenses:getByVehicle",
-    async (_event, vehicleId: string) => {
+    async (_event, userId: string, vehicleId: string) => {
       try {
+        requireRole(userId, ["super_admin", "admin"]);
         return {
           success: true,
           data: vehicleExpenseService.getVehicleExpenses(vehicleId),
@@ -187,6 +230,7 @@ export function registerIpcHandlers(): void {
     "vehicleExpenses:delete",
     async (_event, userId: string, expenseId: string) => {
       try {
+        requireRole(userId, ["super_admin", "admin"]);
         vehicleExpenseService.deleteVehicleExpense(userId, expenseId);
         return { success: true };
       } catch (e) {
@@ -198,6 +242,7 @@ export function registerIpcHandlers(): void {
   // =========== CUSTOMERS ===========
   ipcMain.handle("customers:add", async (_event, userId: string, data: any) => {
     try {
+      requireRole(userId, ["super_admin", "admin"]);
       const customer = customerService.addCustomer(userId, data);
       return { success: true, data: customer };
     } catch (e) {
@@ -225,6 +270,7 @@ export function registerIpcHandlers(): void {
     "customers:update",
     async (_event, userId: string, id: string, data: any) => {
       try {
+        requireRole(userId, ["super_admin", "admin"]);
         const customer = customerService.updateCustomer(userId, id, data);
         return { success: true, data: customer };
       } catch (e) {
@@ -237,6 +283,7 @@ export function registerIpcHandlers(): void {
     "customers:delete",
     async (_event, userId: string, id: string) => {
       try {
+        requireRole(userId, ["super_admin", "admin"]);
         customerService.deleteCustomer(userId, id);
         return { success: true };
       } catch (e) {
@@ -248,6 +295,7 @@ export function registerIpcHandlers(): void {
   // =========== SALES ===========
   ipcMain.handle("sales:create", async (_event, userId: string, data: any) => {
     try {
+      requireRole(userId, ["super_admin", "admin"]);
       const sale = salesService.createSale(userId, data);
       return { success: true, data: sale };
     } catch (e) {
@@ -255,37 +303,81 @@ export function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle("sales:getAll", async (_event, filters: any) => {
-    try {
-      return { success: true, data: salesService.getSales(filters) };
-    } catch (e) {
-      return handleError(e);
-    }
-  });
+  ipcMain.handle(
+    "sales:update",
+    async (_event, userId: string, saleId: string, data: any) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        const sale = salesService.updateSale(userId, saleId, data);
+        return { success: true, data: sale };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
 
-  ipcMain.handle("sales:getById", async (_event, id: string) => {
-    try {
-      return { success: true, data: salesService.getSaleById(id) };
-    } catch (e) {
-      return handleError(e);
-    }
-  });
+  ipcMain.handle(
+    "sales:delete",
+    async (
+      _event,
+      userId: string,
+      saleId: string,
+      forceWithInstallments = false,
+    ) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        salesService.deleteSale(userId, saleId, forceWithInstallments);
+        return { success: true };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
 
-  ipcMain.handle("sales:getInstallments", async (_event, saleId: string) => {
-    try {
-      return {
-        success: true,
-        data: salesService.getInstallmentsBySale(saleId),
-      };
-    } catch (e) {
-      return handleError(e);
-    }
-  });
+  ipcMain.handle(
+    "sales:getAll",
+    async (_event, userId: string, filters: any) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        return { success: true, data: salesService.getSales(filters) };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "sales:getById",
+    async (_event, userId: string, id: string) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        return { success: true, data: salesService.getSaleById(id) };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "sales:getInstallments",
+    async (_event, userId: string, saleId: string) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        return {
+          success: true,
+          data: salesService.getInstallmentsBySale(saleId),
+        };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
 
   ipcMain.handle(
     "sales:payInstallment",
     async (_event, userId: string, installmentId: string, data: any) => {
       try {
+        requireRole(userId, ["super_admin", "admin"]);
         const installment = salesService.recordInstallmentPayment(
           userId,
           installmentId,
@@ -298,8 +390,9 @@ export function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.handle("sales:getOverdue", async () => {
+  ipcMain.handle("sales:getOverdue", async (_event, userId: string) => {
     try {
+      requireRole(userId, ["super_admin", "admin"]);
       return { success: true, data: salesService.getOverdueInstallments() };
     } catch (e) {
       return handleError(e);
@@ -308,8 +401,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "sales:getCustomerLedger",
-    async (_event, customerId: string) => {
+    async (_event, userId: string, customerId: string) => {
       try {
+        requireRole(userId, ["super_admin", "admin"]);
         return {
           success: true,
           data: salesService.getCustomerLedger(customerId),
@@ -325,7 +419,15 @@ export function registerIpcHandlers(): void {
     "showroomExpenses:add",
     async (_event, userId: string, data: any) => {
       try {
-        const expense = showroomExpenseService.addShowroomExpense(userId, data);
+        requireRole(userId, ["super_admin", "admin"]);
+        const payload = {
+          ...data,
+          date: data.date || data.expense_date,
+        };
+        const expense = showroomExpenseService.addShowroomExpense(
+          userId,
+          payload,
+        );
         return { success: true, data: expense };
       } catch (e) {
         return handleError(e);
@@ -333,21 +435,33 @@ export function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.handle("showroomExpenses:getAll", async (_event, filters: any) => {
-    try {
-      return {
-        success: true,
-        data: showroomExpenseService.getShowroomExpenses(filters),
-      };
-    } catch (e) {
-      return handleError(e);
-    }
-  });
+  ipcMain.handle(
+    "showroomExpenses:getAll",
+    async (_event, userId: string, filters: any) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        const payload = {
+          category: filters?.category,
+          startDate: filters?.startDate || filters?.date_from,
+          endDate: filters?.endDate || filters?.date_to,
+          page: filters?.page,
+          limit: filters?.limit,
+        };
+        return {
+          success: true,
+          data: showroomExpenseService.getShowroomExpenses(payload),
+        };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
 
   ipcMain.handle(
     "showroomExpenses:delete",
     async (_event, userId: string, id: string) => {
       try {
+        requireRole(userId, ["super_admin", "admin"]);
         showroomExpenseService.deleteShowroomExpense(userId, id);
         return { success: true };
       } catch (e) {
@@ -357,114 +471,27 @@ export function registerIpcHandlers(): void {
   );
 
   // =========== INSPECTIONS ===========
-  ipcMain.handle(
-    "inspections:create",
-    async (_event, userId: string, vehicleId: string) => {
-      try {
-        const inspection = inspectionService.createInspection(
-          userId,
-          vehicleId,
-        );
-        return { success: true, data: inspection };
-      } catch (e) {
-        return handleError(e);
-      }
-    },
-  );
-
-  ipcMain.handle("inspections:getAll", async (_event, filters: any) => {
-    try {
-      return { success: true, data: inspectionService.getInspections(filters) };
-    } catch (e) {
-      return handleError(e);
-    }
-  });
-
-  ipcMain.handle("inspections:getById", async (_event, id: string) => {
-    try {
-      return { success: true, data: inspectionService.getInspectionById(id) };
-    } catch (e) {
-      return handleError(e);
-    }
-  });
-
-  ipcMain.handle(
-    "inspections:updateItem",
-    async (_event, userId: string, itemId: string, data: any) => {
-      try {
-        inspectionService.updateInspectionItem(userId, itemId, data);
-        return { success: true };
-      } catch (e) {
-        return handleError(e);
-      }
-    },
-  );
-
-  ipcMain.handle(
-    "inspections:updateDamageMap",
-    async (
-      _event,
-      userId: string,
-      inspectionId: string,
-      panel: string,
-      status: string,
-    ) => {
-      try {
-        inspectionService.updateDamageMap(
-          userId,
-          inspectionId,
-          panel,
-          status as any,
-        );
-        return { success: true };
-      } catch (e) {
-        return handleError(e);
-      }
-    },
-  );
-
-  ipcMain.handle(
-    "inspections:complete",
-    async (_event, userId: string, inspectionId: string) => {
-      try {
-        const inspection = inspectionService.completeInspection(
-          userId,
-          inspectionId,
-        );
-        return { success: true, data: inspection };
-      } catch (e) {
-        return handleError(e);
-      }
-    },
-  );
-
-  ipcMain.handle(
-    "inspections:addPhoto",
-    async (
-      _event,
-      inspectionId: string,
-      category: string,
-      photoPath: string,
-      caption: string,
-    ) => {
-      try {
-        const photo = inspectionService.addInspectionPhoto(
-          inspectionId,
-          category,
-          photoPath,
-          caption,
-        );
-        return { success: true, data: photo };
-      } catch (e) {
-        return handleError(e);
-      }
-    },
-  );
-
   // =========== REPORTS ===========
-  ipcMain.handle("reports:dashboard", async () => {
+  ipcMain.handle("reports:dashboard", async (_event, userId: string) => {
     try {
-      return { success: true, data: reportService.getDashboardStats() };
+      const role = requireRole(userId, ["super_admin", "admin", "staff"]);
+      const data = reportService.getDashboardStats();
+      if (role === "staff") {
+        return {
+          success: true,
+          data: {
+            ...data,
+            totalSales: 0,
+            totalRevenue: 0,
+            totalExpenses: 0,
+            pendingInstallments: 0,
+            overdueInstallments: 0,
+            overdueAlerts: [],
+            recentSales: [],
+          },
+        };
+      }
+      return { success: true, data };
     } catch (e) {
       return handleError(e);
     }
@@ -472,8 +499,9 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "reports:sales",
-    async (_event, period: string, date?: string) => {
+    async (_event, userId: string, period: string, date?: string) => {
       try {
+        requireRole(userId, ["super_admin", "admin"]);
         return {
           success: true,
           data: reportService.getSalesReport(period as any, date),
@@ -484,25 +512,259 @@ export function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.handle("reports:profit", async () => {
+  ipcMain.handle("reports:profit", async (_event, userId: string) => {
     try {
+      requireRole(userId, ["super_admin", "admin"]);
       return { success: true, data: reportService.getProfitReport() };
     } catch (e) {
       return handleError(e);
     }
   });
 
-  ipcMain.handle("reports:inventory", async () => {
+  ipcMain.handle("reports:inventory", async (_event, userId: string) => {
     try {
+      requireRole(userId, ["super_admin", "admin"]);
       return { success: true, data: reportService.getInventoryReport() };
     } catch (e) {
       return handleError(e);
     }
   });
 
-  ipcMain.handle("reports:auditLogs", async (_event, filters: any) => {
+  ipcMain.handle(
+    "reports:auditLogs",
+    async (_event, userId: string, filters: any) => {
+      try {
+        requireRole(userId, ["super_admin"]);
+        return {
+          success: true,
+          data: reportService.getAuditLogs({
+            userId: filters?.userId,
+            entity: filters?.entity || filters?.entity_type,
+            page: filters?.page,
+            limit: filters?.limit,
+          }),
+        };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  // =========== BANK ACCOUNTS ===========
+  ipcMain.handle(
+    "bankAccounts:getAll",
+    async (_event, userId: string, activeOnly = true) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        return {
+          success: true,
+          data: bankAccountService.getBankAccounts(activeOnly),
+        };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "bankAccounts:create",
+    async (_event, userId: string, data: any) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        return {
+          success: true,
+          data: bankAccountService.createBankAccount(userId, data),
+        };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "bankAccounts:update",
+    async (_event, userId: string, accountId: string, data: any) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        return {
+          success: true,
+          data: bankAccountService.updateBankAccount(userId, accountId, data),
+        };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  // =========== BACKUP ===========
+  ipcMain.handle(
+    "backup:create",
+    async (_event, userId: string, targetPath?: string) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        const backup = backupService.createBackup("manual", userId, targetPath);
+        return { success: true, data: backup };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle("backup:list", async (_event, userId: string) => {
     try {
-      return { success: true, data: reportService.getAuditLogs(filters) };
+      requireRole(userId, ["super_admin", "admin"]);
+      return { success: true, data: backupService.listBackups() };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle(
+    "backup:restore",
+    async (_event, userId: string, filePath: string) => {
+      try {
+        requireRole(userId, ["super_admin"]);
+        backupService.restoreBackup(filePath, userId);
+        return { success: true };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle("backup:getFolder", async (_event, userId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      return { success: true, data: backupService.getBackupFolderPath() };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  // =========== GOOGLE DRIVE BACKUP ===========
+  ipcMain.handle("googledrive:getAuthUrl", async () => {
+    try {
+      const googleDriveService = require("../services/googleDriveService");
+      const url = googleDriveService.getAuthorizationUrl();
+      return { success: true, data: url };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle(
+    "googledrive:authenticate",
+    async (_event, authCode: string) => {
+      try {
+        const googleDriveService = require("../services/googleDriveService");
+        const result = await googleDriveService.authenticateWithCode(authCode);
+        return { success: result, data: result };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle("googledrive:isAuthenticated", async () => {
+    try {
+      const googleDriveService = require("../services/googleDriveService");
+      const isAuth = googleDriveService.isAuthenticated();
+      return { success: true, data: isAuth };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle(
+    "googledrive:uploadBackup",
+    async (_event, userId: string, filePath: string) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        const fileId = await backupService.uploadBackupToGoogleDrive(
+          filePath,
+          userId,
+        );
+        return { success: true, data: fileId };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle("googledrive:listBackups", async (_event, userId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const backups = await backupService.getGoogleDriveBackups();
+      return { success: true, data: backups };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle(
+    "googledrive:downloadBackup",
+    async (_event, userId: string, fileId: string, destinationPath: string) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        await backupService.downloadGoogleDriveBackup(fileId, destinationPath);
+        return { success: true };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "googledrive:deleteBackup",
+    async (_event, userId: string, fileId: string) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        await backupService.deleteGoogleDriveBackup(fileId);
+        return { success: true };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle("googledrive:getFolderUrl", async (_event, userId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const url = await backupService.getGoogleDriveFolderUrl();
+      return { success: true, data: url };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("googledrive:getSettings", async (_event, userId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const settings = backupService.getBackupSettings();
+      return { success: true, data: settings };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle(
+    "googledrive:updateSettings",
+    async (_event, userId: string, settings: any) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        backupService.updateBackupSettings(settings);
+        return { success: true };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle("googledrive:logout", async () => {
+    try {
+      const googleDriveService = require("../services/googleDriveService");
+      googleDriveService.logout();
+      return { success: true };
     } catch (e) {
       return handleError(e);
     }
@@ -562,6 +824,26 @@ export function registerIpcHandlers(): void {
     }
   });
 
+  ipcMain.handle("files:selectBackupFile", async (_event, userId?: string) => {
+    try {
+      if (userId) {
+        requireRole(userId, ["super_admin", "admin"]);
+      }
+      const result = await dialog.showOpenDialog({
+        properties: ["openFile"],
+        filters: [
+          { name: "Database Backup", extensions: ["db", "sqlite", "sqlite3"] },
+        ],
+      });
+      if (result.canceled || result.filePaths.length === 0) {
+        return { success: true, data: null };
+      }
+      return { success: true, data: result.filePaths[0] };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
   ipcMain.handle(
     "files:savePdf",
     async (_event, pdfData: Uint8Array, defaultName: string) => {
@@ -570,9 +852,29 @@ export function registerIpcHandlers(): void {
           defaultPath: defaultName,
           filters: [{ name: "PDF", extensions: ["pdf"] }],
         });
-        if (result.canceled || !result.filePath)
+        if (result.canceled || !result.filePath) {
           return { success: true, data: null };
+        }
         fs.writeFileSync(result.filePath, Buffer.from(pdfData));
+        return { success: true, data: result.filePath };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "files:saveBackupAs",
+    async (_event, userId: string, defaultName: string) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        const result = await dialog.showSaveDialog({
+          defaultPath: defaultName,
+          filters: [{ name: "Database Backup", extensions: ["db"] }],
+        });
+        if (result.canceled || !result.filePath) {
+          return { success: true, data: null };
+        }
         return { success: true, data: result.filePath };
       } catch (e) {
         return handleError(e);

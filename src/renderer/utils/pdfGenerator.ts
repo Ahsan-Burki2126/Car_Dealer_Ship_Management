@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { PANEL_LABELS } from "../../shared/constants";
 
 const formatCurrency = (v: number) => `PKR ${v?.toLocaleString() || "0"}`;
 
@@ -239,7 +240,7 @@ export function generateInspectionPdf(inspection: {
           : [239, 68, 68];
     doc.setTextColor(color[0], color[1], color[2]);
     doc.text(
-      `${d.panel_id.replace(/_/g, " ").toUpperCase()}: ${d.status}${d.notes ? ` - ${d.notes}` : ""}`,
+      `${(PANEL_LABELS[d.panel_id] || d.panel_id).toUpperCase()}: ${d.status}${d.notes ? ` - ${d.notes}` : ""}`,
       20,
       y,
     );
@@ -381,5 +382,338 @@ export function generateLedgerPdf(customer: {
   doc.text(formatCurrency(totalBalance), 175, y + 3);
 
   addFooter(doc);
+  return doc;
+}
+
+// Professional Inspection Report PDF (PakWheels-style)
+export function generateProfessionalInspectionReport(inspection: {
+  id: string;
+  vehicle_name: string;
+  registration_number?: string;
+  chassis_number?: string;
+  engine_number?: string;
+  model_year?: number;
+  transmission?: string;
+  mileage?: number;
+  inspector_name: string;
+  inspection_date: string;
+  overall_score: number;
+  overall_condition: string; // "Excellent", "Good", "Fair", "Poor"
+
+  // Exterior condition by category
+  exterior_damages: {
+    panel_id: string;
+    status: string; // normal, scratch, dent, repainted, rust, cracked, replaced
+    notes?: string;
+  }[];
+
+  // Interior condition scores
+  interior_rating?: number; // 1-10
+  interior_notes?: string;
+
+  // Mechanical condition scores
+  mechanical_rating?: number; // 1-10
+  mechanical_notes?: string;
+
+  // Category breakdowns
+  categories: {
+    name: string;
+    rating: number; // 1-10
+    items: {
+      point_name: string;
+      status: string; // good, fair, poor
+      notes?: string;
+    }[];
+  }[];
+
+  // Images/photos
+  photos?: { url: string; label: string }[];
+
+  // Final recommendation
+  recommendation?: string;
+}): jsPDF {
+  const doc = new jsPDF("p", "mm", "a4");
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let y = 15;
+
+  // ─────────────────── PAGE 1: HEADER & SUMMARY ──────────────────────
+
+  // Professional header
+  const getRatingColor = (score: number): [number, number, number] => {
+    if (score >= 8) return [34, 197, 94]; // Green (Excellent)
+    if (score >= 6) return [202, 138, 4]; // Amber (Good)
+    if (score >= 4) return [239, 68, 68]; // Orange (Fair)
+    return [220, 38, 38]; // Red (Poor)
+  };
+
+  const ratingColor = getRatingColor(inspection.overall_score);
+
+  // Header background
+  doc.setFillColor(...ratingColor);
+  doc.rect(0, 0, pageWidth, 35, "F");
+
+  // Title
+  doc.setFontSize(24);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(255, 255, 255);
+  doc.text("VEHICLE INSPECTION REPORT", pageWidth / 2, 12, { align: "center" });
+
+  // Score circle
+  doc.setFillColor(255, 255, 255);
+  doc.circle(pageWidth - 18, 17.5, 8);
+  doc.setTextColor(...ratingColor);
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(inspection.overall_score.toFixed(1), pageWidth - 18, 19.5, {
+    align: "center",
+  });
+  doc.setFontSize(9);
+  doc.text("/10", pageWidth - 14, 19.5, { align: "left" });
+
+  y = 40;
+
+  // Vehicle Details Section
+  doc.setFillColor(241, 245, 249);
+  doc.rect(12, y - 5, pageWidth - 24, 45, "F");
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 0, 0);
+  doc.text("VEHICLE INFORMATION", 15, y);
+
+  y += 8;
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+
+  const vehicleDetails = [
+    ["Vehicle", inspection.vehicle_name],
+    ["Reg. Number", inspection.registration_number || "N/A"],
+    [
+      "Model Year",
+      inspection.model_year ? String(inspection.model_year) : "N/A",
+    ],
+    ["Transmission", inspection.transmission || "N/A"],
+  ];
+
+  const mechanicalDetails = [
+    ["Chassis #", inspection.chassis_number || "N/A"],
+    ["Engine #", inspection.engine_number || "N/A"],
+    [
+      "Mileage",
+      inspection.mileage ? `${inspection.mileage.toLocaleString()} km` : "N/A",
+    ],
+    [
+      "Inspection Date",
+      new Date(inspection.inspection_date).toLocaleDateString(),
+    ],
+  ];
+
+  vehicleDetails.forEach((detail, i) => {
+    doc.text(`${detail[0]}:`, 15, y + i * 5, { maxWidth: 40 });
+    doc.setFont("helvetica", "bold");
+    doc.text(detail[1], 60, y + i * 5);
+    doc.setFont("helvetica", "normal");
+  });
+
+  mechanicalDetails.forEach((detail, i) => {
+    doc.text(`${detail[0]}:`, pageWidth / 2 + 5, y + i * 5, { maxWidth: 40 });
+    doc.setFont("helvetica", "bold");
+    doc.text(detail[1], pageWidth / 2 + 50, y + i * 5);
+    doc.setFont("helvetica", "normal");
+  });
+
+  y += 25;
+
+  // Condition Summary
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 0, 0);
+  doc.text("OVERALL CONDITION", 15, y);
+  y += 7;
+
+  // Condition rows
+  const conditions = [
+    [
+      "Exterior",
+      inspection.categories?.find((c) =>
+        c.name.toLowerCase().includes("exterior"),
+      )?.rating || 5,
+    ],
+    ["Interior", inspection.interior_rating || 5],
+    ["Mechanical", inspection.mechanical_rating || 5],
+  ];
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  conditions.forEach((cond) => {
+    if (y > 260) {
+      doc.addPage();
+      y = 15;
+    }
+
+    // Condition bar
+    const condRating = cond[1];
+    const barColor = getRatingColor(condRating);
+    const barWidth = (condRating / 10) * 60;
+
+    doc.text(`${cond[0]}:`, 15, y + 2);
+    doc.setFillColor(230, 230, 230);
+    doc.rect(50, y - 1, 60, 4);
+    doc.setFillColor(...barColor);
+    doc.rect(50, y - 1, barWidth, 4, "F");
+    doc.text(`${condRating.toFixed(1)}/10`, 115, y + 2);
+    y += 7;
+  });
+
+  y += 5;
+
+  // Recommendation box
+  if (inspection.recommendation) {
+    if (y > 250) {
+      doc.addPage();
+      y = 15;
+    }
+    doc.setFillColor(237, 242, 247);
+    doc.setDrawColor(...ratingColor);
+    doc.setLineWidth(1.5);
+    doc.rect(12, y - 2, pageWidth - 24, 20, "FD");
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...ratingColor);
+    doc.text("RECOMMENDATION", 15, y + 2);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(8);
+    const recText = doc.splitTextToSize(
+      inspection.recommendation,
+      pageWidth - 35,
+    );
+    doc.text(recText, 15, y + 7);
+    y += 22;
+  }
+
+  // ─────────────────── PAGE 2+: DETAILED BREAKDOWN ──────────────────────
+
+  doc.addPage();
+  y = 15;
+
+  // Exterior/Damage Map Section
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 0, 0);
+  doc.text("EXTERIOR CONDITION - BODY PANELS", 15, y);
+  y += 8;
+
+  doc.setFillColor(241, 245, 249);
+  doc.rect(12, y - 3, pageWidth - 24, 6, "F");
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(50, 50, 50);
+  doc.text("Panel", 15, y);
+  doc.text("Status", 80, y);
+  doc.text("Notes", 130, y);
+  y += 8;
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(8);
+
+  inspection.exterior_damages.forEach((damage) => {
+    if (y > 270) {
+      doc.addPage();
+      y = 15;
+    }
+
+    const panelName = PANEL_LABELS[damage.panel_id] || damage.panel_id;
+    const statusColor =
+      damage.status === "normal"
+        ? [34, 197, 94]
+        : damage.status === "scratch"
+          ? [202, 138, 4]
+          : damage.status === "dent"
+            ? [234, 179, 8]
+            : damage.status === "repainted"
+              ? [139, 92, 246]
+              : damage.status === "rust"
+                ? [239, 68, 68]
+                : [220, 38, 38];
+
+    doc.text(panelName, 15, y);
+    doc.setTextColor(...statusColor);
+    doc.setFont("helvetica", "bold");
+    doc.text(damage.status.toUpperCase(), 80, y);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    const notes = damage.notes ? damage.notes.substring(0, 40) : "-";
+    doc.text(notes, 130, y);
+    y += 5;
+  });
+
+  y += 8;
+
+  // Category Sections
+  inspection.categories.forEach((category) => {
+    if (y > 240) {
+      doc.addPage();
+      y = 15;
+    }
+
+    const categoryColor = getRatingColor(category.rating);
+
+    // Category header
+    doc.setFillColor(...categoryColor);
+    doc.rect(12, y - 3, pageWidth - 24, 7, "F");
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(
+      `${category.name.toUpperCase()} - ${category.rating.toFixed(1)}/10`,
+      pageWidth / 2 - 20,
+      y + 2,
+      { align: "center" },
+    );
+    y += 9;
+
+    // Category items
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+
+    category.items.forEach((item) => {
+      if (y > 275) {
+        doc.addPage();
+        y = 15;
+      }
+
+      const itemColor =
+        item.status === "good"
+          ? [34, 197, 94]
+          : item.status === "fair"
+            ? [202, 138, 4]
+            : [239, 68, 68];
+
+      doc.setTextColor(...itemColor);
+      doc.text("●", 15, y);
+      doc.setTextColor(0, 0, 0);
+      doc.text(item.point_name, 18, y, { maxWidth: 80 });
+      doc.setTextColor(...itemColor);
+      doc.setFont("helvetica", "bold");
+      doc.text(`[${item.status.toUpperCase()}]`, 125, y);
+      doc.setFont("helvetica", "normal");
+      if (item.notes) {
+        doc.setTextColor(100, 100, 100);
+        doc.text(item.notes.substring(0, 35), 160, y, { maxWidth: 40 });
+      }
+      y += 5;
+    });
+
+    y += 3;
+  });
+
+  // Final footer
+  doc.setPage(1);
+  addFooter(doc);
+
   return doc;
 }

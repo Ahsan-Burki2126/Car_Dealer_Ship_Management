@@ -26,7 +26,7 @@ export function addShowroomExpense(
     id,
     data.category,
     data.amount,
-    data.date,
+    data.date || new Date().toISOString().split("T")[0],
     data.description || "",
     userId,
   );
@@ -52,7 +52,7 @@ export function addShowroomExpense(
     id,
     category: data.category,
     amount: data.amount,
-    date: data.date,
+    date: data.date || new Date().toISOString().split("T")[0],
     description: data.description,
     created_by: userId,
     created_at: new Date().toISOString(),
