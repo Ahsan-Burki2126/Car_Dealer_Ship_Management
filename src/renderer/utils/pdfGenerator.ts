@@ -3,37 +3,151 @@ import { PANEL_LABELS } from "../../shared/constants";
 
 const formatCurrency = (v: number) => `PKR ${v?.toLocaleString() || "0"}`;
 
-// Common PDF header
-function addHeader(doc: jsPDF, title: string, subtitle?: string) {
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.text(title, 105, 20, { align: "center" });
+// ── Colour palette ───────────────────────────────────────────────────────
+const BRAND = [30, 64, 175] as const; // indigo-800
+const BRAND_LIGHT = [238, 242, 255] as const; // indigo-50
+const ACCENT = [79, 70, 229] as const; // indigo-600
+const GRAY = [100, 116, 139] as const; // slate-500
+const DARK = [15, 23, 42] as const; // slate-900
+const LIGHT_BG = [248, 250, 252] as const; // slate-50
+const WHITE = [255, 255, 255] as const;
+const GREEN = [22, 163, 74] as const;
+const RED = [220, 38, 38] as const;
+const AMBER = [202, 138, 4] as const;
+const BORDER = [226, 232, 240] as const; // slate-200
 
-  if (subtitle) {
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(subtitle, 105, 28, { align: "center" });
-  }
+type RGB = readonly [number, number, number];
 
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(0.5);
-  doc.line(15, 32, 195, 32);
+// ── Helpers ──────────────────────────────────────────────────────────────
 
-  return 38;
+function drawRoundedRect(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+  style: "F" | "S" | "FD" = "F",
+) {
+  doc.roundedRect(x, y, w, h, r, r, style);
 }
 
-function addFooter(doc: jsPDF) {
+function setColor(doc: jsPDF, color: RGB, type: "text" | "fill" | "draw" = "text") {
+  if (type === "text") doc.setTextColor(...color);
+  else if (type === "fill") doc.setFillColor(...color);
+  else doc.setDrawColor(...color);
+}
+
+function addModernFooter(doc: jsPDF) {
   const pages = doc.getNumberOfPages();
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
-    doc.setFontSize(8);
-    doc.setTextColor(150);
-    doc.text(`Page ${i} of ${pages}`, 105, 290, { align: "center" });
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 15, 290);
+    const pw = doc.internal.pageSize.getWidth();
+
+    // Footer line
+    setColor(doc, BORDER, "draw");
+    doc.setLineWidth(0.3);
+    doc.line(15, 280, pw - 15, 280);
+
+    doc.setFontSize(7);
+    setColor(doc, GRAY);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 15, 285);
+    doc.text(`Page ${i} of ${pages}`, pw - 15, 285, { align: "right" });
   }
 }
 
-// Sale Invoice PDF
+// ── Modern Invoice Header ────────────────────────────────────────────────
+
+function addInvoiceHeader(
+  doc: jsPDF,
+  invoiceNumber: string,
+  date: string,
+): number {
+  const pw = doc.internal.pageSize.getWidth();
+
+  // Top accent bar
+  setColor(doc, BRAND, "fill");
+  doc.rect(0, 0, pw, 4, "F");
+
+  // Company name
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, DARK);
+  doc.text("DEALERSHIP MANAGEMENT", 15, 18);
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  setColor(doc, GRAY);
+  doc.text("Automobile Sales & Services", 15, 24);
+
+  // Invoice badge (right side)
+  setColor(doc, BRAND_LIGHT, "fill");
+  setColor(doc, ACCENT, "draw");
+  doc.setLineWidth(0.3);
+  drawRoundedRect(doc, pw - 75, 8, 60, 20, 3, "FD");
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, ACCENT);
+  doc.text("INVOICE", pw - 45, 15, { align: "center" });
+  doc.setFontSize(9);
+  setColor(doc, DARK);
+  doc.text(invoiceNumber, pw - 45, 22, { align: "center" });
+
+  // Date below badge
+  doc.setFontSize(8);
+  setColor(doc, GRAY);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Date: ${new Date(date).toLocaleDateString()}`, pw - 15, 34, {
+    align: "right",
+  });
+
+  // Divider
+  setColor(doc, BRAND, "draw");
+  doc.setLineWidth(0.8);
+  doc.line(15, 30, 80, 30);
+
+  return 42;
+}
+
+// ── Section heading ──────────────────────────────────────────────────────
+
+function sectionHeading(doc: jsPDF, title: string, y: number, x = 15): number {
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, BRAND);
+  doc.text(title.toUpperCase(), x, y);
+
+  setColor(doc, ACCENT, "draw");
+  doc.setLineWidth(0.4);
+  doc.line(x, y + 1.5, x + doc.getTextWidth(title.toUpperCase()) + 2, y + 1.5);
+
+  return y + 7;
+}
+
+// ── Detail row helper ────────────────────────────────────────────────────
+
+function detailRow(
+  doc: jsPDF,
+  label: string,
+  value: string,
+  x: number,
+  y: number,
+) {
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  setColor(doc, GRAY);
+  doc.text(label, x, y);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, DARK);
+  doc.text(value, x, y + 4.5);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SALE INVOICE PDF
+// ══════════════════════════════════════════════════════════════════════════
+
 export function generateInvoicePdf(sale: {
   invoice_number: string;
   sale_date: string;
@@ -51,129 +165,206 @@ export function generateInvoicePdf(sale: {
   installments?: { number: number; due_date: string; amount: number }[];
 }): jsPDF {
   const doc = new jsPDF();
-  let y = addHeader(doc, "SALE INVOICE", sale.invoice_number);
+  const pw = doc.internal.pageSize.getWidth();
+  let y = addInvoiceHeader(doc, sale.invoice_number, sale.sale_date);
 
-  // Invoice Details
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(100);
-  doc.text(`Invoice: ${sale.invoice_number}`, 15, y);
-  doc.text(`Date: ${new Date(sale.sale_date).toLocaleDateString()}`, 140, y);
+  // ── Customer & Vehicle cards side-by-side ──────────────────────────
+
+  // Customer card
+  setColor(doc, LIGHT_BG, "fill");
+  drawRoundedRect(doc, 15, y, 82, 38, 3, "F");
+  y += 5;
+  y = sectionHeading(doc, "Customer", y, 20) - 2;
+  detailRow(doc, "Name", sale.customer_name, 20, y);
   y += 10;
+  if (sale.customer_cnic) {
+    detailRow(doc, "CNIC", sale.customer_cnic, 20, y);
+    y += 10;
+  }
+  if (sale.customer_phone) {
+    detailRow(doc, "Phone", sale.customer_phone, 20, y);
+  }
 
-  // Customer & Vehicle
-  doc.setFontSize(11);
+  // Vehicle card
+  let vy = 42 + 5;
+  setColor(doc, LIGHT_BG, "fill");
+  drawRoundedRect(doc, 103, 42, 92, 38, 3, "F");
+  vy = sectionHeading(doc, "Vehicle", vy, 108) - 2;
+  detailRow(doc, "Vehicle", sale.vehicle_name, 108, vy);
+  vy += 10;
+  if (sale.registration_number) {
+    detailRow(doc, "Registration", sale.registration_number, 108, vy);
+    vy += 10;
+  }
+  const extraInfo = [
+    sale.chassis_number ? `Chassis: ${sale.chassis_number}` : "",
+    sale.engine_number ? `Engine: ${sale.engine_number}` : "",
+  ]
+    .filter(Boolean)
+    .join("  |  ");
+  if (extraInfo) {
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, GRAY);
+    doc.text(extraInfo, 108, vy + 3);
+  }
+
+  y = 42 + 38 + 8; // after cards
+
+  // ── Payment Summary box ────────────────────────────────────────────
+
+  setColor(doc, BRAND, "fill");
+  drawRoundedRect(doc, 15, y, pw - 30, 28, 3, "F");
+  y += 5;
+
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(0);
-  doc.text("Customer Details", 15, y);
-  doc.text("Vehicle Details", 110, y);
-  y += 6;
+  setColor(doc, WHITE);
+  doc.text("PAYMENT SUMMARY", 20, y + 2);
+  y += 9;
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  const customerLines = [
-    `Name: ${sale.customer_name}`,
-    sale.customer_cnic ? `CNIC: ${sale.customer_cnic}` : "",
-    sale.customer_phone ? `Phone: ${sale.customer_phone}` : "",
-  ].filter(Boolean);
 
-  const vehicleLines = [
-    `Vehicle: ${sale.vehicle_name}`,
-    sale.registration_number ? `Reg #: ${sale.registration_number}` : "",
-    sale.chassis_number ? `Chassis: ${sale.chassis_number}` : "",
-    sale.engine_number ? `Engine: ${sale.engine_number}` : "",
-  ].filter(Boolean);
-
-  customerLines.forEach((line, i) => {
-    doc.text(line, 15, y + i * 5);
-  });
-  vehicleLines.forEach((line, i) => {
-    doc.text(line, 110, y + i * 5);
-  });
-  y += Math.max(customerLines.length, vehicleLines.length) * 5 + 8;
-
-  // Financial
-  doc.setFillColor(241, 245, 249);
-  doc.rect(15, y - 3, 180, 30, "F");
-  doc.setFontSize(11);
+  // Row 1
+  setColor(doc, [...WHITE] as unknown as RGB);
+  doc.text("Sale Price", 20, y);
   doc.setFont("helvetica", "bold");
-  doc.text("Payment Summary", 20, y + 3);
-  y += 10;
+  doc.text(formatCurrency(sale.sale_price), 70, y);
 
-  doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(`Sale Price: ${formatCurrency(sale.sale_price)}`, 20, y);
-  doc.text(
-    `Payment Type: ${sale.payment_type.charAt(0).toUpperCase() + sale.payment_type.slice(1)}`,
-    110,
-    y,
-  );
+  doc.text("Payment Type", 110, y);
+  doc.setFont("helvetica", "bold");
+  const ptLabel =
+    sale.payment_type.charAt(0).toUpperCase() + sale.payment_type.slice(1);
+  doc.text(ptLabel, 155, y);
   y += 6;
+
+  // Row 2 (installment-specific)
   if (sale.payment_type === "installment") {
-    doc.text(`Down Payment: ${formatCurrency(sale.down_payment)}`, 20, y);
-    doc.text(
-      `Balance: ${formatCurrency(sale.sale_price - sale.down_payment)}`,
-      110,
-      y,
-    );
+    doc.setFont("helvetica", "normal");
+    doc.text("Down Payment", 20, y);
+    doc.setFont("helvetica", "bold");
+    doc.text(formatCurrency(sale.down_payment), 70, y);
+
+    doc.setFont("helvetica", "normal");
+    doc.text("Balance Due", 110, y);
+    doc.setFont("helvetica", "bold");
+    doc.text(formatCurrency(sale.sale_price - sale.down_payment), 155, y);
   }
+
   y += 12;
 
-  // Installment Schedule
+  // ── Installment Schedule ───────────────────────────────────────────
+
   if (sale.installments && sale.installments.length > 0) {
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("Installment Schedule", 15, y);
-    y += 8;
+    y = sectionHeading(doc, "Installment Schedule", y);
+    y += 2;
 
     // Table header
-    doc.setFillColor(59, 130, 246);
-    doc.setTextColor(255);
-    doc.setFontSize(9);
-    doc.rect(15, y - 4, 180, 7, "F");
+    setColor(doc, BRAND_LIGHT, "fill");
+    setColor(doc, BORDER, "draw");
+    doc.setLineWidth(0.3);
+    drawRoundedRect(doc, 15, y - 4, pw - 30, 7, 1.5, "FD");
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    setColor(doc, BRAND);
     doc.text("#", 20, y);
-    doc.text("Due Date", 50, y);
-    doc.text("Amount", 150, y);
+    doc.text("Due Date", 40, y);
+    doc.text("Amount", pw - 35, y, { align: "right" });
     y += 8;
 
-    doc.setTextColor(0);
+    // Table rows
     doc.setFont("helvetica", "normal");
-    sale.installments.forEach((inst) => {
-      if (y > 270) {
+    sale.installments.forEach((inst, idx) => {
+      if (y > 260) {
         doc.addPage();
         y = 20;
       }
+
+      // Zebra stripe
+      if (idx % 2 === 0) {
+        setColor(doc, LIGHT_BG, "fill");
+        doc.rect(15, y - 3.5, pw - 30, 6, "F");
+      }
+
+      doc.setFontSize(8);
+      setColor(doc, DARK);
       doc.text(String(inst.number), 20, y);
-      doc.text(new Date(inst.due_date).toLocaleDateString(), 50, y);
-      doc.text(formatCurrency(inst.amount), 150, y);
+      setColor(doc, GRAY);
+      doc.text(new Date(inst.due_date).toLocaleDateString(), 40, y);
+      doc.setFont("helvetica", "bold");
+      setColor(doc, DARK);
+      doc.text(formatCurrency(inst.amount), pw - 35, y, { align: "right" });
+      doc.setFont("helvetica", "normal");
       y += 6;
     });
+
+    // Total row
+    y += 1;
+    setColor(doc, BORDER, "draw");
+    doc.setLineWidth(0.3);
+    doc.line(15, y - 2, pw - 15, y - 2);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    setColor(doc, BRAND);
+    doc.text("TOTAL", 40, y + 2);
+    const total = sale.installments.reduce((s, i) => s + i.amount, 0);
+    doc.text(formatCurrency(total), pw - 35, y + 2, { align: "right" });
+    y += 8;
   }
 
-  // Notes
+  // ── Notes ──────────────────────────────────────────────────────────
+
   if (sale.notes) {
-    y += 5;
-    doc.setFontSize(9);
-    doc.setTextColor(100);
-    doc.text(`Notes: ${sale.notes}`, 15, y);
+    if (y > 245) {
+      doc.addPage();
+      y = 20;
+    }
+    y = sectionHeading(doc, "Notes", y);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, GRAY);
+    const noteLines = doc.splitTextToSize(sale.notes, pw - 40);
+    doc.text(noteLines, 15, y);
+    y += noteLines.length * 4 + 4;
   }
 
-  // Signatures
-  y = 250;
-  doc.setDrawColor(0);
-  doc.setLineWidth(0.3);
-  doc.line(15, y, 80, y);
-  doc.line(120, y, 185, y);
-  doc.setFontSize(9);
-  doc.setTextColor(0);
-  doc.text("Buyer Signature", 30, y + 5);
-  doc.text("Seller Signature", 135, y + 5);
+  // ── Signatures ─────────────────────────────────────────────────────
 
-  addFooter(doc);
+  y = Math.max(y + 10, 245);
+  if (y > 260) {
+    doc.addPage();
+    y = 240;
+  }
+
+  setColor(doc, BORDER, "draw");
+  doc.setLineWidth(0.4);
+  doc.line(15, y, 80, y);
+  doc.line(pw - 80, y, pw - 15, y);
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  setColor(doc, GRAY);
+  doc.text("Buyer's Signature", 47.5, y + 5, { align: "center" });
+  doc.text("Seller's Signature", pw - 47.5, y + 5, { align: "center" });
+
+  // Stamp area
+  doc.setFontSize(7);
+  doc.text("(Stamp / Seal)", pw / 2, y + 5, { align: "center" });
+  setColor(doc, BORDER, "draw");
+  doc.setLineWidth(0.2);
+  doc.circle(pw / 2, y - 8, 8, "S");
+
+  addModernFooter(doc);
   return doc;
 }
 
-// Inspection Certificate PDF
+// ══════════════════════════════════════════════════════════════════════════
+//  INSPECTION CERTIFICATE PDF
+// ══════════════════════════════════════════════════════════════════════════
+
 export function generateInspectionPdf(inspection: {
   vehicle_name: string;
   registration_number?: string;
@@ -190,23 +381,35 @@ export function generateInspectionPdf(inspection: {
   damage_map: { panel_id: string; status: string; notes?: string }[];
 }): jsPDF {
   const doc = new jsPDF();
-  let y = addHeader(doc, "VEHICLE INSPECTION CERTIFICATE");
+  const pw = doc.internal.pageSize.getWidth();
 
-  // Score
-  const score = inspection.overall_score;
-  doc.setFontSize(24);
+  // Header bar
+  setColor(doc, BRAND, "fill");
+  doc.rect(0, 0, pw, 4, "F");
+
+  doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(
-    score >= 8 ? 34 : score >= 5 ? 202 : 239,
-    score >= 8 ? 197 : score >= 5 ? 138 : 68,
-    score >= 8 ? 94 : score >= 5 ? 4 : 68,
-  );
-  doc.text(`${score.toFixed(1)}/10`, 105, y + 5, { align: "center" });
-  y += 15;
+  setColor(doc, DARK);
+  doc.text("VEHICLE INSPECTION CERTIFICATE", pw / 2, 18, { align: "center" });
+
+  let y = 28;
+
+  // Score badge
+  const score = inspection.overall_score;
+  const scoreColor: RGB =
+    score >= 8 ? GREEN : score >= 5 ? AMBER : RED;
+
+  setColor(doc, scoreColor, "fill");
+  drawRoundedRect(doc, pw / 2 - 15, y - 5, 30, 16, 3, "F");
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, WHITE);
+  doc.text(`${score.toFixed(1)}/10`, pw / 2, y + 5, { align: "center" });
+  y += 18;
 
   // Vehicle Info
-  doc.setFontSize(10);
-  doc.setTextColor(0);
+  doc.setFontSize(9);
+  setColor(doc, DARK);
   doc.setFont("helvetica", "normal");
   doc.text(`Vehicle: ${inspection.vehicle_name}`, 15, y);
   doc.text(`Registration: ${inspection.registration_number || "N/A"}`, 110, y);
@@ -219,26 +422,20 @@ export function generateInspectionPdf(inspection: {
   );
   y += 10;
 
-  // Damage Map Summary
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("Body Panel Status", 15, y);
-  y += 7;
+  // Damage Map
+  y = sectionHeading(doc, "Body Panel Status", y);
+  y += 2;
 
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   inspection.damage_map.forEach((d) => {
     if (y > 270) {
       doc.addPage();
       y = 20;
     }
-    const color =
-      d.status === "original"
-        ? [34, 197, 94]
-        : d.status === "repainted"
-          ? [234, 179, 8]
-          : [239, 68, 68];
-    doc.setTextColor(color[0], color[1], color[2]);
+    const color: RGB =
+      d.status === "original" ? GREEN : d.status === "repainted" ? AMBER : RED;
+    setColor(doc, color);
     doc.text(
       `${(PANEL_LABELS[d.panel_id] || d.panel_id).toUpperCase()}: ${d.status}${d.notes ? ` - ${d.notes}` : ""}`,
       20,
@@ -248,7 +445,7 @@ export function generateInspectionPdf(inspection: {
   });
   y += 5;
 
-  // Group items by category
+  // Categories
   const categories = [...new Set(inspection.items.map((i) => i.category))];
   categories.forEach((cat) => {
     if (y > 250) {
@@ -256,24 +453,21 @@ export function generateInspectionPdf(inspection: {
       y = 20;
     }
 
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(0);
-    doc.text(cat.replace(/_/g, " ").toUpperCase(), 15, y);
-    y += 7;
+    y = sectionHeading(doc, cat.replace(/_/g, " "), y);
+    y += 2;
 
     // Table header
-    doc.setFillColor(241, 245, 249);
-    doc.rect(15, y - 4, 180, 6, "F");
+    setColor(doc, BRAND_LIGHT, "fill");
+    doc.rect(15, y - 4, pw - 30, 6, "F");
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
+    setColor(doc, BRAND);
     doc.text("Point", 17, y);
     doc.text("Status", 120, y);
     doc.text("Deduction", 160, y);
     y += 6;
 
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(0);
     inspection.items
       .filter((i) => i.category === cat)
       .forEach((item) => {
@@ -281,17 +475,16 @@ export function generateInspectionPdf(inspection: {
           doc.addPage();
           y = 20;
         }
+        setColor(doc, DARK);
         doc.setFontSize(8);
         doc.text(item.point_name.substring(0, 50), 17, y);
-        const statusColor =
-          item.status === "good"
-            ? [34, 197, 94]
-            : item.status === "fair"
-              ? [202, 138, 4]
-              : [239, 68, 68];
-        doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+        const statusColor: RGB =
+          item.status === "good" ? GREEN : item.status === "fair" ? AMBER : RED;
+        setColor(doc, statusColor);
+        doc.setFont("helvetica", "bold");
         doc.text(item.status.toUpperCase(), 120, y);
-        doc.setTextColor(0);
+        doc.setFont("helvetica", "normal");
+        setColor(doc, DARK);
         doc.text(
           item.deduction ? `-${item.deduction.toFixed(2)}` : "-",
           165,
@@ -302,11 +495,14 @@ export function generateInspectionPdf(inspection: {
     y += 5;
   });
 
-  addFooter(doc);
+  addModernFooter(doc);
   return doc;
 }
 
-// Customer Ledger PDF
+// ══════════════════════════════════════════════════════════════════════════
+//  CUSTOMER LEDGER PDF
+// ══════════════════════════════════════════════════════════════════════════
+
 export function generateLedgerPdf(customer: {
   name: string;
   cnic?: string;
@@ -321,25 +517,34 @@ export function generateLedgerPdf(customer: {
   }[];
 }): jsPDF {
   const doc = new jsPDF();
-  let y = addHeader(doc, "CUSTOMER LEDGER", customer.name);
+  const pw = doc.internal.pageSize.getWidth();
 
-  doc.setFontSize(10);
-  doc.setTextColor(0);
-  doc.text(`Customer: ${customer.name}`, 15, y);
-  if (customer.cnic) doc.text(`CNIC: ${customer.cnic}`, 110, y);
+  // Header
+  setColor(doc, BRAND, "fill");
+  doc.rect(0, 0, pw, 4, "F");
+
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, DARK);
+  doc.text("CUSTOMER LEDGER", pw / 2, 18, { align: "center" });
+
+  let y = 28;
+
+  // Customer info
+  setColor(doc, LIGHT_BG, "fill");
+  drawRoundedRect(doc, 15, y, pw - 30, 18, 3, "F");
   y += 6;
-  if (customer.phone) {
-    doc.text(`Phone: ${customer.phone}`, 15, y);
-    y += 6;
-  }
-  y += 5;
+  detailRow(doc, "Customer", customer.name, 20, y);
+  if (customer.cnic) detailRow(doc, "CNIC", customer.cnic, 80, y);
+  if (customer.phone) detailRow(doc, "Phone", customer.phone, 140, y);
+  y += 18;
 
   // Table header
-  doc.setFillColor(59, 130, 246);
-  doc.setTextColor(255);
-  doc.setFontSize(9);
+  setColor(doc, BRAND, "fill");
+  drawRoundedRect(doc, 15, y - 4, pw - 30, 7, 1.5, "F");
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
-  doc.rect(15, y - 4, 180, 7, "F");
+  setColor(doc, WHITE);
   doc.text("Invoice", 17, y);
   doc.text("Vehicle", 45, y);
   doc.text("Date", 95, y);
@@ -348,44 +553,65 @@ export function generateLedgerPdf(customer: {
   doc.text("Balance", 175, y);
   y += 8;
 
-  doc.setTextColor(0);
-  doc.setFont("helvetica", "normal");
   let totalSale = 0,
     totalPaid = 0,
     totalBalance = 0;
 
-  customer.ledger.forEach((l) => {
+  doc.setFont("helvetica", "normal");
+  customer.ledger.forEach((l, idx) => {
     if (y > 270) {
       doc.addPage();
       y = 20;
     }
+
+    if (idx % 2 === 0) {
+      setColor(doc, LIGHT_BG, "fill");
+      doc.rect(15, y - 3.5, pw - 30, 6, "F");
+    }
+
+    doc.setFontSize(8);
+    setColor(doc, DARK);
     doc.text(l.invoice_number, 17, y);
     doc.text(l.vehicle_name.substring(0, 25), 45, y);
+    setColor(doc, GRAY);
     doc.text(new Date(l.sale_date).toLocaleDateString(), 95, y);
+    setColor(doc, DARK);
     doc.text(formatCurrency(l.sale_price), 120, y);
+    setColor(doc, GREEN);
     doc.text(formatCurrency(l.total_paid), 150, y);
+    setColor(doc, l.balance > 0 ? RED : GREEN);
     doc.text(formatCurrency(l.balance), 175, y);
+
     totalSale += l.sale_price;
     totalPaid += l.total_paid;
     totalBalance += l.balance;
     y += 6;
   });
 
-  // Totals
-  y += 3;
-  doc.setDrawColor(0);
-  doc.line(15, y - 2, 195, y - 2);
+  // Totals row
+  y += 2;
+  setColor(doc, BRAND, "draw");
+  doc.setLineWidth(0.5);
+  doc.line(15, y - 2, pw - 15, y - 2);
   doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  setColor(doc, BRAND);
   doc.text("TOTAL", 17, y + 3);
+  setColor(doc, DARK);
   doc.text(formatCurrency(totalSale), 120, y + 3);
+  setColor(doc, GREEN);
   doc.text(formatCurrency(totalPaid), 150, y + 3);
+  setColor(doc, totalBalance > 0 ? RED : GREEN);
   doc.text(formatCurrency(totalBalance), 175, y + 3);
 
-  addFooter(doc);
+  addModernFooter(doc);
   return doc;
 }
 
-// Professional Inspection Report PDF (PakWheels-style)
+// ══════════════════════════════════════════════════════════════════════════
+//  PROFESSIONAL INSPECTION REPORT (PakWheels-style)
+// ══════════════════════════════════════════════════════════════════════════
+
 export function generateProfessionalInspectionReport(inspection: {
   id: string;
   vehicle_name: string;
@@ -398,88 +624,70 @@ export function generateProfessionalInspectionReport(inspection: {
   inspector_name: string;
   inspection_date: string;
   overall_score: number;
-  overall_condition: string; // "Excellent", "Good", "Fair", "Poor"
-
-  // Exterior condition by category
+  overall_condition: string;
   exterior_damages: {
     panel_id: string;
-    status: string; // normal, scratch, dent, repainted, rust, cracked, replaced
+    status: string;
     notes?: string;
   }[];
-
-  // Interior condition scores
-  interior_rating?: number; // 1-10
+  interior_rating?: number;
   interior_notes?: string;
-
-  // Mechanical condition scores
-  mechanical_rating?: number; // 1-10
+  mechanical_rating?: number;
   mechanical_notes?: string;
-
-  // Category breakdowns
   categories: {
     name: string;
-    rating: number; // 1-10
+    rating: number;
     items: {
       point_name: string;
-      status: string; // good, fair, poor
+      status: string;
       notes?: string;
     }[];
   }[];
-
-  // Images/photos
   photos?: { url: string; label: string }[];
-
-  // Final recommendation
   recommendation?: string;
 }): jsPDF {
   const doc = new jsPDF("p", "mm", "a4");
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
+  const pw = doc.internal.pageSize.getWidth();
   let y = 15;
 
-  // ─────────────────── PAGE 1: HEADER & SUMMARY ──────────────────────
-
-  // Professional header
-  const getRatingColor = (score: number): [number, number, number] => {
-    if (score >= 8) return [34, 197, 94]; // Green (Excellent)
-    if (score >= 6) return [202, 138, 4]; // Amber (Good)
-    if (score >= 4) return [239, 68, 68]; // Orange (Fair)
-    return [220, 38, 38]; // Red (Poor)
+  const getRatingColor = (score: number): RGB => {
+    if (score >= 8) return GREEN;
+    if (score >= 6) return AMBER;
+    if (score >= 4) return RED;
+    return [220, 38, 38];
   };
 
   const ratingColor = getRatingColor(inspection.overall_score);
 
   // Header background
-  doc.setFillColor(...ratingColor);
-  doc.rect(0, 0, pageWidth, 35, "F");
+  setColor(doc, ratingColor, "fill");
+  doc.rect(0, 0, pw, 35, "F");
 
-  // Title
   doc.setFontSize(24);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 255, 255);
-  doc.text("VEHICLE INSPECTION REPORT", pageWidth / 2, 12, { align: "center" });
+  setColor(doc, WHITE);
+  doc.text("VEHICLE INSPECTION REPORT", pw / 2, 12, { align: "center" });
 
   // Score circle
-  doc.setFillColor(255, 255, 255);
-  doc.circle(pageWidth - 18, 17.5, 8);
-  doc.setTextColor(...ratingColor);
+  setColor(doc, WHITE, "fill");
+  doc.circle(pw - 18, 17.5, 8);
+  setColor(doc, ratingColor);
   doc.setFontSize(18);
-  doc.setFont("helvetica", "bold");
-  doc.text(inspection.overall_score.toFixed(1), pageWidth - 18, 19.5, {
+  doc.text(inspection.overall_score.toFixed(1), pw - 18, 19.5, {
     align: "center",
   });
   doc.setFontSize(9);
-  doc.text("/10", pageWidth - 14, 19.5, { align: "left" });
+  doc.text("/10", pw - 14, 19.5, { align: "left" });
 
   y = 40;
 
-  // Vehicle Details Section
-  doc.setFillColor(241, 245, 249);
-  doc.rect(12, y - 5, pageWidth - 24, 45, "F");
+  // Vehicle Details
+  setColor(doc, LIGHT_BG, "fill");
+  doc.rect(12, y - 5, pw - 24, 45, "F");
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(0, 0, 0);
+  setColor(doc, DARK);
   doc.text("VEHICLE INFORMATION", 15, y);
 
   y += 8;
@@ -489,37 +697,32 @@ export function generateProfessionalInspectionReport(inspection: {
   const vehicleDetails = [
     ["Vehicle", inspection.vehicle_name],
     ["Reg. Number", inspection.registration_number || "N/A"],
-    [
-      "Model Year",
-      inspection.model_year ? String(inspection.model_year) : "N/A",
-    ],
+    ["Model Year", inspection.model_year ? String(inspection.model_year) : "N/A"],
     ["Transmission", inspection.transmission || "N/A"],
   ];
 
   const mechanicalDetails = [
     ["Chassis #", inspection.chassis_number || "N/A"],
     ["Engine #", inspection.engine_number || "N/A"],
-    [
-      "Mileage",
-      inspection.mileage ? `${inspection.mileage.toLocaleString()} km` : "N/A",
-    ],
-    [
-      "Inspection Date",
-      new Date(inspection.inspection_date).toLocaleDateString(),
-    ],
+    ["Mileage", inspection.mileage ? `${inspection.mileage.toLocaleString()} km` : "N/A"],
+    ["Inspection Date", new Date(inspection.inspection_date).toLocaleDateString()],
   ];
 
   vehicleDetails.forEach((detail, i) => {
+    setColor(doc, GRAY);
     doc.text(`${detail[0]}:`, 15, y + i * 5, { maxWidth: 40 });
     doc.setFont("helvetica", "bold");
+    setColor(doc, DARK);
     doc.text(detail[1], 60, y + i * 5);
     doc.setFont("helvetica", "normal");
   });
 
   mechanicalDetails.forEach((detail, i) => {
-    doc.text(`${detail[0]}:`, pageWidth / 2 + 5, y + i * 5, { maxWidth: 40 });
+    setColor(doc, GRAY);
+    doc.text(`${detail[0]}:`, pw / 2 + 5, y + i * 5, { maxWidth: 40 });
     doc.setFont("helvetica", "bold");
-    doc.text(detail[1], pageWidth / 2 + 50, y + i * 5);
+    setColor(doc, DARK);
+    doc.text(detail[1], pw / 2 + 50, y + i * 5);
     doc.setFont("helvetica", "normal");
   });
 
@@ -528,12 +731,11 @@ export function generateProfessionalInspectionReport(inspection: {
   // Condition Summary
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(0, 0, 0);
+  setColor(doc, DARK);
   doc.text("OVERALL CONDITION", 15, y);
   y += 7;
 
-  // Condition rows
-  const conditions = [
+  const conditions: [string, number][] = [
     [
       "Exterior",
       inspection.categories?.find((c) =>
@@ -552,72 +754,68 @@ export function generateProfessionalInspectionReport(inspection: {
       y = 15;
     }
 
-    // Condition bar
     const condRating = cond[1];
     const barColor = getRatingColor(condRating);
     const barWidth = (condRating / 10) * 60;
 
+    setColor(doc, DARK);
     doc.text(`${cond[0]}:`, 15, y + 2);
-    doc.setFillColor(230, 230, 230);
+    setColor(doc, [230, 230, 230], "fill");
     doc.rect(50, y - 1, 60, 4);
-    doc.setFillColor(...barColor);
+    setColor(doc, barColor, "fill");
     doc.rect(50, y - 1, barWidth, 4, "F");
+    setColor(doc, DARK);
     doc.text(`${condRating.toFixed(1)}/10`, 115, y + 2);
     y += 7;
   });
 
   y += 5;
 
-  // Recommendation box
+  // Recommendation
   if (inspection.recommendation) {
     if (y > 250) {
       doc.addPage();
       y = 15;
     }
-    doc.setFillColor(237, 242, 247);
-    doc.setDrawColor(...ratingColor);
+    setColor(doc, [237, 242, 247], "fill");
+    setColor(doc, ratingColor, "draw");
     doc.setLineWidth(1.5);
-    doc.rect(12, y - 2, pageWidth - 24, 20, "FD");
+    doc.rect(12, y - 2, pw - 24, 20, "FD");
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(...ratingColor);
+    setColor(doc, ratingColor);
     doc.text("RECOMMENDATION", 15, y + 2);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(0, 0, 0);
+    setColor(doc, DARK);
     doc.setFontSize(8);
-    const recText = doc.splitTextToSize(
-      inspection.recommendation,
-      pageWidth - 35,
-    );
+    const recText = doc.splitTextToSize(inspection.recommendation, pw - 35);
     doc.text(recText, 15, y + 7);
     y += 22;
   }
 
-  // ─────────────────── PAGE 2+: DETAILED BREAKDOWN ──────────────────────
-
+  // Page 2+: Detailed Breakdown
   doc.addPage();
   y = 15;
 
-  // Exterior/Damage Map Section
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(0, 0, 0);
+  setColor(doc, DARK);
   doc.text("EXTERIOR CONDITION - BODY PANELS", 15, y);
   y += 8;
 
-  doc.setFillColor(241, 245, 249);
-  doc.rect(12, y - 3, pageWidth - 24, 6, "F");
+  setColor(doc, LIGHT_BG, "fill");
+  doc.rect(12, y - 3, pw - 24, 6, "F");
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(50, 50, 50);
+  setColor(doc, BRAND);
   doc.text("Panel", 15, y);
   doc.text("Status", 80, y);
   doc.text("Notes", 130, y);
   y += 8;
 
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(0, 0, 0);
   doc.setFontSize(8);
+  setColor(doc, DARK);
 
   inspection.exterior_damages.forEach((damage) => {
     if (y > 270) {
@@ -626,27 +824,27 @@ export function generateProfessionalInspectionReport(inspection: {
     }
 
     const panelName = PANEL_LABELS[damage.panel_id] || damage.panel_id;
-    const statusColor =
+    const statusColor: RGB =
       damage.status === "normal"
-        ? [34, 197, 94]
+        ? GREEN
         : damage.status === "scratch"
-          ? [202, 138, 4]
+          ? AMBER
           : damage.status === "dent"
             ? [234, 179, 8]
             : damage.status === "repainted"
               ? [139, 92, 246]
               : damage.status === "rust"
-                ? [239, 68, 68]
+                ? RED
                 : [220, 38, 38];
 
+    setColor(doc, DARK);
     doc.text(panelName, 15, y);
-    doc.setTextColor(...statusColor);
+    setColor(doc, statusColor);
     doc.setFont("helvetica", "bold");
     doc.text(damage.status.toUpperCase(), 80, y);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(0, 0, 0);
-    const notes = damage.notes ? damage.notes.substring(0, 40) : "-";
-    doc.text(notes, 130, y);
+    setColor(doc, DARK);
+    doc.text(damage.notes ? damage.notes.substring(0, 40) : "-", 130, y);
     y += 5;
   });
 
@@ -661,24 +859,21 @@ export function generateProfessionalInspectionReport(inspection: {
 
     const categoryColor = getRatingColor(category.rating);
 
-    // Category header
-    doc.setFillColor(...categoryColor);
-    doc.rect(12, y - 3, pageWidth - 24, 7, "F");
+    setColor(doc, categoryColor, "fill");
+    doc.rect(12, y - 3, pw - 24, 7, "F");
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(255, 255, 255);
+    setColor(doc, WHITE);
     doc.text(
       `${category.name.toUpperCase()} - ${category.rating.toFixed(1)}/10`,
-      pageWidth / 2 - 20,
+      pw / 2 - 20,
       y + 2,
       { align: "center" },
     );
     y += 9;
 
-    // Category items
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(0, 0, 0);
 
     category.items.forEach((item) => {
       if (y > 275) {
@@ -686,23 +881,19 @@ export function generateProfessionalInspectionReport(inspection: {
         y = 15;
       }
 
-      const itemColor =
-        item.status === "good"
-          ? [34, 197, 94]
-          : item.status === "fair"
-            ? [202, 138, 4]
-            : [239, 68, 68];
+      const itemColor: RGB =
+        item.status === "good" ? GREEN : item.status === "fair" ? AMBER : RED;
 
-      doc.setTextColor(...itemColor);
-      doc.text("●", 15, y);
-      doc.setTextColor(0, 0, 0);
+      setColor(doc, itemColor);
+      doc.text("\u2022", 15, y);
+      setColor(doc, DARK);
       doc.text(item.point_name, 18, y, { maxWidth: 80 });
-      doc.setTextColor(...itemColor);
+      setColor(doc, itemColor);
       doc.setFont("helvetica", "bold");
       doc.text(`[${item.status.toUpperCase()}]`, 125, y);
       doc.setFont("helvetica", "normal");
       if (item.notes) {
-        doc.setTextColor(100, 100, 100);
+        setColor(doc, GRAY);
         doc.text(item.notes.substring(0, 35), 160, y, { maxWidth: 40 });
       }
       y += 5;
@@ -711,9 +902,8 @@ export function generateProfessionalInspectionReport(inspection: {
     y += 3;
   });
 
-  // Final footer
   doc.setPage(1);
-  addFooter(doc);
+  addModernFooter(doc);
 
   return doc;
 }

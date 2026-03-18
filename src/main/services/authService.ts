@@ -179,8 +179,8 @@ export function updateUser(
   const admin = db
     .prepare("SELECT role, username FROM users WHERE id = ?")
     .get(adminId) as any;
-  if (!admin || admin.role !== "super_admin") {
-    throw new Error("Only Super Admin can update users");
+  if (!admin || (admin.role !== "super_admin" && admin.role !== "admin")) {
+    throw new Error("Only Super Admin or Admin can update users");
   }
 
   const existing = db
@@ -262,8 +262,8 @@ export function deleteUser(adminId: string, userId: string): void {
   const admin = db
     .prepare("SELECT role, username FROM users WHERE id = ?")
     .get(adminId) as { role: UserRole; username: string } | undefined;
-  if (!admin || admin.role !== "super_admin") {
-    throw new Error("Only Super Admin can delete users");
+  if (!admin || (admin.role !== "super_admin" && admin.role !== "admin")) {
+    throw new Error("Only Super Admin or Admin can delete users");
   }
   if (adminId === userId) {
     throw new Error("You cannot delete your own account");

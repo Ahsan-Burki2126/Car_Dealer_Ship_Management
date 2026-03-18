@@ -22,7 +22,6 @@ import SaleDetailPage from "./pages/SaleDetailPage";
 import InstallmentsPage from "./pages/InstallmentsPage";
 import ExpensesPage from "./pages/ExpensesPage";
 import ReportsPage from "./pages/ReportsPage";
-import AuditLogsPage from "./pages/AuditLogsPage";
 import UsersPage from "./pages/UsersPage";
 import SettingsPage from "./pages/SettingsPage";
 import BackupPage from "./pages/BackupPage";
@@ -161,16 +160,12 @@ export default function App() {
         />
         <Route
           path="audit-logs"
-          element={
-            <RoleRoute roles={["super_admin"]}>
-              <AuditLogsPage />
-            </RoleRoute>
-          }
+          element={<Navigate to="/settings" replace />}
         />
         <Route
           path="users"
           element={
-            <RoleRoute roles={["super_admin"]}>
+            <RoleRoute roles={["super_admin", "admin"]}>
               <UsersPage />
             </RoleRoute>
           }

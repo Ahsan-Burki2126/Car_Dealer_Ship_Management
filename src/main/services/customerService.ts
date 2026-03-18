@@ -8,14 +8,15 @@ export function addCustomer(userId: string, data: Partial<Customer>): Customer {
 
   db.prepare(
     `
-    INSERT INTO customers (id, name, father_name, cnic, phone, address, photo_path, cnic_photo_path,
+    INSERT INTO customers (id, name, father_name, caste, cnic, phone, address, photo_path, cnic_photo_path,
       notes, witness_name, witness_father_name, witness_cnic, witness_phone, witness_cnic_photo_path, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
   ).run(
     id,
     data.name || "",
     data.father_name || "",
+    data.caste || "",
     data.cnic || "",
     data.phone || "",
     data.address || "",
@@ -112,6 +113,7 @@ export function updateCustomer(
   const fields = [
     "name",
     "father_name",
+    "caste",
     "cnic",
     "phone",
     "address",
@@ -184,6 +186,7 @@ function mapCustomerRow(row: any): Customer {
     id: row.id,
     name: row.name,
     father_name: row.father_name,
+    caste: row.caste,
     cnic: row.cnic,
     phone: row.phone,
     address: row.address,

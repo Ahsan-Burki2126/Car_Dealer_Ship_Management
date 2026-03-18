@@ -6,5 +6,5 @@ export function toFileUrl(filePath?: string | null): string {
     return filePath;
   }
 
-  return `local-image://file?path=${encodeURIComponent(filePath)}`;
+  return `local-image://localhost?path=${encodeURIComponent(filePath)}`;
 }

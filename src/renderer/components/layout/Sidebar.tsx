@@ -10,7 +10,6 @@ import {
   FiCalendar,
   FiDollarSign,
   FiBarChart2,
-  FiShield,
   FiSettings,
   FiUserCheck,
   FiDatabase,
@@ -21,13 +20,13 @@ const navItems = [
     path: "/",
     label: "Dashboard",
     icon: FiHome,
-    roles: ["super_admin", "admin", "staff"],
+    roles: ["super_admin", "admin"],
   },
   {
     path: "/vehicles",
     label: "Vehicles",
     icon: FiTruck,
-    roles: ["super_admin", "admin", "staff"],
+    roles: ["super_admin", "admin"],
   },
   {
     path: "/customers",
@@ -60,23 +59,17 @@ const navItems = [
     roles: ["super_admin", "admin"],
   },
   {
-    path: "/audit-logs",
-    label: "System / Activity Logs",
-    icon: FiShield,
-    roles: ["super_admin"],
-  },
-  {
     path: "/backup",
     label: "Backup",
     icon: FiDatabase,
     roles: ["super_admin", "admin"],
   },
-  { path: "/users", label: "Users", icon: FiUserCheck, roles: ["super_admin"] },
+  { path: "/users", label: "Users", icon: FiUserCheck, roles: ["super_admin", "admin"] },
   {
     path: "/settings",
     label: "Settings",
     icon: FiSettings,
-    roles: ["super_admin", "admin", "staff"],
+    roles: ["super_admin", "admin"],
   },
 ];
 

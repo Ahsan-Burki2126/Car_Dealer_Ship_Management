@@ -13,6 +13,10 @@ import { toFileUrl } from "../utils/filePaths";
 import ErrorBoundary from "../components/ErrorBoundary";
 import InspectionReportPrint from "../components/inspection/InspectionReportPrint";
 
+// Grey SVG shown when a local image fails to load (missing file, 403, etc.)
+const IMG_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='140'%3E%3Crect width='200' height='140' fill='%23e5e7eb'/%3E%3Ctext x='100' y='76' text-anchor='middle' fill='%239ca3af' font-size='13' font-family='sans-serif'%3ENo image%3C/text%3E%3C/svg%3E";
+
 const VehicleInspectionSVG = React.lazy(() =>
   import("../components/inspection/VehicleInspectionSVG").catch((err) => {
     console.error("Failed to load inspection component:", err);
@@ -116,14 +120,12 @@ export default function VehicleDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {user?.role !== "staff" && (
-            <Link
-              to={`/vehicles/${vehicle.id}/edit`}
-              className="btn-primary flex items-center gap-2"
-            >
-              <FiEdit /> Edit
-            </Link>
-          )}
+          <Link
+            to={`/vehicles/${vehicle.id}/edit`}
+            className="btn-primary flex items-center gap-2"
+          >
+            <FiEdit /> Edit
+          </Link>
         </div>
       </div>
 
@@ -137,6 +139,7 @@ export default function VehicleDetailPage() {
               src={toFileUrl(vehicle.photo_path)}
               alt={`${vehicle.make} ${vehicle.model}`}
               className="w-full max-w-3xl rounded-xl border border-gray-200 object-cover dark:border-gray-700"
+              onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
             />
           </div>
         )}
@@ -285,6 +288,7 @@ export default function VehicleDetailPage() {
                     src={toFileUrl(vehicle.seller_photo_path)}
                     alt="Seller"
                     className="w-full max-w-xs rounded-xl border border-gray-200 object-cover dark:border-gray-700"
+                    onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
                   />
                 </div>
               )}
@@ -297,6 +301,7 @@ export default function VehicleDetailPage() {
                     src={toFileUrl(vehicle.seller_cnic_photo_path)}
                     alt="Seller CNIC"
                     className="w-full max-w-sm rounded-xl border border-gray-200 object-cover dark:border-gray-700"
+                    onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
                   />
                 </div>
               )}
@@ -310,14 +315,12 @@ export default function VehicleDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Expenses
             </h2>
-            {user?.role !== "staff" && (
-              <button
-                onClick={() => setShowExpenseForm(!showExpenseForm)}
-                className="btn-primary text-sm flex items-center gap-1"
-              >
-                <FiPlus /> Add
-              </button>
-            )}
+            <button
+              onClick={() => setShowExpenseForm(!showExpenseForm)}
+              className="btn-primary text-sm flex items-center gap-1"
+            >
+              <FiPlus /> Add
+            </button>
           </div>
 
           {showExpenseForm && (
@@ -403,14 +406,12 @@ export default function VehicleDetailPage() {
                     <span className="text-sm font-semibold text-gray-900 dark:text-white">
                       Rs {exp.amount.toLocaleString()}
                     </span>
-                    {user?.role !== "staff" && (
-                      <button
-                        onClick={() => handleDeleteExpense(exp.id)}
-                        className="p-1 text-red-500 hover:bg-red-50 rounded"
-                      >
-                        <FiTrash2 size={14} />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleDeleteExpense(exp.id)}
+                      className="p-1 text-red-500 hover:bg-red-50 rounded"
+                    >
+                      <FiTrash2 size={14} />
+                    </button>
                   </div>
                 </div>
               ))}

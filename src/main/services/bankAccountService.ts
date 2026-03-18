@@ -189,6 +189,35 @@ export function updateBankAccount(
   return getBankAccountById(id)!;
 }
 
+export function deleteBankAccount(userId: string, id: string): void {
+  const db = getDatabase();
+  const existing = db
+    .prepare("SELECT * FROM bank_accounts WHERE id = ?")
+    .get(id) as { id: string; name: string; bank_name: string | null } | undefined;
+  if (!existing) {
+    throw new Error("Bank account not found");
+  }
+
+  db.prepare("DELETE FROM bank_accounts WHERE id = ?").run(id);
+
+  const user = db
+    .prepare("SELECT username, role FROM users WHERE id = ?")
+    .get(userId) as { username: string; role: string } | undefined;
+  db.prepare(
+    `
+    INSERT INTO audit_logs (id, user_id, username, role, action_type, affected_entity, entity_id, old_value, timestamp)
+    VALUES (?, ?, ?, ?, 'delete', 'bank_accounts', ?, ?, datetime('now'))
+  `,
+  ).run(
+    uuidv4(),
+    userId,
+    user?.username || "",
+    user?.role || "",
+    id,
+    JSON.stringify({ bank_name: existing.bank_name || existing.name }),
+  );
+}
+
 function getBankAccountById(id: string): BankAccount | null {
   const db = getDatabase();
   const row = db

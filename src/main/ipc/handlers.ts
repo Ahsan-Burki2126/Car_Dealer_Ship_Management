@@ -77,7 +77,7 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle("auth:getUsers", async (_event, requesterId: string) => {
     try {
-      requireRole(requesterId, ["super_admin"]);
+      requireRole(requesterId, ["super_admin", "admin"]);
       return { success: true, data: authService.getUsers() };
     } catch (e) {
       return handleError(e);
@@ -88,7 +88,7 @@ export function registerIpcHandlers(): void {
     "auth:updateUser",
     async (_event, adminId: string, userId: string, data: any) => {
       try {
-        requireRole(adminId, ["super_admin"]);
+        requireRole(adminId, ["super_admin", "admin"]);
         authService.updateUser(adminId, userId, data);
         return { success: true };
       } catch (e) {
@@ -101,7 +101,7 @@ export function registerIpcHandlers(): void {
     "auth:deleteUser",
     async (_event, adminId: string, userId: string) => {
       try {
-        requireRole(adminId, ["super_admin"]);
+        requireRole(adminId, ["super_admin", "admin"]);
         authService.deleteUser(adminId, userId);
         return { success: true };
       } catch (e) {
@@ -130,7 +130,7 @@ export function registerIpcHandlers(): void {
   // =========== VEHICLES ===========
   ipcMain.handle("vehicles:add", async (_event, userId: string, data: any) => {
     try {
-      requireRole(userId, ["super_admin", "admin", "staff"]);
+      requireRole(userId, ["super_admin", "admin"]);
       const vehicle = vehicleService.addVehicle(userId, data);
       return { success: true, data: vehicle };
     } catch (e) {
@@ -158,7 +158,7 @@ export function registerIpcHandlers(): void {
     "vehicles:update",
     async (_event, userId: string, id: string, data: any) => {
       try {
-        requireRole(userId, ["super_admin", "admin", "staff"]);
+        requireRole(userId, ["super_admin", "admin"]);
         const vehicle = vehicleService.updateVehicle(userId, id, data);
         return { success: true, data: vehicle };
       } catch (e) {
@@ -184,7 +184,7 @@ export function registerIpcHandlers(): void {
     "vehicles:restore",
     async (_event, userId: string, id: string) => {
       try {
-        requireRole(userId, ["super_admin"]);
+        requireRole(userId, ["super_admin", "admin"]);
         vehicleService.restoreVehicle(userId, id);
         return { success: true };
       } catch (e) {
@@ -474,23 +474,8 @@ export function registerIpcHandlers(): void {
   // =========== REPORTS ===========
   ipcMain.handle("reports:dashboard", async (_event, userId: string) => {
     try {
-      const role = requireRole(userId, ["super_admin", "admin", "staff"]);
+      requireRole(userId, ["super_admin", "admin"]);
       const data = reportService.getDashboardStats();
-      if (role === "staff") {
-        return {
-          success: true,
-          data: {
-            ...data,
-            totalSales: 0,
-            totalRevenue: 0,
-            totalExpenses: 0,
-            pendingInstallments: 0,
-            overdueInstallments: 0,
-            overdueAlerts: [],
-            recentSales: [],
-          },
-        };
-      }
       return { success: true, data };
     } catch (e) {
       return handleError(e);
@@ -596,6 +581,19 @@ export function registerIpcHandlers(): void {
     },
   );
 
+  ipcMain.handle(
+    "bankAccounts:delete",
+    async (_event, userId: string, accountId: string) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        bankAccountService.deleteBankAccount(userId, accountId);
+        return { success: true };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
   // =========== BACKUP ===========
   ipcMain.handle(
     "backup:create",
@@ -623,7 +621,7 @@ export function registerIpcHandlers(): void {
     "backup:restore",
     async (_event, userId: string, filePath: string) => {
       try {
-        requireRole(userId, ["super_admin"]);
+        requireRole(userId, ["super_admin", "admin"]);
         backupService.restoreBackup(filePath, userId);
         return { success: true };
       } catch (e) {
@@ -642,6 +640,26 @@ export function registerIpcHandlers(): void {
   });
 
   // =========== GOOGLE DRIVE BACKUP ===========
+
+  // New: single-call auth flow that opens browser + captures callback automatically
+  ipcMain.handle("googledrive:startAuth", async () => {
+    try {
+      const googleDriveService = require("../services/googleDriveService");
+      if (!googleDriveService.areCredentialsConfigured()) {
+        return {
+          success: false,
+          error:
+            "Google Drive credentials are not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET before building.",
+        };
+      }
+      await googleDriveService.startAuthFlow();
+      return { success: true, data: true };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  // Legacy handlers kept for backward compatibility
   ipcMain.handle("googledrive:getAuthUrl", async () => {
     try {
       const googleDriveService = require("../services/googleDriveService");

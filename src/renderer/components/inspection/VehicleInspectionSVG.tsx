@@ -14,25 +14,25 @@ import InspectionLegend from "./InspectionLegend";
 const SVG_W = 4096;
 const SVG_H = 4096;
 
-// Named panel regions used only for coordinate→panelId mapping.
-// These are NOT rendered as visual overlays — the actual SVG shapes are.
-// X/Y bounds are calibrated against actual SVG element getBBox() centres:
-//   Left doors:  centre-x ≈ 1444–1457  Right doors: centre-x ≈ 2652–2656
-//   Left fender: centre-x ≈ 1133       Right fender: centre-x ≈ 2963
-//   Roof (central strip): x ≈ 1590–2500
+// Named panel regions used for coordinate→panelId mapping (click & hover).
+// Panel identification uses getPanelAt(svgX, svgY) directly — NOT DOM element
+// tagging — so the correct panel is always reported regardless of SVG z-order.
 // Doors are listed BEFORE roof so they win when regions overlap on the x-axis.
 export const PANEL_REGIONS = [
   // ── Front end ──────────────────────────────────────────────────────────────
-  { id: "front-bumper",        label: "Front Bumper",        x:  850, y:  210, w: 2400, h: 500 },
-  { id: "front-left-fender",   label: "Front Left Fender",   x:  700, y:  650, w:  700, h: 1050 },
-  { id: "front-right-fender",  label: "Front Right Fender",  x: 2700, y:  650, w:  700, h: 1050 },
+  { id: "front-bumper",        label: "Front Bumper",        x:  850, y:  210, w: 2400, h:  500 },
+  { id: "front-left-fender",   label: "Front Left Fender",   x:  700, y:  650, w:  700, h: 1100 },
+  { id: "front-right-fender",  label: "Front Right Fender",  x: 2700, y:  650, w:  700, h: 1100 },
   { id: "hood",                label: "Hood / Bonnet",       x: 1200, y:  650, w: 1700, h:  760 },
   { id: "windscreen-front",    label: "Front Windscreen",    x: 1200, y: 1380, w: 1700, h:  300 },
   // ── Doors — listed before roof so they win priority ────────────────────────
-  { id: "front-left-door",     label: "Front Left Door",     x:  850, y: 1650, w:  850, h:  700 },
-  { id: "front-right-door",    label: "Front Right Door",    x: 2300, y: 1650, w:  950, h:  700 },
-  { id: "rear-left-door",      label: "Rear Left Door",      x:  850, y: 2350, w:  850, h:  600 },
-  { id: "rear-right-door",     label: "Rear Right Door",     x: 2300, y: 2350, w:  950, h:  600 },
+  { id: "front-left-door",     label: "Front Left Door",     x:  700, y: 1650, w: 1000, h:  700 },
+  { id: "front-right-door",    label: "Front Right Door",    x: 2400, y: 1650, w:  950, h:  700 },
+  { id: "rear-left-door",      label: "Rear Left Door",      x:  700, y: 2350, w: 1000, h:  650 },
+  { id: "rear-right-door",     label: "Rear Right Door",     x: 2400, y: 2350, w:  950, h:  650 },
+  // ── Rear quarter panels ────────────────────────────────────────────────────
+  { id: "rear-left-fender",    label: "Rear Left Fender",    x:  700, y: 2950, w:  700, h:  550 },
+  { id: "rear-right-fender",   label: "Rear Right Fender",   x: 2700, y: 2950, w:  700, h:  550 },
   // ── Centre cabin (roof) — checked after doors ──────────────────────────────
   { id: "roof",                label: "Roof",                x: 1400, y: 1650, w: 1300, h: 1750 },
   // ── Rear end ───────────────────────────────────────────────────────────────
@@ -165,22 +165,28 @@ export default function VehicleInspectionSVG({
   }, [hoveredPanel, pendingClick, inspection.markers]);
 
   // ── 4. Convert screen → SVG coordinate space ───────────────────────────────
+  // Uses getScreenCTM() which correctly accounts for viewBox, preserveAspectRatio,
+  // and any CSS transforms — unlike a naive getBoundingClientRect() linear mapping
+  // which breaks when the SVG has letterboxing (square viewBox in a wide container).
   const toSVGCoords = useCallback((e: React.MouseEvent): { x: number; y: number } => {
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
-    const r = svg.getBoundingClientRect();
-    return {
-      x: ((e.clientX - r.left)  / r.width)  * SVG_W,
-      y: ((e.clientY - r.top)   / r.height) * SVG_H,
-    };
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+    return { x: pt.x, y: pt.y };
   }, []);
 
   // ── 5. Event handlers ───────────────────────────────────────────────────────
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     if (readonly) return;
-    const panelEl = (e.target as Element).closest("[data-panel]");
-    setHoveredPanel(panelEl?.getAttribute("data-panel") ?? null);
-  }, [readonly]);
+    // Use coordinate-space hit-test so the correct panel is always reported
+    // regardless of which SVG element the pointer is over (avoids DOM-tagging
+    // mismatches where e.g. the car-body shape is on top of a door outline).
+    const { x, y } = toSVGCoords(e);
+    const panelId = getPanelAt(x, y);
+    setHoveredPanel(panelId === "unknown" ? null : panelId);
+  }, [readonly, toSVGCoords]);
 
   const handleMouseLeave = useCallback(() => {
     setHoveredPanel(null);
@@ -190,9 +196,9 @@ export default function VehicleInspectionSVG({
     if (readonly) return;
     if ((e.target as Element).closest(".damage-marker")) return;
 
-    const panelEl = (e.target as Element).closest("[data-panel]");
-    const panelId = panelEl?.getAttribute("data-panel") ?? "unknown";
     const { x, y } = toSVGCoords(e);
+    // Use coordinate-space hit-test for accurate panel identification.
+    const panelId = getPanelAt(x, y);
 
     // Only allow placing markers on recognised panels
     if (panelId === "unknown") return;

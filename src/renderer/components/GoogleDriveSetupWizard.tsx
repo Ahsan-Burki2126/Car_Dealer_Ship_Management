@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { toast } from "react-toastify";
 import {
   FiCloud,
   FiCheck,
-  FiX,
   FiChevronRight,
   FiAlertCircle,
 } from "react-icons/fi";
@@ -26,83 +25,32 @@ export default function GoogleDriveSetupWizard({
   const handleStartSetup = async () => {
     setIsConnecting(true);
     setErrorMessage("");
+    setStep("connect");
 
     try {
-      const urlResult = await window.api.googleDriveGetAuthUrl();
-      if (!urlResult.success) {
-        setErrorMessage("Failed to get authentication URL. Please try again.");
+      // Single call: opens browser, captures callback, exchanges code
+      const result = await window.api.googleDriveStartAuth();
+
+      if (!result.success) {
+        setErrorMessage(result.error || "Authentication failed. Please try again.");
         setStep("error");
         setIsConnecting(false);
         return;
       }
 
-      setStep("connect");
-      const authUrl = urlResult.data;
+      // Auto-enable auto-upload after successful authentication
+      await window.api.googleDriveUpdateSettings(userId, {
+        enableGoogleDriveBackup: true,
+        autoUploadToGoogleDrive: true,
+      });
 
-      // Open auth window
-      const authWindow = window.open(
-        authUrl,
-        "google-drive-auth",
-        "width=600,height=700,left=200,top=200",
-      );
+      setStep("success");
+      toast.success("Google Drive connected! Backups will upload automatically.");
 
-      if (!authWindow) {
-        setErrorMessage(
-          "Could not open authentication window. Please check your popup blocker settings.",
-        );
-        setStep("error");
-        setIsConnecting(false);
-        return;
-      }
-
-      // Poll for authentication completion
-      let isAuthenticated = false;
-      let attempts = 0;
-      const maxAttempts = 300; // 5 minutes
-
-      const checkAuth = setInterval(async () => {
-        attempts++;
-
-        try {
-          const checkResult = await window.api.googleDriveIsAuthenticated();
-          if (checkResult.success && checkResult.data) {
-            isAuthenticated = true;
-            clearInterval(checkAuth);
-            authWindow.close();
-
-            // Auto-enable auto-upload after successful authentication
-            const settingsResult = await window.api.googleDriveUpdateSettings(
-              userId,
-              {
-                enableGoogleDriveBackup: true,
-                autoUploadToGoogleDrive: true,
-              },
-            );
-
-            if (settingsResult.success) {
-              setStep("success");
-              toast.success(
-                "Google Drive connected! Backups will upload automatically.",
-              );
-              // Close wizard after 2 seconds
-              setTimeout(() => {
-                onComplete();
-              }, 2000);
-            }
-          }
-        } catch (err) {
-          console.error("Auth check error:", err);
-        }
-
-        if (attempts >= maxAttempts) {
-          clearInterval(checkAuth);
-          if (!isAuthenticated) {
-            setErrorMessage("Authentication timeout. Please try again.");
-            setStep("error");
-            authWindow.close();
-          }
-        }
-      }, 1000);
+      // Close wizard after 2 seconds
+      setTimeout(() => {
+        onComplete();
+      }, 2000);
     } catch (error) {
       console.error("Setup error:", error);
       setErrorMessage(
@@ -178,11 +126,12 @@ export default function GoogleDriveSetupWizard({
                   Connecting to Google...
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Complete sign-in in the browser window, then come back here.
+                  A browser window has opened. Sign in with your Google account
+                  and grant permission. This page will update automatically.
                 </p>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                We're waiting for authorization...
+                Waiting for authorization...
               </p>
             </div>
           )}
@@ -199,7 +148,7 @@ export default function GoogleDriveSetupWizard({
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
-                  All Set! ✓
+                  All Set!
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Your Google Drive backup is ready. Daily backups will begin
@@ -228,9 +177,9 @@ export default function GoogleDriveSetupWizard({
                   Troubleshooting:
                 </h4>
                 <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                  <li>• Allow popups for this application</li>
-                  <li>• Make sure you're logged into Google</li>
-                  <li>• Check your internet connection</li>
+                  <li>- Make sure you're logged into Google in your browser</li>
+                  <li>- Check your internet connection</li>
+                  <li>- If using a firewall, allow port 3000 temporarily</li>
                 </ul>
               </div>
             </div>
@@ -252,15 +201,7 @@ export default function GoogleDriveSetupWizard({
                 disabled={isConnecting}
                 className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isConnecting ? (
-                  <>
-                    <span className="animate-spin">⏳</span> Starting...
-                  </>
-                ) : (
-                  <>
-                    Get Started <FiChevronRight size={16} />
-                  </>
-                )}
+                Get Started <FiChevronRight size={16} />
               </button>
             </>
           )}
@@ -270,7 +211,7 @@ export default function GoogleDriveSetupWizard({
               onClick={onComplete}
               className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium text-sm"
             >
-              Close
+              Cancel
             </button>
           )}
 

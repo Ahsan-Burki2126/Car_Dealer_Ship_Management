@@ -18,6 +18,7 @@ export const VEHICLE_EXPENSE_CATEGORIES = [
   { value: "battery_replacement", label: "Battery Replacement" },
   { value: "travel_cost", label: "Travel Cost" },
   { value: "fuel_cost", label: "Fuel Cost" },
+  { value: "meals", label: "Meals (Travel)" },
   { value: "transportation_cost", label: "Transportation Cost" },
   { value: "cleaning_cost", label: "Cleaning Cost" },
   { value: "other", label: "Other" },
@@ -61,7 +62,6 @@ export const INSTALLMENT_FREQUENCIES = [
 export const USER_ROLES = [
   { value: "super_admin", label: "Super Admin" },
   { value: "admin", label: "Admin" },
-  { value: "staff", label: "Staff" },
 ] as const;
 
 export const INSPECTION_CATEGORIES = [

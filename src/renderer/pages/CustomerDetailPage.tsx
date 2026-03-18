@@ -5,6 +5,9 @@ import type { RootState } from "../store";
 import { FiArrowLeft, FiEdit, FiFileText } from "react-icons/fi";
 import { toFileUrl } from "../utils/filePaths";
 
+const IMG_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='140'%3E%3Crect width='200' height='140' fill='%23e5e7eb'/%3E%3Ctext x='100' y='76' text-anchor='middle' fill='%239ca3af' font-size='13' font-family='sans-serif'%3ENo image%3C/text%3E%3C/svg%3E";
+
 interface CustomerDetail {
   id: string;
   name: string;
@@ -197,6 +200,7 @@ export default function CustomerDetailPage() {
                 src={toFileUrl(customer.photo_path)}
                 alt={customer.name}
                 className="max-w-full rounded-xl border border-gray-200 dark:border-gray-700"
+                onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
               />
             </div>
           )}
@@ -209,6 +213,7 @@ export default function CustomerDetailPage() {
                 src={toFileUrl(customer.cnic_photo_path)}
                 alt={`${customer.name} CNIC`}
                 className="max-w-full rounded-xl border border-gray-200 dark:border-gray-700"
+                onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
               />
             </div>
           )}
@@ -221,6 +226,7 @@ export default function CustomerDetailPage() {
                 src={toFileUrl(customer.witness_cnic_photo_path)}
                 alt={`${customer.name} Witness CNIC`}
                 className="max-w-full rounded-xl border border-gray-200 dark:border-gray-700"
+                onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
               />
             </div>
           )}

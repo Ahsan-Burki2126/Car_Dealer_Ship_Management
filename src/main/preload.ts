@@ -149,6 +149,8 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("bankAccounts:create", userId, data),
   updateBankAccount: (userId: string, accountId: string, data: any) =>
     ipcRenderer.invoke("bankAccounts:update", userId, accountId, data),
+  deleteBankAccount: (userId: string, accountId: string) =>
+    ipcRenderer.invoke("bankAccounts:delete", userId, accountId),
 
   // Backup
   createBackup: (userId: string, targetPath?: string) =>
@@ -160,6 +162,7 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("backup:getFolder", userId),
 
   // Google Drive Backup
+  googleDriveStartAuth: () => ipcRenderer.invoke("googledrive:startAuth"),
   googleDriveGetAuthUrl: () => ipcRenderer.invoke("googledrive:getAuthUrl"),
   googleDriveAuthenticate: (authCode: string) =>
     ipcRenderer.invoke("googledrive:authenticate", authCode),

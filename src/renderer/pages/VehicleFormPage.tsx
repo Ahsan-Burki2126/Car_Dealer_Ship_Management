@@ -42,12 +42,29 @@ export default function VehicleFormPage() {
     year: new Date().getFullYear(),
     color: "",
     assembly_country: "",
+    assembling_company: "",
     key_available: true,
+    open_letter: false,
     purchase_price: "",
     purchase_date: new Date().toISOString().split("T")[0],
+    // Seller details
     seller_name: "",
+    seller_father_name: "",
+    seller_caste: "",
+    seller_address: "",
     seller_cnic: "",
     seller_phone: "",
+    // Seller witness
+    seller_witness_name: "",
+    seller_witness_father_name: "",
+    seller_witness_cnic: "",
+    seller_witness_phone: "",
+    // Commission
+    is_commission: false,
+    commission_owner_name: "",
+    commission_owner_phone: "",
+    commission_owner_cnic: "",
+    commission_amount: "",
     notes: "",
     vehicleInspection: {
       markers: [],
@@ -75,12 +92,26 @@ export default function VehicleFormPage() {
         year: v.year,
         color: v.color || "",
         assembly_country: v.assembly_country || "",
+        assembling_company: v.assembling_company || "",
         key_available: v.key_available,
+        open_letter: v.open_letter ?? false,
         purchase_price: String(v.purchase_price),
         purchase_date: v.purchase_date || "",
         seller_name: v.seller_name || "",
+        seller_father_name: v.seller_father_name || "",
+        seller_caste: v.seller_caste || "",
+        seller_address: v.seller_address || "",
         seller_cnic: v.seller_cnic || "",
         seller_phone: v.seller_phone || "",
+        seller_witness_name: v.seller_witness_name || "",
+        seller_witness_father_name: v.seller_witness_father_name || "",
+        seller_witness_cnic: v.seller_witness_cnic || "",
+        seller_witness_phone: v.seller_witness_phone || "",
+        is_commission: v.is_commission ?? false,
+        commission_owner_name: v.commission_owner_name || "",
+        commission_owner_phone: v.commission_owner_phone || "",
+        commission_owner_cnic: v.commission_owner_cnic || "",
+        commission_amount: v.commission_amount ? String(v.commission_amount) : "",
         notes: v.notes || "",
         vehicleInspection: v.vehicleInspection || {
           markers: [],
@@ -95,6 +126,7 @@ export default function VehicleFormPage() {
     const data = {
       ...form,
       purchase_price: parseFloat(form.purchase_price) || 0,
+      commission_amount: form.commission_amount ? parseFloat(form.commission_amount) : undefined,
     };
 
     let result;
@@ -295,20 +327,43 @@ export default function VehicleFormPage() {
                 className="input-field"
               />
             </div>
-            <div className="flex items-center gap-2 pt-6">
-              <input
-                type="checkbox"
-                id="key_available"
-                checked={form.key_available}
-                onChange={(e) => updateForm("key_available", e.target.checked)}
-                className="rounded"
-              />
-              <label
-                htmlFor="key_available"
-                className="text-sm text-gray-700 dark:text-gray-300"
-              >
-                Key Available
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Assembling Company
               </label>
+              <input
+                type="text"
+                value={form.assembling_company}
+                onChange={(e) => updateForm("assembling_company", e.target.value)}
+                className="input-field"
+                placeholder="e.g. Indus Motor, Atlas Honda"
+              />
+            </div>
+            <div className="flex flex-col gap-3 pt-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="key_available"
+                  checked={form.key_available}
+                  onChange={(e) => updateForm("key_available", e.target.checked)}
+                  className="rounded"
+                />
+                <label htmlFor="key_available" className="text-sm text-gray-700 dark:text-gray-300">
+                  Key Available
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="open_letter"
+                  checked={form.open_letter}
+                  onChange={(e) => updateForm("open_letter", e.target.checked)}
+                  className="rounded"
+                />
+                <label htmlFor="open_letter" className="text-sm text-gray-700 dark:text-gray-300">
+                  Open Letter / Transfer Card Available
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -355,6 +410,28 @@ export default function VehicleFormPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Father's Name
+              </label>
+              <input
+                type="text"
+                value={form.seller_father_name}
+                onChange={(e) => updateForm("seller_father_name", e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Caste / Tribe
+              </label>
+              <input
+                type="text"
+                value={form.seller_caste}
+                onChange={(e) => updateForm("seller_caste", e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Seller CNIC
               </label>
               <input
@@ -362,6 +439,7 @@ export default function VehicleFormPage() {
                 value={form.seller_cnic}
                 onChange={(e) => updateForm("seller_cnic", e.target.value)}
                 className="input-field"
+                placeholder="XXXXX-XXXXXXX-X"
               />
             </div>
             <div>
@@ -372,6 +450,17 @@ export default function VehicleFormPage() {
                 type="text"
                 value={form.seller_phone}
                 onChange={(e) => updateForm("seller_phone", e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div className="md:col-span-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Seller Address
+              </label>
+              <input
+                type="text"
+                value={form.seller_address}
+                onChange={(e) => updateForm("seller_address", e.target.value)}
                 className="input-field"
               />
             </div>
@@ -440,6 +529,126 @@ export default function VehicleFormPage() {
               </div>
             </div>
           </div>
+
+          {/* Seller Witness */}
+          <div className="mt-6 pt-5 border-t border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+              Seller's Witness
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Witness Name
+                </label>
+                <input
+                  type="text"
+                  value={form.seller_witness_name}
+                  onChange={(e) => updateForm("seller_witness_name", e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Witness Father's Name
+                </label>
+                <input
+                  type="text"
+                  value={form.seller_witness_father_name}
+                  onChange={(e) => updateForm("seller_witness_father_name", e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Witness CNIC
+                </label>
+                <input
+                  type="text"
+                  value={form.seller_witness_cnic}
+                  onChange={(e) => updateForm("seller_witness_cnic", e.target.value)}
+                  className="input-field"
+                  placeholder="XXXXX-XXXXXXX-X"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Witness Phone
+                </label>
+                <input
+                  type="text"
+                  value={form.seller_witness_phone}
+                  onChange={(e) => updateForm("seller_witness_phone", e.target.value)}
+                  className="input-field"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Commission Vehicle */}
+        <div className="card">
+          <div className="flex items-center gap-3 mb-4">
+            <input
+              type="checkbox"
+              id="is_commission"
+              checked={form.is_commission}
+              onChange={(e) => updateForm("is_commission", e.target.checked)}
+              className="rounded"
+            />
+            <label htmlFor="is_commission" className="text-lg font-semibold text-gray-900 dark:text-white cursor-pointer">
+              Commission Vehicle (selling on behalf of owner)
+            </label>
+          </div>
+          {form.is_commission && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6 border-l-2 border-blue-300 dark:border-blue-700">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Owner Name
+                </label>
+                <input
+                  type="text"
+                  value={form.commission_owner_name}
+                  onChange={(e) => updateForm("commission_owner_name", e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Owner Phone
+                </label>
+                <input
+                  type="text"
+                  value={form.commission_owner_phone}
+                  onChange={(e) => updateForm("commission_owner_phone", e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Owner CNIC
+                </label>
+                <input
+                  type="text"
+                  value={form.commission_owner_cnic}
+                  onChange={(e) => updateForm("commission_owner_cnic", e.target.value)}
+                  className="input-field"
+                  placeholder="XXXXX-XXXXXXX-X"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Commission Amount (PKR)
+                </label>
+                <input
+                  type="number"
+                  value={form.commission_amount}
+                  onChange={(e) => updateForm("commission_amount", e.target.value)}
+                  className="input-field"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Notes */}

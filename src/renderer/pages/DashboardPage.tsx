@@ -18,8 +18,6 @@ export default function DashboardPage() {
   const { user } = useSelector((state: RootState) => state.auth);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const isStaff = user?.role === "staff";
-
   useEffect(() => {
     if (user?.id) {
       loadDashboard();
@@ -70,40 +68,36 @@ export default function DashboardPage() {
       value: stats.vehiclesOnInstallment,
       icon: FiCalendar,
       color: "bg-orange-500",
-      link: isStaff ? "/vehicles" : "/installments",
+      link: "/installments",
     },
-    ...(!isStaff
-      ? [
-          {
-            label: "Total Customers",
-            value: stats.totalCustomers,
-            icon: FiUsers,
-            color: "bg-teal-500",
-            link: "/customers",
-          },
-          {
-            label: "Total Sales",
-            value: stats.totalSales,
-            icon: FiShoppingCart,
-            color: "bg-indigo-500",
-            link: "/sales",
-          },
-          {
-            label: "Total Revenue",
-            value: `Rs ${stats.totalRevenue?.toLocaleString() || 0}`,
-            icon: FiDollarSign,
-            color: "bg-emerald-500",
-            link: "/reports",
-          },
-          {
-            label: "Overdue Installments",
-            value: stats.overdueInstallments,
-            icon: FiAlertTriangle,
-            color: "bg-red-500",
-            link: "/installments",
-          },
-        ]
-      : []),
+    {
+      label: "Total Customers",
+      value: stats.totalCustomers,
+      icon: FiUsers,
+      color: "bg-teal-500",
+      link: "/customers",
+    },
+    {
+      label: "Total Sales",
+      value: stats.totalSales,
+      icon: FiShoppingCart,
+      color: "bg-indigo-500",
+      link: "/sales",
+    },
+    {
+      label: "Total Revenue",
+      value: `Rs ${stats.totalRevenue?.toLocaleString() || 0}`,
+      icon: FiDollarSign,
+      color: "bg-emerald-500",
+      link: "/reports",
+    },
+    {
+      label: "Overdue Installments",
+      value: stats.overdueInstallments,
+      icon: FiAlertTriangle,
+      color: "bg-red-500",
+      link: "/installments",
+    },
   ];
 
   return (
@@ -127,20 +121,18 @@ export default function DashboardPage() {
             Buy Vehicle
           </p>
         </Link>
-        {!isStaff && (
-          <Link
-            to="/sales/new"
-            className="card border-l-4 border-l-green-500 hover:shadow-md transition-shadow"
-          >
-            <p className="text-sm text-gray-500 dark:text-gray-400">Primary Action</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-              Sell Vehicle
-            </p>
-          </Link>
-        )}
+        <Link
+          to="/sales/new"
+          className="card border-l-4 border-l-green-500 hover:shadow-md transition-shadow"
+        >
+          <p className="text-sm text-gray-500 dark:text-gray-400">Primary Action</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+            Sell Vehicle
+          </p>
+        </Link>
       </div>
 
-      {!isStaff && stats.overdueAlerts?.length > 0 && (
+      {stats.overdueAlerts?.length > 0 && (
         <div className="card border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10">
           <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-3">
             Overdue Installment Alerts
@@ -191,11 +183,10 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {!isStaff && (
-        <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Recent Sales
-          </h2>
+      <div className="card">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Recent Sales
+        </h2>
           {stats.recentSales?.length > 0 ? (
             <div className="space-y-3">
               {stats.recentSales.map((sale: any) => (
@@ -231,7 +222,6 @@ export default function DashboardPage() {
             </p>
           )}
         </div>
-      )}
     </div>
   );
 }

@@ -72,14 +72,12 @@ export default function VehiclesPage() {
             {total} vehicles total
           </p>
         </div>
-        {user?.role !== "staff" && (
-          <Link
-            to="/vehicles/new"
-            className="btn-primary flex items-center gap-2"
-          >
-            <FiPlus /> Add Vehicle
-          </Link>
-        )}
+        <Link
+          to="/vehicles/new"
+          className="btn-primary flex items-center gap-2"
+        >
+          <FiPlus /> Add Vehicle
+        </Link>
       </div>
 
       {/* Filters */}
@@ -182,24 +180,20 @@ export default function VehiclesPage() {
                         >
                           <FiEye size={16} />
                         </button>
-                        {user?.role !== "staff" && (
-                          <>
-                            <button
-                              onClick={() => navigate(`/vehicles/${v.id}/edit`)}
-                              className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400"
-                              title="Edit"
-                            >
-                              <FiEdit size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(v.id)}
-                              className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600"
-                              title="Delete"
-                            >
-                              <FiTrash2 size={16} />
-                            </button>
-                          </>
-                        )}
+                        <button
+                          onClick={() => navigate(`/vehicles/${v.id}/edit`)}
+                          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400"
+                          title="Edit"
+                        >
+                          <FiEdit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(v.id)}
+                          className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600"
+                          title="Delete"
+                        >
+                          <FiTrash2 size={16} />
+                        </button>
                       </div>
                     </td>
                   </tr>

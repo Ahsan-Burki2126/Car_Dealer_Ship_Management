@@ -15,6 +15,7 @@ export default function CustomerFormPage() {
   const [form, setForm] = useState({
     name: "",
     father_name: "",
+    caste: "",
     cnic: "",
     phone: "",
     address: "",
@@ -34,6 +35,7 @@ export default function CustomerFormPage() {
       setForm({
         name: c.name,
         father_name: c.father_name || "",
+        caste: c.caste || "",
         cnic: c.cnic || "",
         phone: c.phone || "",
         address: c.address || "",
@@ -129,6 +131,17 @@ export default function CustomerFormPage() {
                 type="text"
                 value={form.father_name}
                 onChange={(e) => update("father_name", e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Caste / Tribe
+              </label>
+              <input
+                type="text"
+                value={form.caste}
+                onChange={(e) => update("caste", e.target.value)}
                 className="input-field"
               />
             </div>

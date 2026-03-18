@@ -87,6 +87,24 @@ export interface ElectronAPI {
   restoreBackup: (userId: string, filePath: string) => Promise<any>;
   getBackupFolder: (userId: string) => Promise<any>;
 
+  // Google Drive Backup
+  googleDriveStartAuth: () => Promise<any>;
+  googleDriveGetAuthUrl: () => Promise<any>;
+  googleDriveAuthenticate: (authCode: string) => Promise<any>;
+  googleDriveIsAuthenticated: () => Promise<any>;
+  googleDriveUploadBackup: (userId: string, filePath: string) => Promise<any>;
+  googleDriveListBackups: (userId: string) => Promise<any>;
+  googleDriveDownloadBackup: (
+    userId: string,
+    fileId: string,
+    destinationPath: string,
+  ) => Promise<any>;
+  googleDriveDeleteBackup: (userId: string, fileId: string) => Promise<any>;
+  googleDriveGetFolderUrl: (userId: string) => Promise<any>;
+  googleDriveGetSettings: (userId: string) => Promise<any>;
+  googleDriveUpdateSettings: (userId: string, settings: any) => Promise<any>;
+  googleDriveLogout: () => Promise<any>;
+
   // File Operations
   saveImage: (sourcePath: string, category: string) => Promise<any>;
   selectImage: () => Promise<any>;

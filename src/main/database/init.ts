@@ -38,7 +38,7 @@ export function initializeDatabase(): void {
       password_hash TEXT NOT NULL,
       full_name TEXT NOT NULL,
       email TEXT,
-      role TEXT NOT NULL CHECK(role IN ('super_admin', 'admin', 'staff')),
+      role TEXT NOT NULL CHECK(role IN ('super_admin', 'admin')),
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -404,10 +404,25 @@ export function initializeDatabase(): void {
 
   ensureColumn(database, "customers", "notes", "TEXT");
   ensureColumn(database, "customers", "witness_cnic_photo_path", "TEXT");
+  ensureColumn(database, "customers", "caste", "TEXT");
   ensureColumn(database, "vehicles", "photo_path", "TEXT");
   ensureColumn(database, "vehicles", "seller_photo_path", "TEXT");
   ensureColumn(database, "vehicles", "seller_cnic_photo_path", "TEXT");
   ensureColumn(database, "vehicles", "inspection_points", "TEXT");
+  ensureColumn(database, "vehicles", "seller_father_name", "TEXT");
+  ensureColumn(database, "vehicles", "seller_caste", "TEXT");
+  ensureColumn(database, "vehicles", "seller_address", "TEXT");
+  ensureColumn(database, "vehicles", "seller_witness_name", "TEXT");
+  ensureColumn(database, "vehicles", "seller_witness_father_name", "TEXT");
+  ensureColumn(database, "vehicles", "seller_witness_cnic", "TEXT");
+  ensureColumn(database, "vehicles", "seller_witness_phone", "TEXT");
+  ensureColumn(database, "vehicles", "assembling_company", "TEXT");
+  ensureColumn(database, "vehicles", "open_letter", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(database, "vehicles", "is_commission", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(database, "vehicles", "commission_owner_name", "TEXT");
+  ensureColumn(database, "vehicles", "commission_owner_phone", "TEXT");
+  ensureColumn(database, "vehicles", "commission_owner_cnic", "TEXT");
+  ensureColumn(database, "vehicles", "commission_amount", "REAL");
   ensureColumn(database, "bank_accounts", "bank_name", "TEXT");
   ensureColumn(database, "sales", "installment_count", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn(database, "sales", "installment_frequency", "TEXT");

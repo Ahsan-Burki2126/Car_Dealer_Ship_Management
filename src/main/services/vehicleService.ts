@@ -16,10 +16,25 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
   const tx = db.transaction(() => {
     db.prepare(
       `
-      INSERT INTO vehicles (id, photo_path, registration_number, chassis_number, engine_number, make, model, year, color,
-        assembly_country, key_available, status, purchase_price, purchase_date, seller_name, seller_cnic,
-        seller_phone, seller_photo_path, seller_cnic_photo_path, total_expenses, total_cost, selling_price, notes, inspection_points, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+      INSERT INTO vehicles (
+        id, photo_path, registration_number, chassis_number, engine_number, make, model, year, color,
+        assembly_country, assembling_company, key_available, open_letter, status,
+        purchase_price, purchase_date,
+        seller_name, seller_father_name, seller_caste, seller_address, seller_cnic, seller_phone,
+        seller_photo_path, seller_cnic_photo_path,
+        seller_witness_name, seller_witness_father_name, seller_witness_cnic, seller_witness_phone,
+        is_commission, commission_owner_name, commission_owner_phone, commission_owner_cnic, commission_amount,
+        total_expenses, total_cost, selling_price, notes, inspection_points, created_by
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        ?, ?,
+        ?, ?, ?, ?, ?, ?,
+        ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        0, ?, ?, ?, ?, ?
+      )
     `,
     ).run(
       id,
@@ -32,15 +47,29 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
       data.year || new Date().getFullYear(),
       data.color || "",
       data.assembly_country || "",
+      data.assembling_company || "",
       data.key_available === undefined ? 1 : data.key_available ? 1 : 0,
+      data.open_letter ? 1 : 0,
       data.status || "in_stock",
       data.purchase_price || 0,
       purchaseDate,
       data.seller_name || "",
+      data.seller_father_name || "",
+      data.seller_caste || "",
+      data.seller_address || "",
       data.seller_cnic || "",
       data.seller_phone || "",
       data.seller_photo_path || "",
       data.seller_cnic_photo_path || "",
+      data.seller_witness_name || "",
+      data.seller_witness_father_name || "",
+      data.seller_witness_cnic || "",
+      data.seller_witness_phone || "",
+      data.is_commission ? 1 : 0,
+      data.commission_owner_name || "",
+      data.commission_owner_phone || "",
+      data.commission_owner_cnic || "",
+      data.commission_amount || null,
       totalCost,
       data.selling_price || null,
       data.notes || "",
@@ -221,14 +250,26 @@ export function updateVehicle(
     "year",
     "color",
     "assembly_country",
+    "assembling_company",
     "status",
     "purchase_price",
     "purchase_date",
     "seller_name",
+    "seller_father_name",
+    "seller_caste",
+    "seller_address",
     "seller_cnic",
     "seller_phone",
     "seller_photo_path",
     "seller_cnic_photo_path",
+    "seller_witness_name",
+    "seller_witness_father_name",
+    "seller_witness_cnic",
+    "seller_witness_phone",
+    "commission_owner_name",
+    "commission_owner_phone",
+    "commission_owner_cnic",
+    "commission_amount",
     "selling_price",
     "notes",
   ];
@@ -250,6 +291,16 @@ export function updateVehicle(
   if (data.key_available !== undefined) {
     updates.push("key_available = ?");
     values.push(data.key_available ? 1 : 0);
+  }
+
+  if (data.open_letter !== undefined) {
+    updates.push("open_letter = ?");
+    values.push(data.open_letter ? 1 : 0);
+  }
+
+  if (data.is_commission !== undefined) {
+    updates.push("is_commission = ?");
+    values.push(data.is_commission ? 1 : 0);
   }
 
   // Recalculate total cost if purchase price changed
@@ -363,15 +414,29 @@ function mapVehicleRow(row: any): Vehicle {
     year: row.year,
     color: row.color,
     assembly_country: row.assembly_country,
+    assembling_company: row.assembling_company,
     key_available: Boolean(row.key_available),
+    open_letter: Boolean(row.open_letter),
     status: row.status,
     purchase_price: row.purchase_price,
     purchase_date: row.purchase_date,
     seller_name: row.seller_name,
+    seller_father_name: row.seller_father_name,
+    seller_caste: row.seller_caste,
+    seller_address: row.seller_address,
     seller_cnic: row.seller_cnic,
     seller_phone: row.seller_phone,
     seller_photo_path: row.seller_photo_path,
     seller_cnic_photo_path: row.seller_cnic_photo_path,
+    seller_witness_name: row.seller_witness_name,
+    seller_witness_father_name: row.seller_witness_father_name,
+    seller_witness_cnic: row.seller_witness_cnic,
+    seller_witness_phone: row.seller_witness_phone,
+    is_commission: Boolean(row.is_commission),
+    commission_owner_name: row.commission_owner_name,
+    commission_owner_phone: row.commission_owner_phone,
+    commission_owner_cnic: row.commission_owner_cnic,
+    commission_amount: row.commission_amount,
     total_expenses: row.total_expenses,
     total_cost: row.total_cost,
     selling_price: row.selling_price,

@@ -21,14 +21,16 @@ import {
 
 let mainWindow: BrowserWindow | null = null;
 
+// bypassCSP: true lets images from this protocol load regardless of CSP,
+// since custom schemes (e.g. "local-image:") are not valid CSP sources.
 protocol.registerSchemesAsPrivileged([
   {
     scheme: "local-image",
     privileges: {
-      standard: true,
       secure: true,
       supportFetchAPI: true,
       corsEnabled: true,
+      bypassCSP: true,
     },
   },
 ]);
@@ -42,12 +44,17 @@ function registerLocalImageProtocol(): void {
         return new Response("Missing path", { status: 400 });
       }
 
-      const requestedPath = decodeURIComponent(encodedPath);
+      // searchParams.get() already percent-decodes the value.
+      const requestedPath = encodedPath;
       const resolvedPath = path.resolve(requestedPath);
       const imagesRoot = path.resolve(app.getPath("userData"), "images");
 
-      // Limit file serving to the application's managed image directory.
-      if (!resolvedPath.startsWith(imagesRoot)) {
+      // Normalize to forward-slashes + lowercase for case-insensitive Windows
+      // comparison.  The trailing "/" guard prevents "images-evil/" matching
+      // "images/".
+      const norm = (p: string) =>
+        path.normalize(p).toLowerCase().replace(/\\/g, "/");
+      if (!norm(resolvedPath).startsWith(norm(imagesRoot) + "/")) {
         return new Response("Forbidden", { status: 403 });
       }
 
@@ -102,6 +109,32 @@ async function createWindow(): Promise<void> {
     },
     show: false,
   });
+
+  // Set CSP at the HTTP-response-header level.  The local-image: protocol uses
+  // bypassCSP so it does not need to appear in the source list.  In dev mode
+  // Vite injects inline scripts for HMR, so 'unsafe-inline' is required.
+  const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+  const scriptSrc = isDev
+    ? "script-src 'self' 'unsafe-inline';"
+    : "script-src 'self';";
+  mainWindow.webContents.session.webRequest.onHeadersReceived(
+    (details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          "Content-Security-Policy": [
+            "default-src 'self'; " +
+              scriptSrc + " " +
+              "style-src 'self' 'unsafe-inline'; " +
+              "img-src 'self' data: blob: file:; " +
+              "object-src 'self'; " +
+              "font-src 'self' data:; " +
+              "connect-src 'self';",
+          ],
+        },
+      });
+    },
+  );
 
   mainWindow.once("ready-to-show", () => {
     mainWindow?.show();

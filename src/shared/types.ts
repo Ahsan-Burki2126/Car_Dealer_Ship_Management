@@ -3,7 +3,7 @@
 // ============================================================
 
 // ---- User & Auth Types ----
-export type UserRole = "super_admin" | "admin" | "staff";
+export type UserRole = "super_admin" | "admin";
 
 export interface User {
   id: string;
@@ -54,13 +54,28 @@ export interface Vehicle {
   year: number;
   color: string;
   assembly_country: string;
+  assembling_company?: string;
   key_available: boolean;
+  open_letter?: boolean;
   status: VehicleStatus;
   purchase_price: number;
   purchase_date: string;
   seller_name: string;
+  seller_father_name?: string;
+  seller_caste?: string;
+  seller_address?: string;
   seller_cnic: string;
   seller_phone: string;
+  seller_witness_name?: string;
+  seller_witness_father_name?: string;
+  seller_witness_cnic?: string;
+  seller_witness_phone?: string;
+  /** True when this vehicle is being sold on commission on behalf of the owner */
+  is_commission?: boolean;
+  commission_owner_name?: string;
+  commission_owner_phone?: string;
+  commission_owner_cnic?: string;
+  commission_amount?: number;
   total_expenses: number;
   total_cost: number;
   selling_price?: number;
@@ -137,6 +152,7 @@ export interface Customer {
   id: string;
   name: string;
   father_name: string;
+  caste?: string;
   cnic: string;
   phone: string;
   address: string;
