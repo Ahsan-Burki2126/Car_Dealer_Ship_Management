@@ -1,7 +1,26 @@
 // Shared constants used across the application
 
-export const APP_NAME = "Dealership Management System";
+export const APP_NAME = "Pak Japan Vehicles, Layyah";
 export const APP_VERSION = "1.0.0";
+
+/** Pakistani CNIC pattern: XXXXX-XXXXXXX-X */
+export const CNIC_REGEX = /^\d{5}-\d{7}-\d$/;
+export const CNIC_PLACEHOLDER = "XXXXX-XXXXXXX-X";
+
+/**
+ * Auto-format a CNIC value as the user types.
+ * Strips non-digits, inserts dashes at positions 5 and 13, caps at 15 chars.
+ */
+export function formatCnic(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 13);
+  if (digits.length <= 5) return digits;
+  if (digits.length <= 12) return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+  return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}`;
+}
+
+export function isValidCnic(value: string): boolean {
+  return !value || CNIC_REGEX.test(value);
+}
 
 export const VEHICLE_STATUSES = [
   { value: "purchased", label: "Purchased" },

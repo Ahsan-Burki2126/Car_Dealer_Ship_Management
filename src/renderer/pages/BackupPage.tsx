@@ -13,6 +13,7 @@ import {
   FiLogOut,
 } from "react-icons/fi";
 import GoogleDriveSetupWizard from "../components/GoogleDriveSetupWizard";
+import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 
 interface BackupEntry {
   id: string;
@@ -51,6 +52,7 @@ function formatBytes(bytes: string): string {
 
 export default function BackupPage() {
   const { user } = useSelector((state: RootState) => state.auth);
+  const { requestAuth, PasswordModal } = useSuperadminAuth();
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [googleBackups, setGoogleBackups] = useState<GoogleDriveBackup[]>([]);
   const [backupFolder, setBackupFolder] = useState("");
@@ -485,7 +487,7 @@ export default function BackupPage() {
                             <FiDownload size={12} /> Download
                           </button>
                           <button
-                            onClick={() => handleDeleteFromGoogle(backup.id)}
+                            onClick={() => requestAuth(() => handleDeleteFromGoogle(backup.id))}
                             className="btn-secondary text-xs py-1 px-2 inline-flex items-center gap-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                             disabled={processing}
                           >
@@ -506,6 +508,7 @@ export default function BackupPage() {
           </div>
         )}
       </div>
+      <PasswordModal />
     </>
   );
 }

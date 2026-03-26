@@ -13,6 +13,7 @@ import {
   FiChevronRight,
 } from "react-icons/fi";
 import { confirmDeleteRecord } from "../utils/confirmDelete";
+import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 
 interface Customer {
   id: string;
@@ -27,6 +28,7 @@ interface Customer {
 export default function CustomersPage() {
   const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
+  const { requestAuth, PasswordModal } = useSuperadminAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -141,14 +143,14 @@ export default function CustomersPage() {
                         >
                           <FiEye size={16} />
                         </Link>
-                        <Link
-                          to={`/customers/${c.id}/edit`}
+                        <button
+                          onClick={() => requestAuth(() => navigate(`/customers/${c.id}/edit`))}
                           className="p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded"
                         >
                           <FiEdit size={16} />
-                        </Link>
+                        </button>
                         <button
-                          onClick={() => handleDelete(c.id)}
+                          onClick={() => requestAuth(() => handleDelete(c.id))}
                           className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                         >
                           <FiTrash2 size={16} />
@@ -187,6 +189,7 @@ export default function CustomersPage() {
           </div>
         )}
       </div>
+      <PasswordModal />
     </div>
   );
 }

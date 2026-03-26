@@ -150,10 +150,10 @@ function ReportContent({ vehicle, inspection, svgInner, forPrint = false }: Repo
           <table style={{ fontSize: 10, borderCollapse: "collapse", width: "100%" }}>
             <tbody>
               {[
-                ["Make / Model",   `${vehicle.make} ${vehicle.model} (${vehicle.year})`],
+                ["Make / Model",   `${vehicle.make} ${vehicle.model} (${vehicle.year_of_manufacture || (vehicle as any).year})`],
                 ["Registration #", vehicle.registration_number || "—"],
                 ["Color",          vehicle.color          || "—"],
-                ["Assembly",       vehicle.assembly_country || "—"],
+                ["Assembling Co.", vehicle.assembling_company || "—"],
                 ["Chassis #",      vehicle.chassis_number || "—"],
                 ["Engine #",       vehicle.engine_number  || "—"],
               ].map(([label, val]) => (

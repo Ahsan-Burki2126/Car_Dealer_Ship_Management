@@ -1,5 +1,5 @@
 import { getDatabase } from "../database/init";
-import { format, subDays } from "date-fns";
+import { format, subDays, subMonths, subWeeks, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from "date-fns";
 import type {
   DashboardStats,
   SalesReport,
@@ -7,6 +7,32 @@ import type {
   InventoryReport,
   AuditLog,
 } from "../../shared/types";
+
+// ── Chart data point for time-series ───────────────────────────────────
+export interface ChartDataPoint {
+  label: string;
+  sales: number;
+  revenue: number;
+  cash: number;
+  installment: number;
+}
+
+// ── Enhanced sales report with chart breakdown ─────────────────────────
+export interface EnhancedSalesReport extends SalesReport {
+  chart_data: ChartDataPoint[];
+  top_vehicles: Array<{
+    vehicle_info: string;
+    sale_price: number;
+    customer_name: string;
+    date: string;
+    payment_type: string;
+  }>;
+  expense_summary: {
+    vehicle_expenses: number;
+    showroom_expenses: number;
+    total: number;
+  };
+}
 
 export function getDashboardStats(): DashboardStats {
   const db = getDatabase();
@@ -124,7 +150,7 @@ export function getDashboardStats(): DashboardStats {
 export function getSalesReport(
   period: "daily" | "weekly" | "monthly" | "annual",
   date?: string,
-): SalesReport {
+): EnhancedSalesReport {
   const db = getDatabase();
   const baseDate = date ? new Date(date) : new Date();
   let startDate: string;
@@ -180,6 +206,46 @@ export function getSalesReport(
     )
     .get(startDate, endDate) as any;
 
+  // ── Chart breakdown data ───────────────────────────────────────────
+  const chart_data = getChartBreakdown(db, period, startDate, endDate, baseDate);
+
+  // ── Top vehicles sold in period ────────────────────────────────────
+  const topVehicles = db
+    .prepare(
+      `
+    SELECT s.vehicle_price, s.date, s.payment_type,
+      (v.year || ' ' || v.make || ' ' || v.model) as vehicle_info,
+      c.name as customer_name
+    FROM sales s
+    LEFT JOIN vehicles v ON s.vehicle_id = v.id
+    LEFT JOIN customers c ON s.customer_id = c.id
+    WHERE s.is_deleted = 0 AND s.date BETWEEN ? AND ?
+    ORDER BY s.vehicle_price DESC
+    LIMIT 10
+  `,
+    )
+    .all(startDate, endDate) as Array<{
+    vehicle_info: string;
+    sale_price: number;
+    customer_name: string;
+    date: string;
+    payment_type: string;
+    vehicle_price: number;
+  }>;
+
+  // ── Expense summary ────────────────────────────────────────────────
+  const vehicleExp = db
+    .prepare(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM vehicle_expenses WHERE date BETWEEN ? AND ?`,
+    )
+    .get(startDate, endDate) as any;
+
+  const showroomExp = db
+    .prepare(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM showroom_expenses WHERE date BETWEEN ? AND ?`,
+    )
+    .get(startDate, endDate) as any;
+
   return {
     period: `${startDate} to ${endDate}`,
     total_sales: salesData.total_sales,
@@ -188,6 +254,97 @@ export function getSalesReport(
     installment_sales: salesData.installment_sales,
     total_collected: collected.total,
     total_pending: pending.total,
+    chart_data,
+    top_vehicles: topVehicles.map((v) => ({
+      vehicle_info: v.vehicle_info,
+      sale_price: v.vehicle_price,
+      customer_name: v.customer_name,
+      date: v.date,
+      payment_type: v.payment_type,
+    })),
+    expense_summary: {
+      vehicle_expenses: vehicleExp.total,
+      showroom_expenses: showroomExp.total,
+      total: vehicleExp.total + showroomExp.total,
+    },
+  };
+}
+
+function getChartBreakdown(
+  db: ReturnType<typeof getDatabase>,
+  period: string,
+  startDate: string,
+  endDate: string,
+  baseDate: Date,
+): ChartDataPoint[] {
+  if (period === "daily") {
+    // Hourly breakdown not practical for sqlite date, return single point
+    return [
+      getSalesDataForRange(db, startDate, endDate, format(baseDate, "dd MMM")),
+    ];
+  }
+
+  if (period === "weekly") {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const days = eachDayOfInterval({ start, end });
+    return days.map((d) => {
+      const ds = format(d, "yyyy-MM-dd");
+      return getSalesDataForRange(db, ds, ds, format(d, "EEE dd"));
+    });
+  }
+
+  if (period === "monthly") {
+    // Break into ~4 weeks
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
+    return weeks.map((w, idx) => {
+      const ws = format(w, "yyyy-MM-dd");
+      const we = idx < weeks.length - 1
+        ? format(subDays(weeks[idx + 1], 1), "yyyy-MM-dd")
+        : endDate;
+      return getSalesDataForRange(db, ws, we, format(w, "dd MMM"));
+    });
+  }
+
+  // Annual: monthly breakdown
+  const months: ChartDataPoint[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const m = subMonths(baseDate, i);
+    const ms = format(startOfMonth(m), "yyyy-MM-dd");
+    const me = format(endOfMonth(m), "yyyy-MM-dd");
+    months.push(getSalesDataForRange(db, ms, me, format(m, "MMM yy")));
+  }
+  return months;
+}
+
+function getSalesDataForRange(
+  db: ReturnType<typeof getDatabase>,
+  start: string,
+  end: string,
+  label: string,
+): ChartDataPoint {
+  const row = db
+    .prepare(
+      `
+    SELECT
+      COUNT(*) as sales,
+      COALESCE(SUM(vehicle_price), 0) as revenue,
+      SUM(CASE WHEN payment_type = 'cash' THEN 1 ELSE 0 END) as cash,
+      SUM(CASE WHEN payment_type = 'installment' THEN 1 ELSE 0 END) as installment
+    FROM sales
+    WHERE is_deleted = 0 AND date BETWEEN ? AND ?
+  `,
+    )
+    .get(start, end) as any;
+
+  return {
+    label,
+    sales: row.sales || 0,
+    revenue: row.revenue || 0,
+    cash: row.cash || 0,
+    installment: row.installment || 0,
   };
 }
 
@@ -209,7 +366,7 @@ export function getProfitReport(): ProfitReport[] {
 
   return rows.map((row) => ({
     vehicle_id: row.id,
-    vehicle_info: `${row.year} ${row.make} ${row.model} (${row.registration_number})`,
+    vehicle_info: `${row.year} ${row.make} ${row.model} (${row.registration_number || "N/A"})`,
     purchase_price: row.purchase_price,
     total_expenses: row.total_expenses,
     total_cost: row.total_cost,
@@ -220,7 +377,6 @@ export function getProfitReport(): ProfitReport[] {
 
 export function getInventoryReport(): InventoryReport {
   const db = getDatabase();
-  const today = format(new Date(), "yyyy-MM-dd");
   const sixtyDaysAgo = format(subDays(new Date(), 60), "yyyy-MM-dd");
 
   const stats = db
@@ -246,6 +402,64 @@ export function getInventoryReport(): InventoryReport {
     reserved: stats.reserved,
     long_staying: stats.long_staying,
   };
+}
+
+export interface VehicleSearchReport {
+  vehicle: Record<string, unknown>;
+  expenses: Array<Record<string, unknown>>;
+  sale: Record<string, unknown> | null;
+  installments: Array<Record<string, unknown>>;
+  totalExpenses: number;
+  totalCost: number;
+  profit: number | null;
+}
+
+export function getVehicleSearchReport(search: string): VehicleSearchReport[] {
+  const db = getDatabase();
+  const query = `%${search}%`;
+  const vehicles = db
+    .prepare(
+      `SELECT * FROM vehicles WHERE is_deleted = 0
+       AND (registration_number LIKE ? OR chassis_number LIKE ? OR engine_number LIKE ?
+            OR make LIKE ? OR model LIKE ? OR seller_name LIKE ?)
+       ORDER BY created_at DESC LIMIT 20`,
+    )
+    .all(query, query, query, query, query, query) as Array<Record<string, unknown>>;
+
+  return vehicles.map((v) => {
+    const expenses = db
+      .prepare("SELECT * FROM vehicle_expenses WHERE vehicle_id = ? ORDER BY date DESC")
+      .all(v.id as string) as Array<Record<string, unknown>>;
+
+    const sale = db
+      .prepare(
+        `SELECT s.*, c.name as customer_name, c.phone as customer_phone, c.cnic as customer_cnic
+         FROM sales s LEFT JOIN customers c ON s.customer_id = c.id
+         WHERE s.vehicle_id = ? AND s.is_deleted = 0 LIMIT 1`,
+      )
+      .get(v.id as string) as Record<string, unknown> | undefined;
+
+    const installments = sale
+      ? (db
+          .prepare("SELECT * FROM installments WHERE sale_id = ? ORDER BY installment_number ASC")
+          .all(sale.id as string) as Array<Record<string, unknown>>)
+      : [];
+
+    const totalExpenses = Number(v.total_expenses || 0);
+    const totalCost = Number(v.total_cost || 0);
+    const sellingPrice = sale ? Number(sale.vehicle_price || 0) : null;
+    const profit = sellingPrice !== null ? sellingPrice - totalCost : null;
+
+    return {
+      vehicle: v,
+      expenses,
+      sale: sale || null,
+      installments,
+      totalExpenses,
+      totalCost,
+      profit,
+    };
+  });
 }
 
 export function getAuditLogs(filters?: {

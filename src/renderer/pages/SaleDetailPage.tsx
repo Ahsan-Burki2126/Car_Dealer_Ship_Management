@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import { FiArrowLeft, FiCheck, FiPrinter, FiEdit, FiTrash2 } from "react-icons/fi";
 import { generateInvoicePdf } from "../utils/pdfGenerator";
 import { confirmDeleteRecord } from "../utils/confirmDelete";
+import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 
 interface SaleDetail {
   id: string;
@@ -27,10 +28,16 @@ interface SaleDetail {
   installment_count: number;
   installment_frequency: string;
   status: string;
+  ownership_transferred?: boolean;
+  ownership_transfer_date?: string;
+  final_payment_date?: string;
   sale_date: string;
   notes: string;
   total_paid: number;
   balance: number;
+  witness_name?: string;
+  witness_cnic?: string;
+  witness_phone?: string;
 }
 interface Installment {
   id: string;
@@ -60,6 +67,7 @@ export default function SaleDetailPage() {
     amount: number;
     max: number;
   } | null>(null);
+  const { requestAuth, PasswordModal } = useSuperadminAuth();
 
   useEffect(() => {
     if (id) {
@@ -124,6 +132,9 @@ export default function SaleDetailPage() {
       down_payment: sale.down_payment,
       payment_type: sale.payment_type,
       notes: sale.notes,
+      witness_name: sale.witness_name,
+      witness_cnic: sale.witness_cnic,
+      witness_phone: sale.witness_phone,
       installments: installments.map((installment) => ({
         number: installment.installment_number,
         due_date: installment.due_date,
@@ -142,9 +153,12 @@ export default function SaleDetailPage() {
     }
   };
 
-  const handleDeleteSale = async () => {
+  const handleDeleteSale = () => {
+    requestAuth(() => doDeleteSale());
+  };
+
+  const doDeleteSale = async () => {
     if (!user) return;
-    if (!confirmDeleteRecord()) return;
 
     let result = await window.api.deleteSale(user.id, sale.id, false);
     if (
@@ -192,7 +206,7 @@ export default function SaleDetailPage() {
       </div>
       <div className="flex justify-end gap-2">
         <button
-          onClick={() => navigate(`/sales/${sale.id}/edit`)}
+          onClick={() => requestAuth(() => navigate(`/sales/${sale.id}/edit`))}
           className="btn-secondary flex items-center gap-2"
         >
           <FiEdit /> Edit Sale
@@ -420,6 +434,53 @@ export default function SaleDetailPage() {
         </div>
       )}
 
+      {/* Ownership Transfer */}
+      {sale.payment_type === "installment" && (
+        <div className="card">
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-3">
+            Ownership Transfer
+          </h3>
+          {sale.ownership_transferred ? (
+            <div className="flex items-center gap-2 text-green-600">
+              <FiCheck size={18} />
+              <span className="font-medium">
+                Ownership transferred on {sale.ownership_transfer_date}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">
+                {sale.status === "completed"
+                  ? "All payments completed. You can now transfer ownership."
+                  : "Ownership can be transferred after all installments are paid."}
+              </p>
+              {sale.status === "completed" && (
+                <button
+                  onClick={async () => {
+                    if (!confirm("Transfer ownership to the customer? This action will be logged.")) return;
+                    const result = await window.api.transferOwnership(user!.id, sale.id);
+                    if (result.success) {
+                      toast.success("Ownership transferred successfully");
+                      loadSale();
+                    } else {
+                      toast.error(result.error || "Failed to transfer ownership");
+                    }
+                  }}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  <FiCheck size={16} /> Transfer Ownership
+                </button>
+              )}
+            </div>
+          )}
+          {sale.final_payment_date && (
+            <p className="text-xs text-gray-400 mt-2">
+              Final payment received: {sale.final_payment_date}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Payment Modal */}
       {paymentModal && (
         <div
@@ -474,6 +535,9 @@ export default function SaleDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Superadmin password modal */}
+      <PasswordModal />
     </div>
   );
 }

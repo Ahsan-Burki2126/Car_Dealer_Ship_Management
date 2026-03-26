@@ -25,6 +25,9 @@ contextBridge.exposeInMainWorld("api", {
       newPassword,
     ),
 
+  verifySuperadminPassword: (password: string) =>
+    ipcRenderer.invoke("auth:verifySuperadminPassword", password),
+
   // Vehicles
   addVehicle: (userId: string, data: any) =>
     ipcRenderer.invoke("vehicles:add", userId, data),
@@ -79,6 +82,8 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("sales:getOverdue", userId),
   getCustomerLedger: (userId: string, customerId: string) =>
     ipcRenderer.invoke("sales:getCustomerLedger", userId, customerId),
+  transferOwnership: (userId: string, saleId: string) =>
+    ipcRenderer.invoke("sales:transferOwnership", userId, saleId),
 
   // Showroom Expenses
   addShowroomExpense: (userId: string, data: any) =>
@@ -141,6 +146,8 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("reports:inventory", userId),
   getAuditLogs: (userId: string, filters: any) =>
     ipcRenderer.invoke("reports:auditLogs", userId, filters),
+  getVehicleSearchReport: (userId: string, search: string) =>
+    ipcRenderer.invoke("reports:vehicleSearch", userId, search),
 
   // Bank Accounts
   getBankAccounts: (userId: string, activeOnly = true) =>

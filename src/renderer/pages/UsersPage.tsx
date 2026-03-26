@@ -5,6 +5,7 @@ import { USER_ROLES } from "../../shared/constants";
 import { toast } from "react-toastify";
 import { FiPlus, FiEdit, FiTrash2, FiUsers } from "react-icons/fi";
 import { confirmDeleteRecord } from "../utils/confirmDelete";
+import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 
 interface UserRecord {
   id: string;
@@ -17,6 +18,7 @@ interface UserRecord {
 
 export default function UsersPage() {
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
+  const { requestAuth, PasswordModal } = useSuperadminAuth();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -256,14 +258,14 @@ export default function UsersPage() {
                       {u.role !== "super_admin" && (
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => startEdit(u)}
+                            onClick={() => requestAuth(() => startEdit(u))}
                             className="p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded"
                             title="Edit User"
                           >
                             <FiEdit size={16} />
                           </button>
                           <button
-                            onClick={() => handleDelete(u.id)}
+                            onClick={() => requestAuth(() => handleDelete(u.id))}
                             className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                             title="Delete User"
                           >
@@ -279,6 +281,7 @@ export default function UsersPage() {
           </table>
         </div>
       </div>
+      <PasswordModal />
     </div>
   );
 }

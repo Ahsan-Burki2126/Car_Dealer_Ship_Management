@@ -1,23 +1,29 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { addDays, addMonths, addYears, format } from "date-fns";
 import type { RootState } from "../store";
 import {
   PAYMENT_TYPES,
-  CASH_PAYMENT_METHODS,
   INSTALLMENT_DURATION_TYPES,
 } from "../../shared/constants";
+import { formatCnic, isValidCnic, CNIC_PLACEHOLDER } from "../../shared/constants";
 import { toast } from "react-toastify";
-import { FiArrowLeft, FiSave } from "react-icons/fi";
+import { FiArrowLeft, FiSearch } from "react-icons/fi";
 import { toFileUrl } from "../utils/filePaths";
+import FormStepper, { StepNavigation } from "../components/FormStepper";
+
+const IMG_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='140'%3E%3Crect width='200' height='140' fill='%23e5e7eb'/%3E%3Ctext x='100' y='76' text-anchor='middle' fill='%239ca3af' font-size='13' font-family='sans-serif'%3ENo image%3C/text%3E%3C/svg%3E";
 
 interface VehicleOption {
   id: string;
   make: string;
   model: string;
   year: number;
+  year_of_manufacture?: number;
   registration_number: string;
+  chassis_number?: string;
   selling_price?: number;
   total_cost?: number;
   purchase_price?: number;
@@ -84,34 +90,59 @@ export default function SaleFormPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
+  const location = useLocation();
   const isEdit = Boolean(id);
 
-  const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
-  const [customers, setCustomers] = useState<CustomerOption[]>([]);
-  const [bankAccounts, setBankAccounts] = useState<BankAccountOption[]>([]);
-  const [installmentSchedule, setInstallmentSchedule] = useState<
-    InstallmentDraft[]
-  >([]);
-  const [scheduleLocked, setScheduleLocked] = useState(false);
+  // State passed back from CustomerFormPage after creating a new customer
+  const locationState = location.state as any;
+  const restoredForm = locationState?.saleForm as typeof defaultForm | undefined;
+  const restoredStep = locationState?.saleStep as number | undefined;
+  const newCustomerId = locationState?.newCustomerId as string | undefined;
 
-  const [form, setForm] = useState({
+  const defaultForm = {
     vehicle_id: "",
     customer_id: "",
+    customer_mode: "existing" as "existing" | "new",
     sale_price: "",
-    payment_type: "cash",
-    cash_payment_method: "hard_cash",
+    payment_type: "cash" as string,
+    cash_amount: "",
+    bank_transfer_amount: "",
     bank_account_id: "",
     down_payment: "",
     installment_count: "12",
-    installment_duration_type: "months",
+    installment_duration_type: "months" as string,
     installment_start_date: today,
-    witness_required: false,
+    witness_required: false as boolean,
     witness_name: "",
     witness_father_name: "",
     witness_cnic: "",
     witness_phone: "",
     witness_cnic_photo_path: "",
+    witness_cnic_photo_back_path: "",
     notes: "",
+  };
+
+  const [step, setStep] = useState(restoredStep ?? 0);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccountOption[]>([]);
+  const [installmentSchedule, setInstallmentSchedule] = useState<InstallmentDraft[]>([]);
+  const [scheduleLocked, setScheduleLocked] = useState(false);
+
+  // Vehicle search by chassis number
+  const [chassisSearch, setChassisSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<VehicleOption[]>([]);
+
+  const [form, setForm] = useState(() => {
+    if (restoredForm) {
+      return {
+        ...restoredForm,
+        customer_id: newCustomerId || restoredForm.customer_id || "",
+      };
+    }
+    return defaultForm;
   });
 
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === form.vehicle_id);
@@ -121,6 +152,8 @@ export default function SaleFormPage() {
       selectedVehicle.purchase_price ||
       0
     : 0;
+
+  const selectedCustomer = customers.find((c) => c.id === form.customer_id);
 
   const remainingAmount = useMemo(
     () =>
@@ -141,6 +174,42 @@ export default function SaleFormPage() {
       ),
     [installmentSchedule],
   );
+
+  // Dynamic steps
+  const steps = useMemo(() => {
+    const base = [
+      { label: "Select Vehicle" },
+      { label: "Select Buyer" },
+      { label: "Payment" },
+    ];
+    if (form.payment_type === "installment") {
+      base.push({ label: "Installment Details" });
+    }
+    // Payment method step (cash & bank transfer split)
+    base.push({ label: "Payment Method" });
+    if (form.witness_required) {
+      base.push({ label: "Witness" });
+    }
+    base.push({ label: "Review" });
+    return base;
+  }, [form.witness_required, form.payment_type]);
+
+  // Calculate step indices dynamically
+  const installmentStepIndex = form.payment_type === "installment" ? 3 : -1;
+  const paymentMethodStepIndex = form.payment_type === "installment" ? 4 : 3;
+  const witnessStepIndex = form.witness_required
+    ? paymentMethodStepIndex + 1
+    : -1;
+  const reviewStepIndex = form.witness_required
+    ? paymentMethodStepIndex + 2
+    : paymentMethodStepIndex + 1;
+
+  // Clear location state after restoring to prevent re-restore on refresh
+  useEffect(() => {
+    if (locationState?.saleForm) {
+      window.history.replaceState({}, "");
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -194,12 +263,9 @@ export default function SaleFormPage() {
     const witnessCnic = sale.customer?.witness_cnic || "";
     const witnessPhone = sale.customer?.witness_phone || "";
     const witnessCnicPhoto = sale.customer?.witness_cnic_photo_path || "";
+    const witnessCnicPhotoBack = sale.customer?.witness_cnic_photo_back_path || "";
     const hasWitness = Boolean(
-      witnessName ||
-        witnessFatherName ||
-        witnessCnic ||
-        witnessPhone ||
-        witnessCnicPhoto,
+      witnessName || witnessFatherName || witnessCnic || witnessPhone || witnessCnicPhoto,
     );
 
     const firstInstallmentDate =
@@ -208,9 +274,11 @@ export default function SaleFormPage() {
     setForm({
       vehicle_id: sale.vehicle_id || "",
       customer_id: sale.customer_id || "",
+      customer_mode: "existing",
       sale_price: String(sale.sale_price || sale.vehicle_price || 0),
       payment_type: sale.payment_type || "cash",
-      cash_payment_method: sale.cash_payment_method || "hard_cash",
+      cash_amount: String((sale as any).cash_amount || ""),
+      bank_transfer_amount: String((sale as any).bank_transfer_amount || ""),
       bank_account_id: sale.bank_account_id || "",
       down_payment: String(sale.down_payment || 0),
       installment_count: String(
@@ -227,6 +295,7 @@ export default function SaleFormPage() {
       witness_cnic: witnessCnic,
       witness_phone: witnessPhone,
       witness_cnic_photo_path: witnessCnicPhoto,
+      witness_cnic_photo_back_path: witnessCnicPhotoBack,
       notes: sale.notes || "",
     });
 
@@ -285,6 +354,26 @@ export default function SaleFormPage() {
     setBankAccounts(result.data || []);
   };
 
+  const searchVehicleByChassis = async () => {
+    if (!chassisSearch.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const result = await window.api.getVehicles({
+      status: "in_stock",
+      search: chassisSearch.trim(),
+      page: 1,
+      limit: 50,
+    });
+    if (result.success) {
+      // Filter to only matching chassis numbers
+      const filtered = (result.data.data || []).filter((v: any) =>
+        v.chassis_number?.toLowerCase().includes(chassisSearch.trim().toLowerCase()),
+      );
+      setSearchResults(filtered);
+    }
+  };
+
   const update = (field: string, value: string | boolean) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (
@@ -329,41 +418,69 @@ export default function SaleFormPage() {
     update("witness_cnic_photo_path", saved.data);
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleWitnessCnicBackImageSelect = async () => {
+    const selected = await window.api.selectImage();
+    if (!selected.success || !selected.data) return;
+
+    const saved = await window.api.saveImage(selected.data, "witness-cnic-back");
+    if (!saved.success || !saved.data) {
+      toast.error(saved.error || "Failed to save witness CNIC back image");
+      return;
+    }
+
+    update("witness_cnic_photo_back_path", saved.data);
+  };
+
+  const validateStep = useCallback(
+    (s: number): boolean => {
+      const errs: Record<string, string> = {};
+      if (s === 0) {
+        if (!form.vehicle_id) errs.vehicle_id = "Please select a vehicle";
+      }
+      if (s === 1) {
+        if (!form.customer_id) errs.customer_id = "Please select or add a customer";
+      }
+      if (s === 2) {
+        if (!form.sale_price || parseFloat(form.sale_price) <= 0)
+          errs.sale_price = "Sale price is required";
+      }
+      if (s === installmentStepIndex && form.payment_type === "installment") {
+        if (scheduleTotal <= 0 || installmentSchedule.length === 0)
+          errs.schedule = "Installment schedule is required";
+        else if (Math.abs(scheduleTotal - remainingAmount) > 1)
+          errs.schedule = "Installment amounts must match remaining balance";
+      }
+      if (s === witnessStepIndex && form.witness_cnic && !isValidCnic(form.witness_cnic)) {
+        errs.witness_cnic = "Invalid CNIC format (XXXXX-XXXXXXX-X)";
+      }
+      setErrors(errs);
+      if (Object.keys(errs).length > 0) {
+        const msg = Object.values(errs)[0];
+        toast.error(msg);
+        return false;
+      }
+      return true;
+    },
+    [form, scheduleTotal, remainingAmount, installmentSchedule, installmentStepIndex, witnessStepIndex],
+  );
+
+  const goNext = () => {
+    if (validateStep(step)) setStep((s) => Math.min(s + 1, steps.length - 1));
+  };
+  const goBack = () => setStep((s) => Math.max(s - 1, 0));
+  const goToStep = (s: number) => setStep(s);
+
+  const handleSubmit = async () => {
     if (!user) return;
-
-    if (!form.vehicle_id || !form.customer_id) {
-      toast.error("Please select both a vehicle and a customer");
-      return;
-    }
-
-    if (
-      form.payment_type === "cash" &&
-      form.cash_payment_method === "bank_transfer" &&
-      !form.bank_account_id
-    ) {
-      toast.error("Please select the receiving bank account");
-      return;
-    }
-
-    if (form.payment_type === "installment") {
-      if (scheduleTotal <= 0 || installmentSchedule.length === 0) {
-        toast.error("Installment schedule is required");
-        return;
-      }
-      if (Math.abs(scheduleTotal - remainingAmount) > 1) {
-        toast.error("Installment amounts must match remaining balance");
-        return;
-      }
-    }
 
     const saleData: any = {
       vehicle_id: form.vehicle_id,
       customer_id: form.customer_id,
       sale_price: parseFloat(form.sale_price) || 0,
       payment_type: form.payment_type,
-      cash_payment_method: form.cash_payment_method,
+      cash_payment_method: "both",
+      cash_amount: parseFloat(form.cash_amount) || 0,
+      bank_transfer_amount: parseFloat(form.bank_transfer_amount) || 0,
       bank_account_id: form.bank_account_id || undefined,
       notes: form.notes,
     };
@@ -388,6 +505,7 @@ export default function SaleFormPage() {
         cnic: form.witness_cnic,
         phone: form.witness_phone,
         cnic_photo_path: form.witness_cnic_photo_path,
+        cnic_photo_back_path: form.witness_cnic_photo_back_path,
       };
     } else {
       saleData.witness_required = false;
@@ -412,6 +530,641 @@ export default function SaleFormPage() {
     return `${account.name}${secondary}`;
   };
 
+  const fieldError = (field: string) =>
+    errors[field] ? (
+      <p className="text-red-500 text-xs mt-1">{errors[field]}</p>
+    ) : null;
+
+  // ── Step Renderers ──
+
+  const renderSelectVehicle = () => (
+    <div className="card">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Search Vehicle by Chassis Number
+      </h2>
+      <div className="flex gap-2 mb-4">
+        <input
+          type="text"
+          value={chassisSearch}
+          onChange={(e) => setChassisSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") searchVehicleByChassis();
+          }}
+          className="input-field flex-1"
+          placeholder="Enter chassis number to search..."
+        />
+        <button
+          type="button"
+          onClick={searchVehicleByChassis}
+          className="btn-primary flex items-center gap-2"
+        >
+          <FiSearch /> Search
+        </button>
+      </div>
+
+      {searchResults.length > 0 && (
+        <div className="space-y-2 mb-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {searchResults.length} vehicle(s) found:
+          </p>
+          {searchResults.map((vehicle) => (
+            <button
+              key={vehicle.id}
+              type="button"
+              onClick={() => {
+                update("vehicle_id", vehicle.id);
+                // Add to vehicles list if not already there
+                if (!vehicles.some((v) => v.id === vehicle.id)) {
+                  setVehicles((prev) => [vehicle, ...prev]);
+                }
+                const candidatePrice =
+                  vehicle.selling_price || vehicle.total_cost || vehicle.purchase_price || 0;
+                if (candidatePrice > 0) {
+                  update("sale_price", String(candidatePrice));
+                }
+                setSearchResults([]);
+                setChassisSearch("");
+              }}
+              className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                form.vehicle_id === vehicle.id
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                  : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              }`}
+            >
+              <p className="font-medium text-gray-900 dark:text-white">
+                {vehicle.make} {vehicle.model} ({(vehicle as any).year_of_manufacture || vehicle.year})
+              </p>
+              <p className="text-sm text-gray-500">
+                Chassis: {vehicle.chassis_number} | Reg: {vehicle.registration_number || "N/A"}
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {chassisSearch && searchResults.length === 0 && (
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          No vehicles found. Try a different chassis number.
+        </p>
+      )}
+
+      {fieldError("vehicle_id")}
+      {selectedVehicle && (
+        <div className="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Selected Vehicle</p>
+          <p className="font-medium text-gray-900 dark:text-white">
+            {selectedVehicle.make} {selectedVehicle.model} ({(selectedVehicle as any).year_of_manufacture || selectedVehicle.year})
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            Chassis: {selectedVehicle.chassis_number} | Suggested price: PKR {suggestedPrice.toLocaleString()}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderSelectBuyer = () => (
+    <div className="card">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Select Buyer
+      </h2>
+
+      {/* Existing or New toggle */}
+      <div className="flex gap-4 mb-4">
+        <button
+          type="button"
+          onClick={() => update("customer_mode", "existing")}
+          className={`flex-1 py-3 px-4 rounded-lg border-2 text-center font-medium transition-colors ${
+            form.customer_mode === "existing"
+              ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+              : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+          }`}
+        >
+          Existing Customer
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            update("customer_mode", "new");
+            navigate("/customers/new", {
+              state: {
+                returnTo: isEdit ? `/sales/${id}/edit` : "/sales/new",
+                returnState: { saleForm: form, saleStep: step },
+              },
+            });
+          }}
+          className={`flex-1 py-3 px-4 rounded-lg border-2 text-center font-medium transition-colors ${
+            form.customer_mode === "new"
+              ? "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
+              : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+          }`}
+        >
+          + New Customer
+        </button>
+      </div>
+
+      {form.customer_mode === "existing" && (
+        <>
+          <select
+            value={form.customer_id}
+            onChange={(event) => update("customer_id", event.target.value)}
+            className={`input-field ${errors.customer_id ? "border-red-500" : ""}`}
+          >
+            <option value="">-- Select Customer --</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>
+                {customer.name} {customer.cnic ? `(${customer.cnic})` : ""}
+              </option>
+            ))}
+          </select>
+          {fieldError("customer_id")}
+        </>
+      )}
+
+      {selectedCustomer && (
+        <div className="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/30">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Selected Buyer</p>
+          <p className="font-medium text-gray-900 dark:text-white">{selectedCustomer.name}</p>
+          {selectedCustomer.cnic && (
+            <p className="text-sm text-gray-500 mt-1">CNIC: {selectedCustomer.cnic}</p>
+          )}
+        </div>
+      )}
+
+      {/* Witness toggle */}
+      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Add witness for this sale?
+        </p>
+        <div className="flex gap-4">
+          <label className="inline-flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="witness_required"
+              checked={form.witness_required === true}
+              onChange={() => update("witness_required", true)}
+              className="rounded"
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300">Yes</span>
+          </label>
+          <label className="inline-flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="witness_required"
+              checked={form.witness_required === false}
+              onChange={() => update("witness_required", false)}
+              className="rounded"
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300">No</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderPayment = () => (
+    <div className="card">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Payment Details
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Sale Price *
+          </label>
+          <input
+            type="number"
+            value={form.sale_price}
+            onChange={(event) => update("sale_price", event.target.value)}
+            className={`input-field ${errors.sale_price ? "border-red-500" : ""}`}
+          />
+          {fieldError("sale_price")}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Payment Type *
+          </label>
+          <select
+            value={form.payment_type}
+            onChange={(event) => update("payment_type", event.target.value)}
+            className="input-field"
+          >
+            {PAYMENT_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {form.payment_type === "installment" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Net Cash *
+            </label>
+            <input
+              type="number"
+              value={form.down_payment}
+              onChange={(event) => update("down_payment", event.target.value)}
+              className="input-field"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Notes */}
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Notes
+        </label>
+        <textarea
+          value={form.notes}
+          onChange={(event) => update("notes", event.target.value)}
+          className="input-field"
+          rows={3}
+        />
+      </div>
+    </div>
+  );
+
+  const renderInstallmentDetails = () => (
+    <div className="card">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Installment Details
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Number of Installments
+          </label>
+          <input
+            type="number"
+            value={form.installment_count}
+            onChange={(event) => update("installment_count", event.target.value)}
+            className="input-field"
+            min={1}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Duration Type
+          </label>
+          <select
+            value={form.installment_duration_type}
+            onChange={(event) => update("installment_duration_type", event.target.value)}
+            className="input-field"
+          >
+            {INSTALLMENT_DURATION_TYPES.map((durationType) => (
+              <option key={durationType.value} value={durationType.value}>
+                {durationType.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            First Due Date
+          </label>
+          <input
+            type="date"
+            value={form.installment_start_date}
+            onChange={(event) => update("installment_start_date", event.target.value)}
+            className="input-field"
+          />
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 dark:border-blue-800/40 dark:bg-blue-900/10">
+        <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+          Remaining balance:{" "}
+          <strong>PKR {remainingAmount.toLocaleString()}</strong>
+        </p>
+        {fieldError("schedule")}
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr>
+                <th className="text-left py-2">Installment</th>
+                <th className="text-left py-2">Due Date</th>
+                <th className="text-right py-2">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {installmentSchedule.map((row) => (
+                <tr key={row.installment_number}>
+                  <td className="py-1">{row.installment_number}</td>
+                  <td className="py-1">
+                    <input
+                      type="date"
+                      value={row.due_date}
+                      onChange={(event) =>
+                        updateInstallment(row.installment_number, "due_date", event.target.value)
+                      }
+                      className="input-field py-1"
+                    />
+                  </td>
+                  <td className="py-1">
+                    <input
+                      type="number"
+                      value={row.amount}
+                      onChange={(event) =>
+                        updateInstallment(row.installment_number, "amount", event.target.value)
+                      }
+                      className="input-field py-1 text-right"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p
+          className={`mt-2 text-sm ${Math.abs(scheduleTotal - remainingAmount) <= 1 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}
+        >
+          Schedule total: PKR {scheduleTotal.toLocaleString()}
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderPaymentMethod = () => (
+    <div className="card">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Payment Method (Cash & Bank Transfer)
+      </h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        Specify how much is paid in cash and how much via bank transfer.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Cash Amount (PKR)
+          </label>
+          <input
+            type="number"
+            value={form.cash_amount}
+            onChange={(event) => update("cash_amount", event.target.value)}
+            className="input-field"
+            placeholder="0"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Bank Transfer Amount (PKR)
+          </label>
+          <input
+            type="number"
+            value={form.bank_transfer_amount}
+            onChange={(event) => update("bank_transfer_amount", event.target.value)}
+            className="input-field"
+            placeholder="0"
+          />
+        </div>
+        {(parseFloat(form.bank_transfer_amount) || 0) > 0 && (
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Select Receiving Bank Account
+            </label>
+            <select
+              value={form.bank_account_id}
+              onChange={(event) => update("bank_account_id", event.target.value)}
+              className={`input-field ${errors.bank_account_id ? "border-red-500" : ""}`}
+            >
+              <option value="">-- Select Bank Account --</option>
+              {bankAccounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {bankLabel(account)}
+                </option>
+              ))}
+            </select>
+            {fieldError("bank_account_id")}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderWitness = () => (
+    <div className="card">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Witness Information
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Witness Name
+          </label>
+          <input
+            type="text"
+            value={form.witness_name}
+            onChange={(event) => update("witness_name", event.target.value)}
+            className="input-field"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Witness Father Name
+          </label>
+          <input
+            type="text"
+            value={form.witness_father_name}
+            onChange={(event) => update("witness_father_name", event.target.value)}
+            className="input-field"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Witness CNIC
+          </label>
+          <input
+            type="text"
+            value={form.witness_cnic}
+            onChange={(event) => update("witness_cnic", formatCnic(event.target.value))}
+            className={`input-field ${errors.witness_cnic ? "border-red-500" : ""}`}
+            placeholder={CNIC_PLACEHOLDER}
+            maxLength={15}
+          />
+          {fieldError("witness_cnic")}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Witness Phone
+          </label>
+          <input
+            type="text"
+            value={form.witness_phone}
+            onChange={(event) => update("witness_phone", event.target.value)}
+            className="input-field"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Witness CNIC (Front)
+          </label>
+          <div className="flex flex-col md:flex-row gap-4">
+            <button
+              type="button"
+              onClick={handleWitnessCnicImageSelect}
+              className="btn-secondary"
+            >
+              {form.witness_cnic_photo_path ? "Replace Front" : "Upload Front"}
+            </button>
+            {form.witness_cnic_photo_path && (
+              <div className="flex items-start gap-3">
+                <img
+                  src={toFileUrl(form.witness_cnic_photo_path)}
+                  alt="Witness CNIC Front"
+                  className="w-44 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                />
+                <button
+                  type="button"
+                  onClick={() => update("witness_cnic_photo_path", "")}
+                  className="text-sm text-red-600 hover:underline"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Witness CNIC (Back)
+          </label>
+          <div className="flex flex-col md:flex-row gap-4">
+            <button
+              type="button"
+              onClick={handleWitnessCnicBackImageSelect}
+              className="btn-secondary"
+            >
+              {form.witness_cnic_photo_back_path ? "Replace Back" : "Upload Back"}
+            </button>
+            {form.witness_cnic_photo_back_path && (
+              <div className="flex items-start gap-3">
+                <img
+                  src={toFileUrl(form.witness_cnic_photo_back_path)}
+                  alt="Witness CNIC Back"
+                  className="w-44 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                />
+                <button
+                  type="button"
+                  onClick={() => update("witness_cnic_photo_back_path", "")}
+                  className="text-sm text-red-600 hover:underline"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderReview = () => {
+    const reviewRow = (label: string, value: string | number | undefined) => {
+      if (value === undefined || value === "" || value === 0) return null;
+      return (
+        <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+          <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+          <span className="text-sm font-medium text-gray-900 dark:text-white text-right max-w-[60%]">
+            {value}
+          </span>
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Vehicle */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Vehicle</h3>
+            <button type="button" onClick={() => setStep(0)} className="text-sm text-primary-600 hover:underline">
+              Edit
+            </button>
+          </div>
+          {selectedVehicle && (
+            <p className="font-medium text-gray-900 dark:text-white mb-2">
+              {selectedVehicle.make} {selectedVehicle.model} ({(selectedVehicle as any).year_of_manufacture || selectedVehicle.year})
+              {selectedVehicle.registration_number ? ` - ${selectedVehicle.registration_number}` : ""}
+            </p>
+          )}
+        </div>
+
+        {/* Buyer */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Buyer</h3>
+            <button type="button" onClick={() => setStep(1)} className="text-sm text-primary-600 hover:underline">
+              Edit
+            </button>
+          </div>
+          {selectedCustomer && (
+            <>
+              <p className="font-medium text-gray-900 dark:text-white">{selectedCustomer.name}</p>
+              {selectedCustomer.cnic && (
+                <p className="text-sm text-gray-500 mt-1">CNIC: {selectedCustomer.cnic}</p>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Payment */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Payment</h3>
+            <button type="button" onClick={() => setStep(2)} className="text-sm text-primary-600 hover:underline">
+              Edit
+            </button>
+          </div>
+          {reviewRow("Sale Price", `PKR ${(parseFloat(form.sale_price) || 0).toLocaleString()}`)}
+          {reviewRow("Payment Type", PAYMENT_TYPES.find((t) => t.value === form.payment_type)?.label)}
+          {reviewRow("Cash Amount", form.cash_amount ? `PKR ${(parseFloat(form.cash_amount) || 0).toLocaleString()}` : undefined)}
+          {reviewRow("Bank Transfer", form.bank_transfer_amount ? `PKR ${(parseFloat(form.bank_transfer_amount) || 0).toLocaleString()}` : undefined)}
+          {form.bank_account_id && reviewRow("Bank Account", bankAccounts.find((a) => a.id === form.bank_account_id)?.name)}
+          {form.payment_type === "installment" && (
+            <>
+              {reviewRow("Net Cash", `PKR ${(parseFloat(form.down_payment) || 0).toLocaleString()}`)}
+              {reviewRow("Installments", `${form.installment_count} (${form.installment_duration_type})`)}
+              {reviewRow("Remaining", `PKR ${remainingAmount.toLocaleString()}`)}
+            </>
+          )}
+          {reviewRow("Notes", form.notes)}
+        </div>
+
+        {/* Witness */}
+        {form.witness_required && (
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Witness</h3>
+              <button type="button" onClick={() => setStep(witnessStepIndex)} className="text-sm text-primary-600 hover:underline">
+                Edit
+              </button>
+            </div>
+            {reviewRow("Name", form.witness_name)}
+            {reviewRow("Father Name", form.witness_father_name)}
+            {reviewRow("CNIC", form.witness_cnic)}
+            {reviewRow("Phone", form.witness_phone)}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Build step content dynamically
+  const getStepContent = () => {
+    if (step === 0) return renderSelectVehicle();
+    if (step === 1) return renderSelectBuyer();
+    if (step === 2) return renderPayment();
+    if (step === installmentStepIndex) return renderInstallmentDetails();
+    if (step === paymentMethodStepIndex) return renderPaymentMethod();
+    if (form.witness_required && step === witnessStepIndex) return renderWitness();
+    return renderReview();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -426,386 +1179,18 @@ export default function SaleFormPage() {
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Select Vehicle
-          </h2>
-          <select
-            value={form.vehicle_id}
-            onChange={(event) => {
-              const vehicleId = event.target.value;
-              update("vehicle_id", vehicleId);
-              if (vehicleId) {
-                const vehicle = vehicles.find((entry) => entry.id === vehicleId);
-                const candidatePrice =
-                  vehicle?.selling_price ||
-                  vehicle?.total_cost ||
-                  vehicle?.purchase_price ||
-                  0;
-                if (candidatePrice > 0) {
-                  update("sale_price", String(candidatePrice));
-                }
-              }
-            }}
-            className="input-field"
-            required
-          >
-            <option value="">-- Select Vehicle --</option>
-            {vehicles.map((vehicle) => (
-              <option key={vehicle.id} value={vehicle.id}>
-                {vehicle.registration_number || "No Registration"} - {vehicle.model} (
-                {vehicle.year} {vehicle.make})
-              </option>
-            ))}
-          </select>
-          {selectedVehicle && (
-            <p className="mt-2 text-sm text-gray-500">
-              Suggested price: PKR {suggestedPrice.toLocaleString()}
-            </p>
-          )}
-        </div>
+      <FormStepper steps={steps} currentStep={step} onStepClick={goToStep} />
 
-        <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Select Buyer
-          </h2>
-          <select
-            value={form.customer_id}
-            onChange={(event) => update("customer_id", event.target.value)}
-            className="input-field"
-            required
-          >
-            <option value="">-- Select Customer --</option>
-            {customers.map((customer) => (
-              <option key={customer.id} value={customer.id}>
-                {customer.name} {customer.cnic ? `(${customer.cnic})` : ""}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => navigate("/customers/new")}
-            className="mt-2 text-sm text-blue-600 hover:underline"
-          >
-            + Add New Customer
-          </button>
-        </div>
+      {getStepContent()}
 
-        <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Payment Details
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Sale Price *
-              </label>
-              <input
-                type="number"
-                value={form.sale_price}
-                onChange={(event) => update("sale_price", event.target.value)}
-                className="input-field"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Payment Type *
-              </label>
-              <select
-                value={form.payment_type}
-                onChange={(event) => update("payment_type", event.target.value)}
-                className="input-field"
-              >
-                {PAYMENT_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {form.payment_type === "cash" && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Payment Method
-                  </label>
-                  <select
-                    value={form.cash_payment_method}
-                    onChange={(event) =>
-                      update("cash_payment_method", event.target.value)
-                    }
-                    className="input-field"
-                  >
-                    {CASH_PAYMENT_METHODS.map((method) => (
-                      <option key={method.value} value={method.value}>
-                        {method.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {form.cash_payment_method === "bank_transfer" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Select Receiving Bank Account
-                    </label>
-                    <select
-                      value={form.bank_account_id}
-                      onChange={(event) =>
-                        update("bank_account_id", event.target.value)
-                      }
-                      className="input-field"
-                      required
-                    >
-                      <option value="">-- Select Bank Account --</option>
-                      {bankAccounts.map((account) => (
-                        <option key={account.id} value={account.id}>
-                          {bankLabel(account)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </>
-            )}
-
-            {form.payment_type === "installment" && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Down Payment *
-                  </label>
-                  <input
-                    type="number"
-                    value={form.down_payment}
-                    onChange={(event) => update("down_payment", event.target.value)}
-                    className="input-field"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Number of Installments
-                  </label>
-                  <input
-                    type="number"
-                    value={form.installment_count}
-                    onChange={(event) =>
-                      update("installment_count", event.target.value)
-                    }
-                    className="input-field"
-                    min={1}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Duration Type
-                  </label>
-                  <select
-                    value={form.installment_duration_type}
-                    onChange={(event) =>
-                      update("installment_duration_type", event.target.value)
-                    }
-                    className="input-field"
-                  >
-                    {INSTALLMENT_DURATION_TYPES.map((durationType) => (
-                      <option key={durationType.value} value={durationType.value}>
-                        {durationType.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    First Due Date
-                  </label>
-                  <input
-                    type="date"
-                    value={form.installment_start_date}
-                    onChange={(event) =>
-                      update("installment_start_date", event.target.value)
-                    }
-                    className="input-field"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-
-          {form.payment_type === "installment" && (
-            <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-4 dark:border-blue-800/40 dark:bg-blue-900/10">
-              <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
-                Remaining balance:{" "}
-                <strong>PKR {remainingAmount.toLocaleString()}</strong>
-              </p>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr>
-                      <th className="text-left py-2">Installment</th>
-                      <th className="text-left py-2">Due Date</th>
-                      <th className="text-right py-2">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {installmentSchedule.map((row) => (
-                      <tr key={row.installment_number}>
-                        <td className="py-1">{row.installment_number}</td>
-                        <td className="py-1">
-                          <input
-                            type="date"
-                            value={row.due_date}
-                            onChange={(event) =>
-                              updateInstallment(
-                                row.installment_number,
-                                "due_date",
-                                event.target.value,
-                              )
-                            }
-                            className="input-field py-1"
-                          />
-                        </td>
-                        <td className="py-1">
-                          <input
-                            type="number"
-                            value={row.amount}
-                            onChange={(event) =>
-                              updateInstallment(
-                                row.installment_number,
-                                "amount",
-                                event.target.value,
-                              )
-                            }
-                            className="input-field py-1 text-right"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p
-                className={`mt-2 text-sm ${Math.abs(scheduleTotal - remainingAmount) <= 1 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}
-              >
-                Schedule total: PKR {scheduleTotal.toLocaleString()}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Witness Information (Optional)
-            </h2>
-            <label className="inline-flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.witness_required}
-                onChange={(event) =>
-                  update("witness_required", event.target.checked)
-                }
-              />
-              Witness Required
-            </label>
-          </div>
-
-          {form.witness_required && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <input
-                type="text"
-                placeholder="Witness Name"
-                value={form.witness_name}
-                onChange={(event) => update("witness_name", event.target.value)}
-                className="input-field"
-              />
-              <input
-                type="text"
-                placeholder="Witness Father Name"
-                value={form.witness_father_name}
-                onChange={(event) =>
-                  update("witness_father_name", event.target.value)
-                }
-                className="input-field"
-              />
-              <input
-                type="text"
-                placeholder="Witness CNIC"
-                value={form.witness_cnic}
-                onChange={(event) => update("witness_cnic", event.target.value)}
-                className="input-field"
-              />
-              <input
-                type="text"
-                placeholder="Witness Phone"
-                value={form.witness_phone}
-                onChange={(event) => update("witness_phone", event.target.value)}
-                className="input-field"
-              />
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Witness CNIC Image
-                </label>
-                <div className="flex flex-col md:flex-row gap-4">
-                  <button
-                    type="button"
-                    onClick={handleWitnessCnicImageSelect}
-                    className="btn-secondary"
-                  >
-                    {form.witness_cnic_photo_path
-                      ? "Replace Witness CNIC Image"
-                      : "Upload Witness CNIC Image"}
-                  </button>
-                  {form.witness_cnic_photo_path && (
-                    <div className="flex items-start gap-3">
-                      <img
-                        src={toFileUrl(form.witness_cnic_photo_path)}
-                        alt="Witness CNIC"
-                        className="w-44 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => update("witness_cnic_photo_path", "")}
-                        className="text-sm text-red-600 hover:underline"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Notes
-          </label>
-          <textarea
-            value={form.notes}
-            onChange={(event) => update("notes", event.target.value)}
-            className="input-field"
-            rows={3}
-          />
-        </div>
-
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="btn-secondary"
-          >
-            Cancel
-          </button>
-          <button type="submit" className="btn-primary flex items-center gap-2">
-            <FiSave /> {isEdit ? "Update Sale" : "Create Sale"}
-          </button>
-        </div>
-      </form>
+      <StepNavigation
+        currentStep={step}
+        totalSteps={steps.length}
+        onBack={goBack}
+        onNext={goNext}
+        onSubmit={handleSubmit}
+        submitLabel={isEdit ? "Update Sale" : "Create Sale"}
+      />
     </div>
   );
 }
-

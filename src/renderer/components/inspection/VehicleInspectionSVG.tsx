@@ -376,8 +376,6 @@ export default function VehicleInspectionSVG({
 
         {/* ── Side panel ── */}
         <div className="space-y-3">
-          <InspectionLegend />
-
           {selectedMarker ? (
             <InspectionDetailsPanel
               marker={selectedMarker}
@@ -445,6 +443,9 @@ export default function VehicleInspectionSVG({
               </div>
             </div>
           )}
+
+          {/* Legend — only shown after markers are added */}
+          {markerCount > 0 && <InspectionLegend />}
         </div>
       </div>
 

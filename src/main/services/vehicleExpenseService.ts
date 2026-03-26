@@ -13,6 +13,8 @@ export function addVehicleExpense(
     amount: number;
     date: string;
     notes?: string;
+    condition_before?: string;
+    condition_after?: string;
   },
 ): VehicleExpense {
   const db = getDatabase();
@@ -26,8 +28,8 @@ export function addVehicleExpense(
 
   db.prepare(
     `
-    INSERT INTO vehicle_expenses (id, vehicle_id, category, amount, date, notes, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO vehicle_expenses (id, vehicle_id, category, amount, date, notes, condition_before, condition_after, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
   ).run(
     id,
@@ -36,6 +38,8 @@ export function addVehicleExpense(
     data.amount,
     data.date,
     data.notes || "",
+    data.condition_before || "",
+    data.condition_after || "",
     userId,
   );
 
@@ -76,6 +80,8 @@ export function addVehicleExpense(
     amount: data.amount,
     date: data.date,
     notes: data.notes,
+    condition_before: data.condition_before,
+    condition_after: data.condition_after,
     created_by: userId,
     created_at: new Date().toISOString(),
   };
@@ -95,6 +101,8 @@ export function getVehicleExpenses(vehicleId: string): VehicleExpense[] {
     amount: row.amount,
     date: row.date,
     notes: row.notes,
+    condition_before: row.condition_before,
+    condition_after: row.condition_after,
     created_by: row.created_by,
     created_at: row.created_at,
   }));

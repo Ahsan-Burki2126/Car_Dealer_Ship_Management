@@ -13,6 +13,7 @@ import {
 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { confirmDeleteRecord } from "../utils/confirmDelete";
+import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 
 interface Sale {
   id: string;
@@ -36,6 +37,7 @@ const statusBadge: Record<string, string> = {
 export default function SalesPage() {
   const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
+  const { requestAuth, PasswordModal } = useSuperadminAuth();
   const [sales, setSales] = useState<Sale[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -208,15 +210,15 @@ export default function SalesPage() {
                         >
                           <FiEye size={16} />
                         </Link>
-                        <Link
-                          to={`/sales/${s.id}/edit`}
+                        <button
+                          onClick={() => requestAuth(() => navigate(`/sales/${s.id}/edit`))}
                           className="p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded"
                           title="Edit"
                         >
                           <FiEdit size={16} />
-                        </Link>
+                        </button>
                         <button
-                          onClick={() => handleDelete(s.id)}
+                          onClick={() => requestAuth(() => handleDelete(s.id))}
                           className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                           title="Delete"
                         >
@@ -256,6 +258,7 @@ export default function SalesPage() {
           </div>
         )}
       </div>
+      <PasswordModal />
     </div>
   );
 }

@@ -35,6 +35,7 @@ interface CreateSaleData {
     cnic?: string;
     phone?: string;
     cnic_photo_path?: string;
+    cnic_photo_back_path?: string;
   };
   notes?: string;
 }
@@ -177,7 +178,8 @@ export function createSale(userId: string, data: CreateSaleData): Sale {
       db.prepare(
         `
         UPDATE customers
-        SET witness_name = ?, witness_father_name = ?, witness_cnic = ?, witness_phone = ?, witness_cnic_photo_path = ?,
+        SET witness_name = ?, witness_father_name = ?, witness_cnic = ?, witness_phone = ?,
+            witness_cnic_photo_path = ?, witness_cnic_photo_back_path = ?,
             updated_at = datetime('now'), synced = 0
         WHERE id = ?
       `,
@@ -187,6 +189,7 @@ export function createSale(userId: string, data: CreateSaleData): Sale {
         data.witness.cnic || "",
         data.witness.phone || "",
         data.witness.cnic_photo_path || "",
+        data.witness.cnic_photo_back_path || "",
         data.customer_id,
       );
     }
@@ -524,7 +527,8 @@ export function updateSale(
         `
         UPDATE customers
         SET witness_name = '', witness_father_name = '', witness_cnic = '', witness_phone = '',
-            witness_cnic_photo_path = '', updated_at = datetime('now'), synced = 0
+            witness_cnic_photo_path = '', witness_cnic_photo_back_path = '',
+            updated_at = datetime('now'), synced = 0
         WHERE id = ?
       `,
       ).run(customerId);
@@ -533,7 +537,8 @@ export function updateSale(
         `
         UPDATE customers
         SET witness_name = ?, witness_father_name = ?, witness_cnic = ?, witness_phone = ?,
-            witness_cnic_photo_path = ?, updated_at = datetime('now'), synced = 0
+            witness_cnic_photo_path = ?, witness_cnic_photo_back_path = ?,
+            updated_at = datetime('now'), synced = 0
         WHERE id = ?
       `,
       ).run(
@@ -542,6 +547,7 @@ export function updateSale(
         data.witness.cnic || "",
         data.witness.phone || "",
         data.witness.cnic_photo_path || "",
+        data.witness.cnic_photo_back_path || "",
         customerId,
       );
     }
@@ -714,7 +720,8 @@ export function getSaleById(id: string): Sale | null {
       `
       SELECT s.*, c.name as customer_name, c.cnic as customer_cnic, c.phone as customer_phone,
         c.father_name as customer_father_name, c.address as customer_address,
-        c.witness_name, c.witness_father_name, c.witness_cnic, c.witness_phone, c.witness_cnic_photo_path,
+        c.witness_name, c.witness_father_name, c.witness_cnic, c.witness_phone,
+        c.witness_cnic_photo_path, c.witness_cnic_photo_back_path,
         v.make, v.model, v.year, v.registration_number, v.chassis_number, v.engine_number, v.color,
         ba.name as bank_account_name,
         COALESCE((SELECT SUM(amount) FROM payments p WHERE p.sale_id = s.id), 0) as total_paid,
@@ -856,8 +863,8 @@ export function recordInstallmentPayment(
 
     if (pendingCount.count === 0 && newRemaining <= 0.01) {
       db.prepare(
-        "UPDATE sales SET status = 'completed', updated_at = datetime('now') WHERE id = ?",
-      ).run(installment.sale_id);
+        "UPDATE sales SET status = 'completed', final_payment_date = ?, updated_at = datetime('now') WHERE id = ?",
+      ).run(data.payment_date, installment.sale_id);
       db.prepare(
         "UPDATE vehicles SET status = 'sold', updated_at = datetime('now') WHERE id = ?",
       ).run(sale.vehicle_id);
@@ -1146,6 +1153,9 @@ function mapSaleRow(row: Record<string, unknown>): Sale {
       : undefined,
     installment_schedule: parseInstallmentSchedule(row.installment_schedule_json),
     status: String(row.status || "active") as Sale["status"],
+    ownership_transferred: Boolean(row.ownership_transferred),
+    ownership_transfer_date: row.ownership_transfer_date ? String(row.ownership_transfer_date) : undefined,
+    final_payment_date: row.final_payment_date ? String(row.final_payment_date) : undefined,
     notes: row.notes ? String(row.notes) : "",
     created_by: String(row.created_by || ""),
     created_at: String(row.created_at || ""),
@@ -1163,6 +1173,7 @@ function mapSaleRow(row: Record<string, unknown>): Sale {
           witness_cnic: String(row.witness_cnic || ""),
           witness_phone: String(row.witness_phone || ""),
           witness_cnic_photo_path: String(row.witness_cnic_photo_path || ""),
+          witness_cnic_photo_back_path: String(row.witness_cnic_photo_back_path || ""),
           created_by: "",
           created_at: "",
           updated_at: "",
@@ -1176,10 +1187,12 @@ function mapSaleRow(row: Record<string, unknown>): Sale {
           engine_number: String(row.engine_number || ""),
           make: String(row.make || ""),
           model: String(row.model || ""),
-          year: Number(row.year || 0),
+          year_of_manufacture: Number(row.year || 0),
           color: String(row.color || ""),
-          assembly_country: "",
-          key_available: true,
+          assembling_company: "",
+          extra_keys_available: true,
+          file_available: false,
+          current_smart_card: false,
           status: "sold",
           purchase_price: 0,
           purchase_date: "",
@@ -1194,4 +1207,36 @@ function mapSaleRow(row: Record<string, unknown>): Sale {
         }
       : undefined,
   };
+}
+
+export function transferOwnership(
+  userId: string,
+  saleId: string,
+): void {
+  const db = getDatabase();
+  const sale = db
+    .prepare("SELECT * FROM sales WHERE id = ? AND is_deleted = 0")
+    .get(saleId) as Record<string, unknown> | undefined;
+  if (!sale) throw new Error("Sale not found");
+
+  const today = format(new Date(), "yyyy-MM-dd");
+
+  db.prepare(
+    `UPDATE sales SET ownership_transferred = 1, ownership_transfer_date = ?, updated_at = datetime('now') WHERE id = ?`,
+  ).run(today, saleId);
+
+  const user = db
+    .prepare("SELECT username, role FROM users WHERE id = ?")
+    .get(userId) as { username: string; role: string } | undefined;
+  db.prepare(
+    `INSERT INTO audit_logs (id, user_id, username, role, action_type, affected_entity, entity_id, new_value, timestamp)
+     VALUES (?, ?, ?, ?, 'status_change', 'sales', ?, ?, datetime('now'))`,
+  ).run(
+    uuidv4(),
+    userId,
+    user?.username || "",
+    user?.role || "",
+    saleId,
+    JSON.stringify({ ownership_transferred: true, date: today }),
+  );
 }

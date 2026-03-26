@@ -13,6 +13,8 @@ export interface ElectronAPI {
     newPassword: string,
   ) => Promise<any>;
 
+  verifySuperadminPassword: (password: string) => Promise<any>;
+
   // Vehicles
   addVehicle: (userId: string, data: any) => Promise<any>;
   getVehicles: (filters: any) => Promise<any>;
@@ -55,6 +57,7 @@ export interface ElectronAPI {
   ) => Promise<any>;
   getOverdueInstallments: (userId: string) => Promise<any>;
   getCustomerLedger: (userId: string, customerId: string) => Promise<any>;
+  transferOwnership: (userId: string, saleId: string) => Promise<any>;
 
   // Showroom Expenses
   addShowroomExpense: (userId: string, data: any) => Promise<any>;
@@ -71,6 +74,7 @@ export interface ElectronAPI {
   getProfitReport: (userId: string) => Promise<any>;
   getInventoryReport: (userId: string) => Promise<any>;
   getAuditLogs: (userId: string, filters: any) => Promise<any>;
+  getVehicleSearchReport: (userId: string, search: string) => Promise<any>;
 
   // Bank Accounts
   getBankAccounts: (userId: string, activeOnly?: boolean) => Promise<any>;

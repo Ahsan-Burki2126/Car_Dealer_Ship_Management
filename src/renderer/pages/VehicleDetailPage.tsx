@@ -7,11 +7,13 @@ import {
   VEHICLE_EXPENSE_CATEGORIES,
   VEHICLE_STATUSES,
 } from "../../shared/constants";
-import { FiEdit, FiPlus, FiTrash2, FiArrowLeft, FiPrinter } from "react-icons/fi";
+import { FiEdit, FiPlus, FiTrash2, FiArrowLeft, FiPrinter, FiDownload } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { toFileUrl } from "../utils/filePaths";
 import ErrorBoundary from "../components/ErrorBoundary";
 import InspectionReportPrint from "../components/inspection/InspectionReportPrint";
+import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
+import { generateVehiclePurchasePdf } from "../utils/pdfGenerator";
 
 // Grey SVG shown when a local image fails to load (missing file, 403, etc.)
 const IMG_PLACEHOLDER =
@@ -40,11 +42,14 @@ export default function VehicleDetailPage() {
   const [expenses, setExpenses] = useState<VehicleExpense[]>([]);
   const [showPrintReport, setShowPrintReport] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const { requestAuth, PasswordModal } = useSuperadminAuth();
   const [expenseForm, setExpenseForm] = useState({
     category: "paint_repair",
     amount: "",
     date: new Date().toISOString().split("T")[0],
     notes: "",
+    condition_before: "",
+    condition_after: "",
   });
 
   useEffect(() => {
@@ -79,6 +84,8 @@ export default function VehicleDetailPage() {
         amount: "",
         date: new Date().toISOString().split("T")[0],
         notes: "",
+        condition_before: "",
+        condition_after: "",
       });
       loadVehicle();
       loadExpenses();
@@ -88,7 +95,12 @@ export default function VehicleDetailPage() {
   };
 
   const handleDeleteExpense = async (expenseId: string) => {
-    if (!confirm("Delete this expense?")) return;
+    requestAuth(async () => {
+      await doDeleteExpense(expenseId);
+    });
+  };
+
+  const doDeleteExpense = async (expenseId: string) => {
     const result = await window.api.deleteVehicleExpense(user!.id, expenseId);
     if (result.success) {
       toast.success("Expense deleted");
@@ -112,7 +124,7 @@ export default function VehicleDetailPage() {
           </button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {vehicle.make} {vehicle.model} ({vehicle.year})
+              {vehicle.make} {vehicle.model} ({(vehicle as any).year_of_manufacture || (vehicle as any).year})
             </h1>
             <p className="text-gray-500 dark:text-gray-400">
               {vehicle.registration_number || "No registration"}
@@ -120,12 +132,26 @@ export default function VehicleDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Link
-            to={`/vehicles/${vehicle.id}/edit`}
+          <button
+            type="button"
+            onClick={() => {
+              requestAuth(() => navigate(`/vehicles/${vehicle.id}/edit`));
+            }}
             className="btn-primary flex items-center gap-2"
           >
             <FiEdit /> Edit
-          </Link>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const doc = generateVehiclePurchasePdf(vehicle as any);
+              doc.save(`Purchase_${vehicle.make}_${vehicle.model}_${vehicle.chassis_number || vehicle.id}.pdf`);
+              toast.success("Purchase PDF generated");
+            }}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <FiDownload /> Purchase PDF
+          </button>
         </div>
       </div>
 
@@ -186,15 +212,21 @@ export default function VehicleDetailPage() {
               </span>
             </div>
             <div>
-              <span className="text-gray-500">Assembly:</span>{" "}
+              <span className="text-gray-500">Extra Keys:</span>{" "}
               <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                {vehicle.assembly_country || "-"}
+                {(vehicle as any).extra_keys_available ? `Yes (${(vehicle as any).extra_keys_count || 0})` : "No"}
               </span>
             </div>
             <div>
-              <span className="text-gray-500">Key Available:</span>{" "}
+              <span className="text-gray-500">File Available:</span>{" "}
               <span className="ml-2 font-medium text-gray-900 dark:text-white">
-                {vehicle.key_available ? "Yes" : "No"}
+                {(vehicle as any).file_available ? `Yes (${(vehicle as any).file_pages || 0} pages)` : "No"}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500">Smart Card:</span>{" "}
+              <span className="ml-2 font-medium text-gray-900 dark:text-white">
+                {(vehicle as any).current_smart_card ? `Yes (${(vehicle as any).smart_card_count || 0})` : "No"}
               </span>
             </div>
           </div>
@@ -279,7 +311,7 @@ export default function VehicleDetailPage() {
               </span>
             </div>
           </div>
-          {(vehicle.seller_photo_path || vehicle.seller_cnic_photo_path) && (
+          {(vehicle.seller_photo_path || vehicle.seller_cnic_photo_path || vehicle.seller_cnic_photo_back_path) && (
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               {vehicle.seller_photo_path && (
                 <div>
@@ -295,11 +327,24 @@ export default function VehicleDetailPage() {
               {vehicle.seller_cnic_photo_path && (
                 <div>
                   <p className="text-xs text-gray-500 mb-2">
-                    Seller CNIC Image
+                    Seller CNIC (Front)
                   </p>
                   <img
                     src={toFileUrl(vehicle.seller_cnic_photo_path)}
-                    alt="Seller CNIC"
+                    alt="Seller CNIC Front"
+                    className="w-full max-w-sm rounded-xl border border-gray-200 object-cover dark:border-gray-700"
+                    onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                  />
+                </div>
+              )}
+              {vehicle.seller_cnic_photo_back_path && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Seller CNIC (Back)
+                  </p>
+                  <img
+                    src={toFileUrl(vehicle.seller_cnic_photo_back_path)}
+                    alt="Seller CNIC Back"
                     className="w-full max-w-sm rounded-xl border border-gray-200 object-cover dark:border-gray-700"
                     onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
                   />
@@ -309,25 +354,28 @@ export default function VehicleDetailPage() {
           )}
         </div>
 
-        {/* Expenses */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Expenses
-            </h2>
-            <button
-              onClick={() => setShowExpenseForm(!showExpenseForm)}
-              className="btn-primary text-sm flex items-center gap-1"
-            >
-              <FiPlus /> Add
-            </button>
-          </div>
+      </div>
 
-          {showExpenseForm && (
-            <form
-              onSubmit={handleAddExpense}
-              className="mb-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50 space-y-3"
-            >
+      {/* Expenses - Full Width Section */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Expenses & Repair Information
+          </h2>
+          <button
+            onClick={() => setShowExpenseForm(!showExpenseForm)}
+            className="btn-primary text-sm flex items-center gap-1"
+          >
+            <FiPlus /> Add Expense
+          </button>
+        </div>
+
+        {showExpenseForm && (
+          <form
+            onSubmit={handleAddExpense}
+            className="mb-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/50 space-y-3"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               <select
                 value={expenseForm.category}
                 onChange={(e) =>
@@ -347,7 +395,7 @@ export default function VehicleDetailPage() {
                 onChange={(e) =>
                   setExpenseForm({ ...expenseForm, amount: e.target.value })
                 }
-                placeholder="Amount"
+                placeholder="Amount (Rs)"
                 className="input-field"
                 required
               />
@@ -368,58 +416,106 @@ export default function VehicleDetailPage() {
                 placeholder="Notes"
                 className="input-field"
               />
-              <div className="flex gap-2">
-                <button type="submit" className="btn-primary text-sm">
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowExpenseForm(false)}
-                  className="btn-secondary text-sm"
-                >
-                  Cancel
-                </button>
+            </div>
+            {["paint_repair", "engine_repair", "tyres_replacement", "battery_replacement"].includes(expenseForm.category) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  value={expenseForm.condition_before}
+                  onChange={(e) =>
+                    setExpenseForm({ ...expenseForm, condition_before: e.target.value })
+                  }
+                  placeholder="Condition Before Repair (e.g. dented, scratched)"
+                  className="input-field"
+                />
+                <input
+                  type="text"
+                  value={expenseForm.condition_after}
+                  onChange={(e) =>
+                    setExpenseForm({ ...expenseForm, condition_after: e.target.value })
+                  }
+                  placeholder="Condition After Repair (e.g. fixed, repainted)"
+                  className="input-field"
+                />
               </div>
-            </form>
-          )}
+            )}
+            <div className="flex gap-2">
+              <button type="submit" className="btn-primary text-sm">
+                Save Expense
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowExpenseForm(false)}
+                className="btn-secondary text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
 
-          {expenses.length > 0 ? (
-            <div className="space-y-2">
-              {expenses.map((exp) => (
-                <div
-                  key={exp.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/30"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+        {expenses.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  <th className="table-header">Category</th>
+                  <th className="table-header text-right">Amount</th>
+                  <th className="table-header">Date</th>
+                  <th className="table-header">Notes</th>
+                  <th className="table-header">Before / After</th>
+                  <th className="table-header w-10"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {expenses.map((exp) => (
+                  <tr key={exp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="table-cell font-medium">
                       {
                         VEHICLE_EXPENSE_CATEGORIES.find(
                           (c) => c.value === exp.category,
-                        )?.label
+                        )?.label || exp.category
                       }
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {exp.date} {exp.notes && `- ${exp.notes}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    </td>
+                    <td className="table-cell text-right font-semibold">
                       Rs {exp.amount.toLocaleString()}
-                    </span>
-                    <button
-                      onClick={() => handleDeleteExpense(exp.id)}
-                      className="p-1 text-red-500 hover:bg-red-50 rounded"
-                    >
-                      <FiTrash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500">No expenses recorded.</p>
-          )}
-        </div>
+                    </td>
+                    <td className="table-cell">{exp.date}</td>
+                    <td className="table-cell text-gray-500">{exp.notes || "-"}</td>
+                    <td className="table-cell text-xs">
+                      {exp.condition_before || exp.condition_after ? (
+                        <>
+                          {exp.condition_before && <span className="text-red-500">Before: {exp.condition_before}</span>}
+                          {exp.condition_before && exp.condition_after && <br />}
+                          {exp.condition_after && <span className="text-green-500">After: {exp.condition_after}</span>}
+                        </>
+                      ) : "-"}
+                    </td>
+                    <td className="table-cell">
+                      <button
+                        onClick={() => handleDeleteExpense(exp.id)}
+                        className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                      >
+                        <FiTrash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-gray-50 dark:bg-gray-700/30">
+                  <td className="table-cell font-bold">Total</td>
+                  <td className="table-cell text-right font-bold text-orange-600">
+                    Rs {expenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
+                  </td>
+                  <td colSpan={4}></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500 text-center py-4">No expenses recorded yet. Click "Add Expense" to add repair costs, travel expenses, or other costs.</p>
+        )}
       </div>
 
       {/* Vehicle Inspection Section */}
@@ -476,6 +572,9 @@ export default function VehicleDetailPage() {
           onClose={() => setShowPrintReport(false)}
         />
       )}
+
+      {/* Superadmin password modal */}
+      <PasswordModal />
     </div>
   );
 }

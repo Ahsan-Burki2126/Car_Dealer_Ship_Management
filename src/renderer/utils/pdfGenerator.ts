@@ -52,7 +52,8 @@ function addModernFooter(doc: jsPDF) {
     doc.setFontSize(7);
     setColor(doc, GRAY);
     doc.setFont("helvetica", "normal");
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 15, 285);
+    doc.text("Pak Japan Motors, Layyah", 15, 285);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, pw / 2, 285, { align: "center" });
     doc.text(`Page ${i} of ${pages}`, pw - 15, 285, { align: "right" });
   }
 }
@@ -74,12 +75,12 @@ function addInvoiceHeader(
   doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
   setColor(doc, DARK);
-  doc.text("DEALERSHIP MANAGEMENT", 15, 18);
+  doc.text("PAK JAPAN MOTORS", 15, 18);
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   setColor(doc, GRAY);
-  doc.text("Automobile Sales & Services", 15, 24);
+  doc.text("Layyah — Automobile Sales & Services", 15, 24);
 
   // Invoice badge (right side)
   setColor(doc, BRAND_LIGHT, "fill");
@@ -162,6 +163,9 @@ export function generateInvoicePdf(sale: {
   down_payment: number;
   payment_type: string;
   notes?: string;
+  witness_name?: string;
+  witness_cnic?: string;
+  witness_phone?: string;
   installments?: { number: number; due_date: string; amount: number }[];
 }): jsPDF {
   const doc = new jsPDF();
@@ -329,6 +333,28 @@ export function generateInvoicePdf(sale: {
     const noteLines = doc.splitTextToSize(sale.notes, pw - 40);
     doc.text(noteLines, 15, y);
     y += noteLines.length * 4 + 4;
+  }
+
+  // ── Witness Information ────────────────────────────────────────────
+
+  if (sale.witness_name || sale.witness_cnic || sale.witness_phone) {
+    if (y > 245) {
+      doc.addPage();
+      y = 20;
+    }
+    y = sectionHeading(doc, "Witness", y);
+    if (sale.witness_name) {
+      detailRow(doc, "Name", sale.witness_name, 15, y);
+      y += 10;
+    }
+    if (sale.witness_cnic) {
+      detailRow(doc, "CNIC", sale.witness_cnic, 15, y);
+      y += 10;
+    }
+    if (sale.witness_phone) {
+      detailRow(doc, "Contact", sale.witness_phone, 15, y);
+      y += 10;
+    }
   }
 
   // ── Signatures ─────────────────────────────────────────────────────
@@ -905,5 +931,143 @@ export function generateProfessionalInspectionReport(inspection: {
   doc.setPage(1);
   addModernFooter(doc);
 
+  return doc;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  VEHICLE PURCHASE PDF
+// ══════════════════════════════════════════════════════════════════════════
+
+export function generateVehiclePurchasePdf(vehicle: {
+  make: string;
+  model: string;
+  year_of_manufacture: number;
+  year_of_import?: number;
+  color?: string;
+  registration_number?: string;
+  chassis_number?: string;
+  engine_number?: string;
+  assembling_company?: string;
+  extra_keys_available?: boolean;
+  extra_keys_count?: number;
+  file_available?: boolean;
+  file_pages?: number;
+  current_smart_card?: boolean;
+  smart_card_count?: number;
+  purchase_price: number;
+  purchase_date?: string;
+  seller_name?: string;
+  seller_father_name?: string;
+  seller_caste?: string;
+  seller_cnic?: string;
+  seller_phone?: string;
+  seller_address?: string;
+  seller_witness_name?: string;
+  seller_witness_cnic?: string;
+  seller_witness_phone?: string;
+  notes?: string;
+}): jsPDF {
+  const doc = new jsPDF();
+  const pw = doc.internal.pageSize.getWidth();
+
+  // Header bar
+  setColor(doc, BRAND, "fill");
+  doc.rect(0, 0, pw, 4, "F");
+
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, DARK);
+  doc.text("PAK JAPAN VEHICLES, LAYYAH", pw / 2, 18, { align: "center" });
+
+  doc.setFontSize(11);
+  setColor(doc, ACCENT);
+  doc.text("VEHICLE PURCHASE RECEIPT", pw / 2, 26, { align: "center" });
+
+  setColor(doc, BRAND, "draw");
+  doc.setLineWidth(0.8);
+  doc.line(15, 30, pw - 15, 30);
+
+  let y = 38;
+
+  // Vehicle Information
+  y = sectionHeading(doc, "Vehicle Information", y);
+  const vehicleDetails: [string, string][] = [
+    ["Make", vehicle.make],
+    ["Model", vehicle.model],
+    ["Year of Manufacture", String(vehicle.year_of_manufacture)],
+  ];
+  if (vehicle.year_of_import) vehicleDetails.push(["Year of Import", String(vehicle.year_of_import)]);
+  if (vehicle.color) vehicleDetails.push(["Color", vehicle.color]);
+  if (vehicle.registration_number) vehicleDetails.push(["Registration Number", vehicle.registration_number]);
+  if (vehicle.chassis_number) vehicleDetails.push(["Chassis Number", vehicle.chassis_number]);
+  if (vehicle.engine_number) vehicleDetails.push(["Engine Number", vehicle.engine_number]);
+  if (vehicle.assembling_company) vehicleDetails.push(["Assembling Company", vehicle.assembling_company]);
+  vehicleDetails.push(["Extra Keys Available", vehicle.extra_keys_available ? `Yes (${vehicle.extra_keys_count || 0})` : "No"]);
+  vehicleDetails.push(["File Available", vehicle.file_available ? `Yes (${vehicle.file_pages || 0} pages)` : "No"]);
+  vehicleDetails.push(["Current Smart Card", vehicle.current_smart_card ? `Yes (${vehicle.smart_card_count || 0} cards)` : "No"]);
+
+  vehicleDetails.forEach(([label, value]) => {
+    detailRow(doc, label, value, 15, y);
+    y += 10;
+  });
+
+  y += 5;
+
+  // Purchase Information
+  y = sectionHeading(doc, "Purchase Information", y);
+  detailRow(doc, "Purchase Date", vehicle.purchase_date || "N/A", 15, y);
+  y += 10;
+  detailRow(doc, "Purchase Price", formatCurrency(vehicle.purchase_price), 15, y);
+  y += 15;
+
+  // Seller Information
+  if (vehicle.seller_name) {
+    y = sectionHeading(doc, "Seller Information", y);
+    if (vehicle.seller_name) { detailRow(doc, "Name", vehicle.seller_name, 15, y); y += 10; }
+    if (vehicle.seller_father_name) { detailRow(doc, "Father's Name", vehicle.seller_father_name, 15, y); y += 10; }
+    if (vehicle.seller_caste) { detailRow(doc, "Caste / Tribe", vehicle.seller_caste, 15, y); y += 10; }
+    if (vehicle.seller_cnic) { detailRow(doc, "CNIC", vehicle.seller_cnic, 15, y); y += 10; }
+    if (vehicle.seller_phone) { detailRow(doc, "Contact", vehicle.seller_phone, 15, y); y += 10; }
+    if (vehicle.seller_address) { detailRow(doc, "Address", vehicle.seller_address, 15, y); y += 10; }
+    y += 5;
+  }
+
+  // Witness Information
+  if (vehicle.seller_witness_name) {
+    if (y > 240) { doc.addPage(); y = 20; }
+    y = sectionHeading(doc, "Witness Information", y);
+    if (vehicle.seller_witness_name) { detailRow(doc, "Name", vehicle.seller_witness_name, 15, y); y += 10; }
+    if (vehicle.seller_witness_cnic) { detailRow(doc, "CNIC", vehicle.seller_witness_cnic, 15, y); y += 10; }
+    if (vehicle.seller_witness_phone) { detailRow(doc, "Contact", vehicle.seller_witness_phone, 15, y); y += 10; }
+  }
+
+  // Notes
+  if (vehicle.notes) {
+    if (y > 245) { doc.addPage(); y = 20; }
+    y = sectionHeading(doc, "Notes", y);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, GRAY);
+    const noteLines = doc.splitTextToSize(vehicle.notes, pw - 40);
+    doc.text(noteLines, 15, y);
+    y += noteLines.length * 4 + 4;
+  }
+
+  // Signatures
+  y = Math.max(y + 10, 240);
+  if (y > 260) { doc.addPage(); y = 240; }
+
+  setColor(doc, BORDER, "draw");
+  doc.setLineWidth(0.4);
+  doc.line(15, y, 80, y);
+  doc.line(pw - 80, y, pw - 15, y);
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  setColor(doc, GRAY);
+  doc.text("Buyer's Signature", 47.5, y + 5, { align: "center" });
+  doc.text("Seller's Signature", pw - 47.5, y + 5, { align: "center" });
+
+  addModernFooter(doc);
   return doc;
 }

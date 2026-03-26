@@ -15,7 +15,7 @@ export default function MainLayout() {
         className={`flex flex-col flex-1 overflow-hidden transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-20"}`}
       >
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main id="main-scroll-container" className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
       </div>

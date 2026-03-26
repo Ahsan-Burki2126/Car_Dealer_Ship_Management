@@ -12,15 +12,19 @@ import {
   FiTrendingUp,
   FiPackage,
 } from "react-icons/fi";
-import type { DashboardStats } from "../../shared/types";
+import type { DashboardStats, Vehicle } from "../../shared/types";
+import { toFileUrl } from "../utils/filePaths";
 
 export default function DashboardPage() {
   const { user } = useSelector((state: RootState) => state.auth);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showcaseVehicles, setShowcaseVehicles] = useState<Vehicle[]>([]);
+
   useEffect(() => {
     if (user?.id) {
       loadDashboard();
+      loadShowcase();
     }
   }, [user?.id]);
 
@@ -29,6 +33,11 @@ export default function DashboardPage() {
     const result = await window.api.getDashboardStats(user.id);
     if (result.success) setStats(result.data);
     setLoading(false);
+  };
+
+  const loadShowcase = async () => {
+    const result = await window.api.getVehicles({ status: "in_stock", limit: 12 });
+    if (result.success) setShowcaseVehicles(result.data?.data || []);
   };
 
   if (loading) {
@@ -102,35 +111,122 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Dashboard
+      {/* Branding Header */}
+      <div className="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-xl p-6 text-white shadow-lg">
+        <h1 className="text-3xl font-bold tracking-wide">
+          Pak Japan Motors, Layyah
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">
-          Welcome back! Here's your dealership overview.
+        <p className="text-blue-100 mt-1">
+          Automobile Sales & Services ,Dashboard
+        </p>
+      </div>
+
+      {/* Persistent Overdue Popup */}
+      {stats.overdueAlerts?.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm w-full animate-pulse">
+          <div className="bg-red-600 text-white rounded-xl shadow-2xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FiAlertTriangle className="text-xl" />
+              <h3 className="font-bold text-lg">Overdue Payments!</h3>
+            </div>
+            <p className="text-sm text-red-100 mb-3">
+              {stats.overdueAlerts.length} installment(s) are overdue. This
+              alert will remain until all payments are cleared.
+            </p>
+            {stats.overdueAlerts.slice(0, 3).map((alert) => (
+              <Link
+                key={alert.installment_id}
+                to={`/sales/${alert.sale_id}`}
+                className="block text-sm bg-red-700/50 rounded-lg p-2 mb-1 hover:bg-red-700"
+              >
+                {alert.customer_name} — Rs {alert.amount.toLocaleString()} (Due:{" "}
+                {new Date(alert.due_date).toLocaleDateString()})
+              </Link>
+            ))}
+            {stats.overdueAlerts.length > 3 && (
+              <Link
+                to="/installments"
+                className="text-xs text-red-200 hover:underline mt-1 block"
+              >
+                +{stats.overdueAlerts.length - 3} more...
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <p className="text-gray-500 dark:text-gray-400">
+          Welcome back! Here's your overview.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Link
           to="/vehicles/new"
-          className="card border-l-4 border-l-blue-500 hover:shadow-md transition-shadow"
+          className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white p-5 shadow-md hover:shadow-xl transition-all duration-300 active:scale-95"
         >
-          <p className="text-sm text-gray-500 dark:text-gray-400">Primary Action</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-            Buy Vehicle
-          </p>
+          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition"></div>
+          <p className="text-xl font-bold mt-1">Buy Vehicle</p>
         </Link>
+
         <Link
           to="/sales/new"
-          className="card border-l-4 border-l-green-500 hover:shadow-md transition-shadow"
+          className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-green-600 to-green-700 text-white p-5 shadow-md hover:shadow-xl transition-all duration-300 active:scale-95"
         >
-          <p className="text-sm text-gray-500 dark:text-gray-400">Primary Action</p>
-          <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-            Sell Vehicle
-          </p>
+          <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition"></div>
+          <p className="text-xl font-bold mt-1">Sell Vehicle</p>
         </Link>
       </div>
+
+      {/* Vehicle Showcase */}
+      {showcaseVehicles.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Available in Showroom
+            </h2>
+            <Link to="/vehicles" className="text-sm text-blue-600 hover:underline">
+              View all →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {showcaseVehicles.map((v) => (
+              <Link
+                key={v.id}
+                to={`/vehicles/${v.id}`}
+                className="group rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm hover:shadow-lg transition-all duration-200 border border-gray-100 dark:border-gray-700"
+              >
+                <div className="aspect-[4/3] bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                  {v.photo_path ? (
+                    <img
+                      src={toFileUrl(v.photo_path)}
+                      alt={`${v.make} ${v.model}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <FiTruck className="text-2xl text-gray-300 dark:text-gray-500" />
+                    </div>
+                  )}
+                </div>
+                <div className="p-2.5">
+                  <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">
+                    {v.make} {v.model}
+                  </p>
+                  <p className="text-[11px] text-gray-400 truncate">
+                    {v.year_of_manufacture} • {v.color || "—"}
+                  </p>
+                  <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mt-1">
+                    Rs {v.selling_price?.toLocaleString() || v.total_cost?.toLocaleString() || "—"}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {stats.overdueAlerts?.length > 0 && (
         <div className="card border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10">
@@ -148,7 +244,8 @@ export default function DashboardPage() {
                   Alert: Customer {alert.customer_name}
                 </p>
                 <p className="text-xs text-gray-600 dark:text-gray-300">
-                  Installment overdue • Amount: Rs {alert.amount.toLocaleString()} • Due:{" "}
+                  Installment overdue • Amount: Rs{" "}
+                  {alert.amount.toLocaleString()} • Due:{" "}
                   {new Date(alert.due_date).toLocaleDateString()}
                 </p>
               </Link>
@@ -156,8 +253,9 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <hr />
+      <h1 className="text-white text-4xl font-bold">Overview</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
         {statCards.map((card, i) => (
           <Link
             key={i}
@@ -187,42 +285,41 @@ export default function DashboardPage() {
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           Recent Sales
         </h2>
-          {stats.recentSales?.length > 0 ? (
-            <div className="space-y-3">
-              {stats.recentSales.map((sale: any) => (
-                <Link
-                  key={sale.id}
-                  to={`/sales/${sale.id}`}
-                  className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {sale.make} {sale.model} {sale.year}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {sale.customer_name} &bull; {sale.invoice_number}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                      Rs {sale.vehicle_price?.toLocaleString()}
-                    </p>
-                    <span
-                      className={`text-xs ${sale.payment_type === "cash" ? "text-green-600" : "text-orange-600"}`}
-                    >
-                      {sale.payment_type === "cash" ? "Cash" : "Installment"}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              No sales recorded yet.
-            </p>
-          )}
-        </div>
+        {stats.recentSales?.length > 0 ? (
+          <div className="space-y-3">
+            {stats.recentSales.map((sale: any) => (
+              <Link
+                key={sale.id}
+                to={`/sales/${sale.id}`}
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              >
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {sale.make} {sale.model} {sale.year}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {sale.customer_name} &bull; {sale.invoice_number}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Rs {sale.vehicle_price?.toLocaleString()}
+                  </p>
+                  <span
+                    className={`text-xs ${sale.payment_type === "cash" ? "text-green-600" : "text-orange-600"}`}
+                  >
+                    {sale.payment_type === "cash" ? "Cash" : "Installment"}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            No sales recorded yet.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
-

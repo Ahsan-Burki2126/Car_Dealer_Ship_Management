@@ -46,17 +46,22 @@ export interface Vehicle {
   photo_path?: string;
   seller_photo_path?: string;
   seller_cnic_photo_path?: string;
+  seller_cnic_photo_back_path?: string;
   registration_number: string;
   chassis_number: string;
   engine_number: string;
   make: string;
   model: string;
-  year: number;
+  year_of_manufacture: number;
+  year_of_import?: number;
   color: string;
-  assembly_country: string;
   assembling_company?: string;
-  key_available: boolean;
-  open_letter?: boolean;
+  extra_keys_available: boolean;
+  extra_keys_count?: number;
+  file_available: boolean;
+  file_pages?: number;
+  current_smart_card: boolean;
+  smart_card_count?: number;
   status: VehicleStatus;
   purchase_price: number;
   purchase_date: string;
@@ -70,12 +75,6 @@ export interface Vehicle {
   seller_witness_father_name?: string;
   seller_witness_cnic?: string;
   seller_witness_phone?: string;
-  /** True when this vehicle is being sold on commission on behalf of the owner */
-  is_commission?: boolean;
-  commission_owner_name?: string;
-  commission_owner_phone?: string;
-  commission_owner_cnic?: string;
-  commission_amount?: number;
   total_expenses: number;
   total_cost: number;
   selling_price?: number;
@@ -132,6 +131,7 @@ export type VehicleExpenseCategory =
   | "battery_replacement"
   | "travel_cost"
   | "fuel_cost"
+  | "meals"
   | "transportation_cost"
   | "cleaning_cost"
   | "other";
@@ -143,6 +143,8 @@ export interface VehicleExpense {
   amount: number;
   date: string;
   notes?: string;
+  condition_before?: string;
+  condition_after?: string;
   created_by: string;
   created_at: string;
 }
@@ -158,12 +160,14 @@ export interface Customer {
   address: string;
   photo_path?: string;
   cnic_photo_path?: string;
+  cnic_photo_back_path?: string;
   notes?: string;
   witness_name?: string;
   witness_father_name?: string;
   witness_cnic?: string;
   witness_phone?: string;
   witness_cnic_photo_path?: string;
+  witness_cnic_photo_back_path?: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -209,6 +213,8 @@ export interface Sale {
   balance?: number;
   payment_type: PaymentType;
   cash_payment_method?: CashPaymentMethod;
+  cash_amount?: number;
+  bank_transfer_amount?: number;
   bank_account_id?: string;
   bank_account_name?: string;
   installment_count?: number;
@@ -216,6 +222,9 @@ export interface Sale {
   installment_duration_type?: InstallmentDurationType;
   installment_schedule?: InstallmentScheduleItem[];
   status: SaleStatus;
+  ownership_transferred?: boolean;
+  ownership_transfer_date?: string;
+  final_payment_date?: string;
   notes?: string;
   created_by: string;
   created_at: string;

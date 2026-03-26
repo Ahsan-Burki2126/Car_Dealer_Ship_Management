@@ -63,6 +63,26 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(
+    "auth:verifySuperadminPassword",
+    async (_event, password: string) => {
+      try {
+        const db = getDatabase();
+        const bcrypt = require("bcryptjs");
+        const superadmin = db
+          .prepare("SELECT password_hash FROM users WHERE role = 'super_admin' AND is_active = 1 LIMIT 1")
+          .get() as { password_hash: string } | undefined;
+        if (!superadmin) {
+          return { success: false, error: "No superadmin account found" };
+        }
+        const valid = bcrypt.compareSync(password, superadmin.password_hash);
+        return { success: valid, error: valid ? undefined : "Invalid superadmin password" };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle(
     "auth:createUser",
     async (_event, adminId: string, data: any) => {
       try {
@@ -529,6 +549,34 @@ export function registerIpcHandlers(): void {
             limit: filters?.limit,
           }),
         };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "reports:vehicleSearch",
+    async (_event, userId: string, search: string) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        return {
+          success: true,
+          data: reportService.getVehicleSearchReport(search),
+        };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "sales:transferOwnership",
+    async (_event, userId: string, saleId: string) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        salesService.transferOwnership(userId, saleId);
+        return { success: true };
       } catch (e) {
         return handleError(e);
       }

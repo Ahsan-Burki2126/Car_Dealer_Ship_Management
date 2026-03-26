@@ -4,6 +4,7 @@ import type { RootState, AppDispatch } from "../store";
 import { toggleDarkMode } from "../store/slices/uiSlice";
 import { toast } from "react-toastify";
 import { confirmDeleteRecord } from "../utils/confirmDelete";
+import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 import {
   FiSettings,
   FiLock,
@@ -57,6 +58,7 @@ export default function SettingsPage() {
   const { darkMode } = useSelector((state: RootState) => state.ui);
   const dispatch = useDispatch<AppDispatch>();
   const isSuperAdmin = user?.role === "super_admin";
+  const { requestAuth, PasswordModal } = useSuperadminAuth();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
 
@@ -469,7 +471,7 @@ export default function SettingsPage() {
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => startBankEdit(account)}
+                              onClick={() => requestAuth(() => startBankEdit(account))}
                               className="p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded"
                               title="Edit"
                             >
@@ -477,7 +479,7 @@ export default function SettingsPage() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDeleteBank(account.id)}
+                              onClick={() => requestAuth(() => handleDeleteBank(account.id))}
                               className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                               title="Delete"
                             >
@@ -637,6 +639,7 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+      <PasswordModal />
     </div>
   );
 }

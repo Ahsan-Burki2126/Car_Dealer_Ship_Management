@@ -93,11 +93,11 @@ export default function Sidebar() {
           </div>
           {sidebarOpen && (
             <div>
-              <h1 className="text-sm font-bold text-gray-900 dark:text-white">
-                DMS
+              <h1 className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
+                Pak Japan Motors
               </h1>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Dealership System
+                Layyah
               </p>
             </div>
           )}

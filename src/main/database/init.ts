@@ -404,10 +404,13 @@ export function initializeDatabase(): void {
 
   ensureColumn(database, "customers", "notes", "TEXT");
   ensureColumn(database, "customers", "witness_cnic_photo_path", "TEXT");
+  ensureColumn(database, "customers", "cnic_photo_back_path", "TEXT");
+  ensureColumn(database, "customers", "witness_cnic_photo_back_path", "TEXT");
   ensureColumn(database, "customers", "caste", "TEXT");
   ensureColumn(database, "vehicles", "photo_path", "TEXT");
   ensureColumn(database, "vehicles", "seller_photo_path", "TEXT");
   ensureColumn(database, "vehicles", "seller_cnic_photo_path", "TEXT");
+  ensureColumn(database, "vehicles", "seller_cnic_photo_back_path", "TEXT");
   ensureColumn(database, "vehicles", "inspection_points", "TEXT");
   ensureColumn(database, "vehicles", "seller_father_name", "TEXT");
   ensureColumn(database, "vehicles", "seller_caste", "TEXT");
@@ -423,15 +426,36 @@ export function initializeDatabase(): void {
   ensureColumn(database, "vehicles", "commission_owner_phone", "TEXT");
   ensureColumn(database, "vehicles", "commission_owner_cnic", "TEXT");
   ensureColumn(database, "vehicles", "commission_amount", "REAL");
+  // New vehicle fields
+  ensureColumn(database, "vehicles", "year_of_manufacture", "INTEGER");
+  ensureColumn(database, "vehicles", "year_of_import", "INTEGER");
+  ensureColumn(database, "vehicles", "extra_keys_available", "INTEGER NOT NULL DEFAULT 1");
+  ensureColumn(database, "vehicles", "extra_keys_count", "INTEGER");
+  ensureColumn(database, "vehicles", "file_available", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(database, "vehicles", "file_pages", "INTEGER");
+  ensureColumn(database, "vehicles", "current_smart_card", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(database, "vehicles", "smart_card_count", "INTEGER");
+
   ensureColumn(database, "bank_accounts", "bank_name", "TEXT");
   ensureColumn(database, "sales", "installment_count", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn(database, "sales", "installment_frequency", "TEXT");
   ensureColumn(database, "sales", "installment_duration_type", "TEXT");
   ensureColumn(database, "sales", "installment_schedule_json", "TEXT");
   ensureColumn(database, "sales", "cash_payment_method", "TEXT");
+  ensureColumn(database, "sales", "cash_amount", "REAL");
+  ensureColumn(database, "sales", "bank_transfer_amount", "REAL");
   ensureColumn(database, "sales", "bank_account_id", "TEXT");
   ensureColumn(database, "payments", "bank_account_id", "TEXT");
   ensureColumn(database, "inspections", "inspection_points_snapshot", "TEXT");
+
+  // Vehicle expense: before/after condition for repairs
+  ensureColumn(database, "vehicle_expenses", "condition_before", "TEXT");
+  ensureColumn(database, "vehicle_expenses", "condition_after", "TEXT");
+
+  // Sales: ownership transfer tracking
+  ensureColumn(database, "sales", "ownership_transferred", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(database, "sales", "ownership_transfer_date", "TEXT");
+  ensureColumn(database, "sales", "final_payment_date", "TEXT");
   database.exec(`
     UPDATE bank_accounts
     SET bank_name = name

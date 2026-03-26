@@ -18,21 +18,23 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
       `
       INSERT INTO vehicles (
         id, photo_path, registration_number, chassis_number, engine_number, make, model, year, color,
-        assembly_country, assembling_company, key_available, open_letter, status,
+        assembling_company, key_available, status,
+        year_of_manufacture, year_of_import, extra_keys_available, extra_keys_count,
+        file_available, file_pages, current_smart_card, smart_card_count,
         purchase_price, purchase_date,
         seller_name, seller_father_name, seller_caste, seller_address, seller_cnic, seller_phone,
-        seller_photo_path, seller_cnic_photo_path,
+        seller_photo_path, seller_cnic_photo_path, seller_cnic_photo_back_path,
         seller_witness_name, seller_witness_father_name, seller_witness_cnic, seller_witness_phone,
-        is_commission, commission_owner_name, commission_owner_phone, commission_owner_cnic, commission_amount,
         total_expenses, total_cost, selling_price, notes, inspection_points, created_by
       ) VALUES (
         ?, ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
+        ?, ?, ?,
+        ?, ?, ?, ?,
+        ?, ?, ?, ?,
         ?, ?,
         ?, ?, ?, ?, ?, ?,
-        ?, ?,
+        ?, ?, ?,
         ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
         0, ?, ?, ?, ?, ?
       )
     `,
@@ -44,13 +46,19 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
       data.engine_number || "",
       data.make || "",
       data.model || "",
-      data.year || new Date().getFullYear(),
+      data.year_of_manufacture || new Date().getFullYear(),
       data.color || "",
-      data.assembly_country || "",
       data.assembling_company || "",
-      data.key_available === undefined ? 1 : data.key_available ? 1 : 0,
-      data.open_letter ? 1 : 0,
+      data.extra_keys_available === undefined ? 1 : data.extra_keys_available ? 1 : 0,
       data.status || "in_stock",
+      data.year_of_manufacture || new Date().getFullYear(),
+      (data as any).year_of_import || null,
+      data.extra_keys_available === undefined ? 1 : data.extra_keys_available ? 1 : 0,
+      (data as any).extra_keys_count || null,
+      (data as any).file_available ? 1 : 0,
+      (data as any).file_pages || null,
+      (data as any).current_smart_card ? 1 : 0,
+      (data as any).smart_card_count || null,
       data.purchase_price || 0,
       purchaseDate,
       data.seller_name || "",
@@ -61,15 +69,11 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
       data.seller_phone || "",
       data.seller_photo_path || "",
       data.seller_cnic_photo_path || "",
+      data.seller_cnic_photo_back_path || "",
       data.seller_witness_name || "",
       data.seller_witness_father_name || "",
       data.seller_witness_cnic || "",
       data.seller_witness_phone || "",
-      data.is_commission ? 1 : 0,
-      data.commission_owner_name || "",
-      data.commission_owner_phone || "",
-      data.commission_owner_cnic || "",
-      data.commission_amount || null,
       totalCost,
       data.selling_price || null,
       data.notes || "",
@@ -101,12 +105,13 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
 
       if (seller) {
         sellerCustomerId = seller.id;
-        if (data.seller_photo_path || data.seller_cnic_photo_path) {
+        if (data.seller_photo_path || data.seller_cnic_photo_path || data.seller_cnic_photo_back_path) {
           db.prepare(
             `
             UPDATE customers
             SET photo_path = COALESCE(NULLIF(?, ''), photo_path),
                 cnic_photo_path = COALESCE(NULLIF(?, ''), cnic_photo_path),
+                cnic_photo_back_path = COALESCE(NULLIF(?, ''), cnic_photo_back_path),
                 updated_at = datetime('now'),
                 synced = 0
             WHERE id = ?
@@ -114,6 +119,7 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
           ).run(
             data.seller_photo_path || "",
             data.seller_cnic_photo_path || "",
+            data.seller_cnic_photo_back_path || "",
             sellerCustomerId,
           );
         }
@@ -121,8 +127,8 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
         sellerCustomerId = uuidv4();
         db.prepare(
           `
-          INSERT INTO customers (id, name, father_name, cnic, phone, address, photo_path, cnic_photo_path, created_by)
-          VALUES (?, ?, '', ?, ?, '', ?, ?, ?)
+          INSERT INTO customers (id, name, father_name, cnic, phone, address, photo_path, cnic_photo_path, cnic_photo_back_path, created_by)
+          VALUES (?, ?, '', ?, ?, '', ?, ?, ?, ?)
         `,
         ).run(
           sellerCustomerId,
@@ -131,6 +137,7 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
           sellerPhone,
           data.seller_photo_path || "",
           data.seller_cnic_photo_path || "",
+          data.seller_cnic_photo_back_path || "",
           userId,
         );
       }
@@ -191,10 +198,9 @@ export function getVehicles(filters?: {
   }
 
   if (filters?.search) {
-    whereClause +=
-      " AND (make LIKE ? OR model LIKE ? OR registration_number LIKE ? OR chassis_number LIKE ?)";
+    whereClause += " AND chassis_number LIKE ?";
     const searchTerm = `%${filters.search}%`;
-    params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+    params.push(searchTerm);
   }
 
   const countRow = db
@@ -247,11 +253,14 @@ export function updateVehicle(
     "engine_number",
     "make",
     "model",
-    "year",
     "color",
-    "assembly_country",
     "assembling_company",
     "status",
+    "year_of_manufacture",
+    "year_of_import",
+    "extra_keys_count",
+    "file_pages",
+    "smart_card_count",
     "purchase_price",
     "purchase_date",
     "seller_name",
@@ -262,14 +271,11 @@ export function updateVehicle(
     "seller_phone",
     "seller_photo_path",
     "seller_cnic_photo_path",
+    "seller_cnic_photo_back_path",
     "seller_witness_name",
     "seller_witness_father_name",
     "seller_witness_cnic",
     "seller_witness_phone",
-    "commission_owner_name",
-    "commission_owner_phone",
-    "commission_owner_cnic",
-    "commission_amount",
     "selling_price",
     "notes",
   ];
@@ -288,19 +294,21 @@ export function updateVehicle(
     );
   }
 
-  if (data.key_available !== undefined) {
+  if (data.extra_keys_available !== undefined) {
+    updates.push("extra_keys_available = ?");
+    values.push(data.extra_keys_available ? 1 : 0);
     updates.push("key_available = ?");
-    values.push(data.key_available ? 1 : 0);
+    values.push(data.extra_keys_available ? 1 : 0);
   }
 
-  if (data.open_letter !== undefined) {
-    updates.push("open_letter = ?");
-    values.push(data.open_letter ? 1 : 0);
+  if ((data as any).file_available !== undefined) {
+    updates.push("file_available = ?");
+    values.push((data as any).file_available ? 1 : 0);
   }
 
-  if (data.is_commission !== undefined) {
-    updates.push("is_commission = ?");
-    values.push(data.is_commission ? 1 : 0);
+  if ((data as any).current_smart_card !== undefined) {
+    updates.push("current_smart_card = ?");
+    values.push((data as any).current_smart_card ? 1 : 0);
   }
 
   // Recalculate total cost if purchase price changed
@@ -411,12 +419,16 @@ function mapVehicleRow(row: any): Vehicle {
     engine_number: row.engine_number,
     make: row.make,
     model: row.model,
-    year: row.year,
+    year_of_manufacture: row.year_of_manufacture || row.year,
+    year_of_import: row.year_of_import,
     color: row.color,
-    assembly_country: row.assembly_country,
     assembling_company: row.assembling_company,
-    key_available: Boolean(row.key_available),
-    open_letter: Boolean(row.open_letter),
+    extra_keys_available: Boolean(row.extra_keys_available ?? row.key_available),
+    extra_keys_count: row.extra_keys_count,
+    file_available: Boolean(row.file_available),
+    file_pages: row.file_pages,
+    current_smart_card: Boolean(row.current_smart_card),
+    smart_card_count: row.smart_card_count,
     status: row.status,
     purchase_price: row.purchase_price,
     purchase_date: row.purchase_date,
@@ -428,15 +440,11 @@ function mapVehicleRow(row: any): Vehicle {
     seller_phone: row.seller_phone,
     seller_photo_path: row.seller_photo_path,
     seller_cnic_photo_path: row.seller_cnic_photo_path,
+    seller_cnic_photo_back_path: row.seller_cnic_photo_back_path,
     seller_witness_name: row.seller_witness_name,
     seller_witness_father_name: row.seller_witness_father_name,
     seller_witness_cnic: row.seller_witness_cnic,
     seller_witness_phone: row.seller_witness_phone,
-    is_commission: Boolean(row.is_commission),
-    commission_owner_name: row.commission_owner_name,
-    commission_owner_phone: row.commission_owner_phone,
-    commission_owner_cnic: row.commission_owner_cnic,
-    commission_amount: row.commission_amount,
     total_expenses: row.total_expenses,
     total_cost: row.total_cost,
     selling_price: row.selling_price,
@@ -445,5 +453,5 @@ function mapVehicleRow(row: any): Vehicle {
     created_by: row.created_by,
     created_at: row.created_at,
     updated_at: row.updated_at,
-  };
+  } as Vehicle;
 }

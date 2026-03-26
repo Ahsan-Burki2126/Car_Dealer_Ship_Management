@@ -7,6 +7,7 @@ import { VEHICLE_STATUSES } from "../../shared/constants";
 import { FiPlus, FiSearch, FiEye, FiEdit, FiTrash2 } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { confirmDeleteRecord } from "../utils/confirmDelete";
+import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 
 export default function VehiclesPage() {
   const { user } = useSelector((state: RootState) => state.auth);
@@ -17,6 +18,7 @@ export default function VehiclesPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { requestAuth, PasswordModal } = useSuperadminAuth();
 
   useEffect(() => {
     loadVehicles();
@@ -92,7 +94,7 @@ export default function VehiclesPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="Search by make, model, registration..."
+              placeholder="Search by chassis number..."
               className="input-field pl-10"
             />
           </div>
@@ -121,6 +123,7 @@ export default function VehiclesPage() {
             <thead className="bg-gray-50 dark:bg-gray-700/50">
               <tr>
                 <th className="table-header">Vehicle</th>
+                <th className="table-header">Chassis #</th>
                 <th className="table-header">Registration</th>
                 <th className="table-header">Year</th>
                 <th className="table-header">Color</th>
@@ -133,13 +136,13 @@ export default function VehiclesPage() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-8 text-gray-500">
+                  <td colSpan={9} className="text-center py-8 text-gray-500">
                     Loading...
                   </td>
                 </tr>
               ) : vehicles.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-8 text-gray-500">
+                  <td colSpan={9} className="text-center py-8 text-gray-500">
                     No vehicles found
                   </td>
                 </tr>
@@ -152,10 +155,13 @@ export default function VehiclesPage() {
                     <td className="table-cell font-medium">
                       {v.make} {v.model}
                     </td>
+                    <td className="table-cell font-mono text-sm">
+                      {v.chassis_number || "-"}
+                    </td>
                     <td className="table-cell">
                       {v.registration_number || "-"}
                     </td>
-                    <td className="table-cell">{v.year}</td>
+                    <td className="table-cell">{(v as any).year_of_manufacture || (v as any).year}</td>
                     <td className="table-cell">{v.color || "-"}</td>
                     <td className="table-cell">
                       <span className={getStatusBadge(v.status)}>
@@ -181,14 +187,14 @@ export default function VehiclesPage() {
                           <FiEye size={16} />
                         </button>
                         <button
-                          onClick={() => navigate(`/vehicles/${v.id}/edit`)}
+                          onClick={() => requestAuth(() => navigate(`/vehicles/${v.id}/edit`))}
                           className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400"
                           title="Edit"
                         >
                           <FiEdit size={16} />
                         </button>
                         <button
-                          onClick={() => handleDelete(v.id)}
+                          onClick={() => requestAuth(() => handleDelete(v.id))}
                           className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600"
                           title="Delete"
                         >
@@ -228,6 +234,7 @@ export default function VehiclesPage() {
           </div>
         )}
       </div>
+      <PasswordModal />
     </div>
   );
 }

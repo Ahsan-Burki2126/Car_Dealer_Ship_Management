@@ -10,6 +10,7 @@ import {
   FiChevronLeft,
   FiChevronRight,
 } from "react-icons/fi";
+import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 
 interface Expense {
   id: string;
@@ -22,6 +23,7 @@ interface Expense {
 
 export default function ExpensesPage() {
   const { user } = useSelector((state: RootState) => state.auth);
+  const { requestAuth, PasswordModal } = useSuperadminAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -282,7 +284,7 @@ export default function ExpensesPage() {
                     </td>
                     <td className="table-cell">
                       <button
-                        onClick={() => handleDelete(e.id)}
+                        onClick={() => requestAuth(() => handleDelete(e.id))}
                         className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                       >
                         <FiTrash2 size={16} />
@@ -320,6 +322,7 @@ export default function ExpensesPage() {
           </div>
         )}
       </div>
+      <PasswordModal />
     </div>
   );
 }

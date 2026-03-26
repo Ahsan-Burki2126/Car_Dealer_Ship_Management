@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { FiArrowLeft, FiEdit, FiFileText } from "react-icons/fi";
 import { toFileUrl } from "../utils/filePaths";
+import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 
 const IMG_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='140'%3E%3Crect width='200' height='140' fill='%23e5e7eb'/%3E%3Ctext x='100' y='76' text-anchor='middle' fill='%239ca3af' font-size='13' font-family='sans-serif'%3ENo image%3C/text%3E%3C/svg%3E";
@@ -17,11 +18,13 @@ interface CustomerDetail {
   address: string;
   photo_path?: string;
   cnic_photo_path?: string;
+  cnic_photo_back_path?: string;
   witness_name?: string;
   witness_father_name?: string;
   witness_cnic?: string;
   witness_phone?: string;
   witness_cnic_photo_path?: string;
+  witness_cnic_photo_back_path?: string;
   notes: string;
   created_at: string;
 }
@@ -52,6 +55,7 @@ export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
+  const { requestAuth, PasswordModal } = useSuperadminAuth();
   const [ledger, setLedger] = useState<LedgerData>({
     sales: [],
     payments: [],
@@ -104,12 +108,12 @@ export default function CustomerDetailPage() {
             {customer.name}
           </h1>
         </div>
-        <Link
-          to={`/customers/${id}/edit`}
+        <button
+          onClick={() => requestAuth(() => navigate(`/customers/${id}/edit`))}
           className="btn-primary flex items-center gap-2"
         >
           <FiEdit /> Edit
-        </Link>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -189,7 +193,7 @@ export default function CustomerDetailPage() {
         </div>
       </div>
 
-      {(customer.photo_path || customer.cnic_photo_path || customer.witness_cnic_photo_path) && (
+      {(customer.photo_path || customer.cnic_photo_path || customer.cnic_photo_back_path || customer.witness_cnic_photo_path || customer.witness_cnic_photo_back_path) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {customer.photo_path && (
             <div className="card">
@@ -207,11 +211,24 @@ export default function CustomerDetailPage() {
           {customer.cnic_photo_path && (
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                CNIC Image
+                CNIC (Front)
               </h2>
               <img
                 src={toFileUrl(customer.cnic_photo_path)}
-                alt={`${customer.name} CNIC`}
+                alt={`${customer.name} CNIC Front`}
+                className="max-w-full rounded-xl border border-gray-200 dark:border-gray-700"
+                onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+              />
+            </div>
+          )}
+          {customer.cnic_photo_back_path && (
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                CNIC (Back)
+              </h2>
+              <img
+                src={toFileUrl(customer.cnic_photo_back_path)}
+                alt={`${customer.name} CNIC Back`}
                 className="max-w-full rounded-xl border border-gray-200 dark:border-gray-700"
                 onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
               />
@@ -220,11 +237,24 @@ export default function CustomerDetailPage() {
           {customer.witness_cnic_photo_path && (
             <div className="card">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Witness CNIC Image
+                Witness CNIC (Front)
               </h2>
               <img
                 src={toFileUrl(customer.witness_cnic_photo_path)}
-                alt={`${customer.name} Witness CNIC`}
+                alt={`${customer.name} Witness CNIC Front`}
+                className="max-w-full rounded-xl border border-gray-200 dark:border-gray-700"
+                onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+              />
+            </div>
+          )}
+          {customer.witness_cnic_photo_back_path && (
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Witness CNIC (Back)
+              </h2>
+              <img
+                src={toFileUrl(customer.witness_cnic_photo_back_path)}
+                alt={`${customer.name} Witness CNIC Back`}
                 className="max-w-full rounded-xl border border-gray-200 dark:border-gray-700"
                 onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
               />
@@ -291,6 +321,7 @@ export default function CustomerDetailPage() {
           </div>
         )}
       </div>
+      <PasswordModal />
     </div>
   );
 }
