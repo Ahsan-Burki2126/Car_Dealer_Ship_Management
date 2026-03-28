@@ -1071,3 +1071,206 @@ export function generateVehiclePurchasePdf(vehicle: {
   addModernFooter(doc);
   return doc;
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+//  VEHICLE PURCHASE REPORT PDF
+// ══════════════════════════════════════════════════════════════════════════
+
+export function generatePurchaseReportPdf(vehicle: {
+  make: string;
+  model: string;
+  year_of_manufacture?: number;
+  year?: number;
+  registration_number?: string;
+  chassis_number?: string;
+  engine_number?: string;
+  color?: string;
+  assembling_company?: string;
+  purchase_price: number;
+  purchase_date?: string;
+  seller_name?: string;
+  seller_father_name?: string;
+  seller_caste?: string;
+  seller_cnic?: string;
+  seller_phone?: string;
+  seller_address?: string;
+  seller_witness_name?: string;
+  seller_witness_father_name?: string;
+  seller_witness_cnic?: string;
+  seller_witness_phone?: string;
+  extra_keys_available?: boolean;
+  extra_keys_count?: number | string;
+  file_available?: boolean;
+  file_pages?: number | string;
+  current_smart_card?: boolean;
+  smart_card_count?: number | string;
+  notes?: string;
+}): jsPDF {
+  const doc = new jsPDF();
+  const pw = doc.internal.pageSize.getWidth();
+
+  setColor(doc, BRAND, "fill");
+  doc.rect(0, 0, pw, 4, "F");
+
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, DARK);
+  doc.text("PAK JAPAN MOTORS", 15, 18);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  setColor(doc, GRAY);
+  doc.text("Layyah — Automobile Sales & Services", 15, 24);
+
+  setColor(doc, BRAND_LIGHT, "fill");
+  setColor(doc, ACCENT, "draw");
+  doc.setLineWidth(0.3);
+  drawRoundedRect(doc, pw - 70, 8, 55, 20, 3, "FD");
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, ACCENT);
+  doc.text("PURCHASE REPORT", pw - 42.5, 16, { align: "center" });
+  doc.setFontSize(8);
+  setColor(doc, DARK);
+  doc.setFont("helvetica", "normal");
+  doc.text(
+    vehicle.purchase_date
+      ? new Date(vehicle.purchase_date).toLocaleDateString()
+      : new Date().toLocaleDateString(),
+    pw - 42.5, 23, { align: "center" }
+  );
+
+  setColor(doc, BRAND, "draw");
+  doc.setLineWidth(0.8);
+  doc.line(15, 30, pw - 15, 30);
+
+  let y = 40;
+
+  const sectionBox = (title: string, startY: number): number => {
+    setColor(doc, BRAND, "fill");
+    drawRoundedRect(doc, 15, startY - 5, pw - 30, 8, 2, "F");
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    setColor(doc, WHITE);
+    doc.text(title.toUpperCase(), 20, startY);
+    return startY + 10;
+  };
+
+  const rowPair = (label: string, value: string | undefined, x: number, rowY: number) => {
+    if (value === undefined || value === "") return;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    setColor(doc, GRAY);
+    doc.text(`${label}:`, x, rowY);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, DARK);
+    doc.text(String(value), x + 42, rowY);
+  };
+
+  y = sectionBox("Vehicle Details", y);
+  y += 2;
+  rowPair("Make", vehicle.make, 15, y);
+  rowPair("Model", vehicle.model, pw / 2, y);
+  y += 8;
+  rowPair("Year", String(vehicle.year_of_manufacture || vehicle.year || "-"), 15, y);
+  rowPair("Color", vehicle.color || "-", pw / 2, y);
+  y += 8;
+  rowPair("Registration", vehicle.registration_number || "-", 15, y);
+  rowPair("Chassis No.", vehicle.chassis_number || "-", pw / 2, y);
+  y += 8;
+  rowPair("Engine No.", vehicle.engine_number || "-", 15, y);
+  rowPair("Assembly", vehicle.assembling_company || "-", pw / 2, y);
+  y += 8;
+  rowPair(
+    "Extra Keys",
+    vehicle.extra_keys_available ? `Yes (${vehicle.extra_keys_count || 0})` : "No",
+    15, y
+  );
+  rowPair(
+    "File",
+    vehicle.file_available ? `Yes (${vehicle.file_pages || 0} pages)` : "No",
+    pw / 2, y
+  );
+  y += 8;
+  rowPair(
+    "Smart Card",
+    vehicle.current_smart_card ? `Yes (${vehicle.smart_card_count || 0})` : "No",
+    15, y
+  );
+  y += 14;
+
+  y = sectionBox("Purchase Details", y);
+  y += 2;
+  setColor(doc, GREEN, "fill");
+  drawRoundedRect(doc, 15, y - 4, pw - 30, 14, 3, "F");
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, WHITE);
+  doc.text(`Purchase Price: ${formatCurrency(vehicle.purchase_price)}`, pw / 2, y + 5, { align: "center" });
+  y += 18;
+  rowPair(
+    "Purchase Date",
+    vehicle.purchase_date ? new Date(vehicle.purchase_date).toLocaleDateString() : "-",
+    15, y
+  );
+  y += 14;
+
+  if (vehicle.seller_name) {
+    y = sectionBox("Seller Information", y);
+    y += 2;
+    rowPair("Name", vehicle.seller_name, 15, y);
+    rowPair("Father's Name", vehicle.seller_father_name || "-", pw / 2, y);
+    y += 8;
+    rowPair("Caste/Tribe", vehicle.seller_caste || "-", 15, y);
+    rowPair("CNIC", vehicle.seller_cnic || "-", pw / 2, y);
+    y += 8;
+    rowPair("Contact", vehicle.seller_phone || "-", 15, y);
+    if (vehicle.seller_address) {
+      rowPair("Address", vehicle.seller_address, pw / 2, y);
+    }
+    y += 14;
+  }
+
+  if (vehicle.seller_witness_name) {
+    if (y > 240) { doc.addPage(); y = 20; }
+    y = sectionBox("Witness Information", y);
+    y += 2;
+    rowPair("Witness Name", vehicle.seller_witness_name, 15, y);
+    rowPair("Father's Name", vehicle.seller_witness_father_name || "-", pw / 2, y);
+    y += 8;
+    rowPair("CNIC", vehicle.seller_witness_cnic || "-", 15, y);
+    rowPair("Contact", vehicle.seller_witness_phone || "-", pw / 2, y);
+    y += 14;
+  }
+
+  if (vehicle.notes) {
+    if (y > 250) { doc.addPage(); y = 20; }
+    y = sectionBox("Notes", y);
+    y += 2;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, DARK);
+    const splitNotes = doc.splitTextToSize(vehicle.notes, pw - 40);
+    doc.text(splitNotes, 15, y);
+    y += splitNotes.length * 5 + 8;
+  }
+
+  y = Math.max(y + 10, 248);
+  if (y > 265) { doc.addPage(); y = 250; }
+  setColor(doc, BORDER, "draw");
+  doc.setLineWidth(0.4);
+  doc.line(15, y, 80, y);
+  doc.line(pw - 80, y, pw - 15, y);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  setColor(doc, GRAY);
+  doc.text("Buyer's Signature", 47.5, y + 5, { align: "center" });
+  doc.text("Seller's Signature", pw - 47.5, y + 5, { align: "center" });
+  doc.setFontSize(7);
+  doc.text("(Stamp / Seal)", pw / 2, y + 5, { align: "center" });
+  setColor(doc, BORDER, "draw");
+  doc.setLineWidth(0.2);
+  doc.circle(pw / 2, y - 8, 8, "S");
+
+  addModernFooter(doc);
+  return doc;
+}

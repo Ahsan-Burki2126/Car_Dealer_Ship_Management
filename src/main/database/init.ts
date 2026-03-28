@@ -400,6 +400,21 @@ export function initializeDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp);
     CREATE INDEX IF NOT EXISTS idx_sync_log_table ON sync_log(table_name, record_id);
     CREATE INDEX IF NOT EXISTS idx_backup_records_created_at ON backup_records(created_at);
+
+    -- ============================================================
+    -- INVESTORS TABLE
+    -- ============================================================
+    CREATE TABLE IF NOT EXISTS investors (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      contact TEXT,
+      investment_amount REAL NOT NULL DEFAULT 0,
+      notes TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   ensureColumn(database, "customers", "notes", "TEXT");
@@ -463,6 +478,29 @@ export function initializeDatabase(): void {
   `);
   migrateDamageMap(database);
   seedDefaultBankAccounts(database);
+
+  // Investor additional fields
+  ensureColumn(database, "investors", "photo_path", "TEXT");
+  ensureColumn(database, "investors", "cnic_photo_front_path", "TEXT");
+  ensureColumn(database, "investors", "cnic_photo_back_path", "TEXT");
+  ensureColumn(database, "investors", "address", "TEXT");
+
+  // Investor withdrawals table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS investor_withdrawals (
+      id TEXT PRIMARY KEY,
+      investor_id TEXT NOT NULL,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      notes TEXT,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (investor_id) REFERENCES investors(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_investor_withdrawals_investor ON investor_withdrawals(investor_id);
+  `);
 
   // Create default super admin if not exists
   const existingAdmin = database

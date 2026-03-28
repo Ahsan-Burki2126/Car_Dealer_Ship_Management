@@ -348,8 +348,36 @@ function getSalesDataForRange(
   };
 }
 
-export function getProfitReport(): ProfitReport[] {
+export function getProfitReport(
+  period?: "daily" | "weekly" | "monthly" | "annual",
+  date?: string,
+): ProfitReport[] {
   const db = getDatabase();
+  const baseDate = date ? new Date(date) : new Date();
+  let dateFilter = "";
+  let params: string[] = [];
+
+  if (period) {
+    let startDate: string;
+    const endDate = format(baseDate, "yyyy-MM-dd");
+    switch (period) {
+      case "daily":
+        startDate = endDate;
+        break;
+      case "weekly":
+        startDate = format(subDays(baseDate, 7), "yyyy-MM-dd");
+        break;
+      case "monthly":
+        startDate = format(subDays(baseDate, 30), "yyyy-MM-dd");
+        break;
+      case "annual":
+        startDate = format(subDays(baseDate, 365), "yyyy-MM-dd");
+        break;
+    }
+    dateFilter = "AND s.date BETWEEN ? AND ?";
+    params = [startDate!, endDate];
+  }
+
   const rows = db
     .prepare(
       `
@@ -359,10 +387,11 @@ export function getProfitReport(): ProfitReport[] {
     FROM vehicles v
     LEFT JOIN sales s ON v.id = s.vehicle_id AND s.is_deleted = 0
     WHERE v.is_deleted = 0 AND v.status IN ('sold', 'on_installments')
+    ${dateFilter}
     ORDER BY s.date DESC
   `,
     )
-    .all() as any[];
+    .all(...params) as any[];
 
   return rows.map((row) => ({
     vehicle_id: row.id,

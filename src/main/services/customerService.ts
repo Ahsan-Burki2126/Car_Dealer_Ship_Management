@@ -6,6 +6,14 @@ export function addCustomer(userId: string, data: Partial<Customer>): Customer {
   const db = getDatabase();
   const id = uuidv4();
 
+  // Enforce unique CNIC
+  if (data.cnic && data.cnic.trim()) {
+    const existing = db.prepare(
+      "SELECT id FROM customers WHERE cnic = ? AND cnic != '' AND is_deleted = 0"
+    ).get(data.cnic.trim());
+    if (existing) throw new Error(`A customer with CNIC "${data.cnic.trim()}" already exists.`);
+  }
+
   db.prepare(
     `
     INSERT INTO customers (id, name, father_name, caste, cnic, phone, address, photo_path, cnic_photo_path, cnic_photo_back_path,
@@ -108,6 +116,14 @@ export function updateCustomer(
     .prepare("SELECT * FROM customers WHERE id = ? AND is_deleted = 0")
     .get(id) as any;
   if (!existing) throw new Error("Customer not found");
+
+  // Enforce unique CNIC on update (exclude current customer)
+  if (data.cnic && data.cnic.trim()) {
+    const duplicate = db.prepare(
+      "SELECT id FROM customers WHERE cnic = ? AND cnic != '' AND is_deleted = 0 AND id != ?"
+    ).get(data.cnic.trim(), id);
+    if (duplicate) throw new Error(`A customer with CNIC "${data.cnic.trim()}" already exists.`);
+  }
 
   const updates: string[] = [];
   const values: any[] = [];

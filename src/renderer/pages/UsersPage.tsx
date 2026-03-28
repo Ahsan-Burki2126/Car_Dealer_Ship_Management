@@ -5,7 +5,7 @@ import { USER_ROLES } from "../../shared/constants";
 import { toast } from "react-toastify";
 import { FiPlus, FiEdit, FiTrash2, FiUsers } from "react-icons/fi";
 import { confirmDeleteRecord } from "../utils/confirmDelete";
-import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
+import { useAccessControl } from "../components/SuperadminPasswordModal";
 
 interface UserRecord {
   id: string;
@@ -18,7 +18,13 @@ interface UserRecord {
 
 export default function UsersPage() {
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
-  const { requestAuth, PasswordModal } = useSuperadminAuth();
+  const {
+    canEdit,
+    canDelete,
+    requestEditAction,
+    requestDeleteAction,
+    PasswordModal,
+  } = useAccessControl();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -92,7 +98,7 @@ export default function UsersPage() {
     if (!confirmDeleteRecord()) return;
     const result = await window.api.deleteUser(currentUser.id, userId);
     if (result.success) {
-      toast.success("User deleted");
+      toast.success("User deleted permanently");
       loadUsers();
     } else {
       toast.error(result.error || "Failed to delete user");
@@ -110,7 +116,7 @@ export default function UsersPage() {
         <div className="flex items-center gap-3">
           <FiUsers className="text-blue-600" size={24} />
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            User Management
+            User Management (Superadmin Only)
           </h1>
         </div>
         {currentUser?.role === "super_admin" && (
@@ -230,52 +236,58 @@ export default function UsersPage() {
                   </td>
                 </tr>
               ) : (
-                users.map((u) => (
-                  <tr
-                    key={u.id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                  >
-                    <td className="table-cell font-medium">{u.username}</td>
-                    <td className="table-cell">{u.full_name}</td>
-                    <td className="table-cell">
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded font-medium ${roleBadge[u.role] || ""}`}
-                      >
-                        {u.role.replace(/_/g, " ")}
-                      </span>
-                    </td>
-                    <td className="table-cell">
-                      <span
-                        className={u.is_active ? "badge-green" : "badge-red"}
-                      >
-                        {u.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="table-cell">
-                      {new Date(u.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="table-cell">
-                      {u.role !== "super_admin" && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => requestAuth(() => startEdit(u))}
-                            className="p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded"
-                            title="Edit User"
-                          >
-                            <FiEdit size={16} />
-                          </button>
-                          <button
-                            onClick={() => requestAuth(() => handleDelete(u.id))}
-                            className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
-                            title="Delete User"
-                          >
-                            <FiTrash2 size={16} />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                users
+                  .filter((u) => u.is_active === true)
+                  .map((u) => (
+                    <tr
+                      key={u.id}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                    >
+                      <td className="table-cell font-medium">{u.username}</td>
+                      <td className="table-cell">{u.full_name}</td>
+                      <td className="table-cell">
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded font-medium ${roleBadge[u.role] || ""}`}
+                        >
+                          {u.role.replace(/_/g, " ")}
+                        </span>
+                      </td>
+                      <td className="table-cell">
+                        <span
+                          className={u.is_active ? "badge-green" : "badge-red"}
+                        >
+                          {u.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="table-cell">
+                        {new Date(u.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="table-cell">
+                        {u.role !== "super_admin" && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() =>
+                                requestEditAction(() => startEdit(u))
+                              }
+                              className="p-1.5 text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded"
+                              title="Edit User"
+                            >
+                              <FiEdit size={16} />
+                            </button>
+                            <button
+                              onClick={() =>
+                                requestDeleteAction(() => handleDelete(u.id))
+                              }
+                              className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                              title="Delete User"
+                            >
+                              <FiTrash2 size={16} />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
               )}
             </tbody>
           </table>

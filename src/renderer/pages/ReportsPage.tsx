@@ -122,7 +122,7 @@ export default function ReportsPage() {
       const result = await window.api.getSalesReport(user!.id, period);
       if (result.success) setSalesReport(result.data);
     } else if (tab === "profit") {
-      const result = await window.api.getProfitReport(user!.id);
+      const result = await window.api.getProfitReport(user!.id, period);
       if (result.success) setProfitReport(result.data || []);
     } else if (tab === "inventory") {
       const result = await window.api.getInventoryReport(user!.id);
@@ -479,6 +479,22 @@ export default function ReportsPage() {
       {/* ═══════════════ PROFIT REPORT ═══════════════ */}
       {tab === "profit" && !loading && (
         <div className="space-y-6">
+          {/* Period selector for profit */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Period:</span>
+            {["daily", "weekly", "monthly", "annual"].map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 rounded text-sm ${period === p ? "bg-blue-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"}`}
+              >
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </button>
+            ))}
+            <span className="text-xs text-gray-400 ml-1">
+              Showing vehicles sold in the selected period
+            </span>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="card text-center bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
               <p className="text-2xl font-bold text-green-600">
@@ -530,7 +546,7 @@ export default function ReportsPage() {
             </h3>
             {profitReport.length === 0 ? (
               <p className="text-gray-500 text-center py-8">
-                No sold vehicles yet
+                No vehicles sold in the selected {PERIOD_LABELS[period]?.toLowerCase() || period} period
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -584,6 +600,10 @@ export default function ReportsPage() {
       {/* ═══════════════ INVENTORY REPORT ═══════════════ */}
       {tab === "inventory" && inventoryReport && !loading && (
         <div className="space-y-6">
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 text-sm text-blue-700 dark:text-blue-300">
+            <span>📦</span>
+            <span>Inventory report shows the <strong>current live status</strong> of all vehicles in the system.</span>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div className="card text-center">
               <p className="text-3xl font-bold text-blue-600">{inventoryReport.total_vehicles}</p>

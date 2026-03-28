@@ -140,8 +140,8 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("reports:dashboard", userId),
   getSalesReport: (userId: string, period: string, date?: string) =>
     ipcRenderer.invoke("reports:sales", userId, period, date),
-  getProfitReport: (userId: string) =>
-    ipcRenderer.invoke("reports:profit", userId),
+  getProfitReport: (userId: string, period?: string, date?: string) =>
+    ipcRenderer.invoke("reports:profit", userId, period, date),
   getInventoryReport: (userId: string) =>
     ipcRenderer.invoke("reports:inventory", userId),
   getAuditLogs: (userId: string, filters: any) =>
@@ -211,4 +211,24 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("files:saveBackupAs", userId, defaultName),
   savePdf: (pdfData: Uint8Array, defaultName: string) =>
     ipcRenderer.invoke("files:savePdf", pdfData, defaultName),
+  savePdfToBackup: (userId: string, pdfData: Uint8Array, fileName: string, uploadToGoogleDrive: boolean) =>
+    ipcRenderer.invoke("files:savePdfToBackup", userId, pdfData, fileName, uploadToGoogleDrive),
+
+  // Investors
+  getInvestors: (userId: string) =>
+    ipcRenderer.invoke("investors:getAll", userId),
+  addInvestor: (userId: string, data: any) =>
+    ipcRenderer.invoke("investors:add", userId, data),
+  updateInvestor: (userId: string, investorId: string, data: any) =>
+    ipcRenderer.invoke("investors:update", userId, investorId, data),
+  deleteInvestor: (userId: string, investorId: string) =>
+    ipcRenderer.invoke("investors:delete", userId, investorId),
+
+  // Investor Withdrawals
+  addInvestorWithdrawal: (userId: string, data: any) =>
+    ipcRenderer.invoke("investorWithdrawals:add", userId, data),
+  getInvestorWithdrawals: (userId: string, investorId: string) =>
+    ipcRenderer.invoke("investorWithdrawals:getByInvestor", userId, investorId),
+  deleteInvestorWithdrawal: (userId: string, withdrawalId: string) =>
+    ipcRenderer.invoke("investorWithdrawals:delete", userId, withdrawalId),
 });

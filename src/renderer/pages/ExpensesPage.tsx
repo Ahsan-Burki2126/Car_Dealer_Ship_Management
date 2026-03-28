@@ -29,7 +29,6 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("");
   const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const limit = 20;
 
@@ -48,7 +47,7 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     loadExpenses();
-  }, [page, category, dateFrom, dateTo, user?.id]);
+  }, [page, category, dateFrom, user?.id]);
 
   const loadExpenses = async () => {
     if (!user) return;
@@ -56,7 +55,7 @@ export default function ExpensesPage() {
     const result = await window.api.getShowroomExpenses(user!.id, {
       category,
       startDate: dateFrom,
-      endDate: dateTo,
+      endDate: "",
       page,
       limit,
     });
@@ -179,6 +178,7 @@ export default function ExpensesPage() {
                   setForm((prev) => ({ ...prev, expense_date: e.target.value }))
                 }
                 className="input-field"
+                required
               />
             </div>
           </div>
@@ -222,17 +222,7 @@ export default function ExpensesPage() {
               setPage(1);
             }}
             className="input-field w-auto"
-            placeholder="From"
-          />
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => {
-              setDateTo(e.target.value);
-              setPage(1);
-            }}
-            className="input-field w-auto"
-            placeholder="To"
+            title="Filter by date (shows expenses from this date onwards)"
           />
           <div className="ml-auto bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-lg text-sm font-semibold">
             Page Total: {formatCurrency(totalAmount)}

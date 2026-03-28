@@ -36,7 +36,10 @@ export default function DashboardPage() {
   };
 
   const loadShowcase = async () => {
-    const result = await window.api.getVehicles({ status: "in_stock", limit: 12 });
+    const result = await window.api.getVehicles({
+      status: "in_stock",
+      limit: 12,
+    });
     if (result.success) setShowcaseVehicles(result.data?.data || []);
   };
 
@@ -178,7 +181,6 @@ export default function DashboardPage() {
           <p className="text-xl font-bold mt-1">Sell Vehicle</p>
         </Link>
       </div>
-
       {/* Vehicle Showcase */}
       {showcaseVehicles.length > 0 && (
         <div>
@@ -186,7 +188,10 @@ export default function DashboardPage() {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Available in Showroom
             </h2>
-            <Link to="/vehicles" className="text-sm text-blue-600 hover:underline">
+            <Link
+              to="/vehicles"
+              className="text-sm text-blue-600 hover:underline"
+            >
               View all →
             </Link>
           </div>
@@ -203,7 +208,9 @@ export default function DashboardPage() {
                       src={toFileUrl(v.photo_path)}
                       alt={`${v.make} ${v.model}`}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
@@ -219,7 +226,10 @@ export default function DashboardPage() {
                     {v.year_of_manufacture} • {v.color || "—"}
                   </p>
                   <p className="text-xs font-bold text-blue-600 dark:text-blue-400 mt-1">
-                    Rs {v.selling_price?.toLocaleString() || v.total_cost?.toLocaleString() || "—"}
+                    Rs{" "}
+                    {v.selling_price?.toLocaleString() ||
+                      v.total_cost?.toLocaleString() ||
+                      "—"}
                   </p>
                 </div>
               </Link>
@@ -227,6 +237,62 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Quick Access Section */}
+      <div className="card">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Quick Access
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Link
+            to="/vehicles?status=in_stock"
+            className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors text-center"
+          >
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {stats.vehiclesInStock}
+            </p>
+            <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+              In Stock
+            </p>
+          </Link>
+
+          <Link
+            to="/sales"
+            className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors text-center"
+          >
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+              {stats.totalSales}
+            </p>
+            <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+              Total Sales
+            </p>
+          </Link>
+
+          <Link
+            to="/customers"
+            className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors text-center"
+          >
+            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+              {stats.totalCustomers}
+            </p>
+            <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+              Customers
+            </p>
+          </Link>
+
+          <Link
+            to="/installments"
+            className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors text-center"
+          >
+            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+              {stats.vehiclesOnInstallment}
+            </p>
+            <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+              On Installments
+            </p>
+          </Link>
+        </div>
+      </div>
 
       {stats.overdueAlerts?.length > 0 && (
         <div className="card border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/10">
@@ -254,8 +320,8 @@ export default function DashboardPage() {
         </div>
       )}
       <hr />
-      <h1 className="text-white text-4xl font-bold">Overview</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+      {/* <h1 className="text-white text-4xl font-bold">Overview</h1> */}
+      {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
         {statCards.map((card, i) => (
           <Link
             key={i}
@@ -279,7 +345,7 @@ export default function DashboardPage() {
             </div>
           </Link>
         ))}
-      </div>
+      </div> */}
 
       <div className="card">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">

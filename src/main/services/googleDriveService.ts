@@ -19,9 +19,9 @@ import { OAuth2Client } from "google-auth-library";
 // "Desktop app" OAuth 2.0 Client credentials before building for production.
 const GOOGLE_CLIENT_ID =
   process.env.GOOGLE_CLIENT_ID ||
-  "YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com";
+  "";
 const GOOGLE_CLIENT_SECRET =
-  process.env.GOOGLE_CLIENT_SECRET || "YOUR_GOOGLE_CLIENT_SECRET_HERE";
+  process.env.GOOGLE_CLIENT_SECRET || "";
 const REDIRECT_PORT = 3000;
 const GOOGLE_REDIRECT_URL = `http://localhost:${REDIRECT_PORT}/auth/google/callback`;
 
@@ -121,7 +121,11 @@ export function startAuthFlow(): Promise<boolean> {
 
     // Kill any existing callback server
     if (callbackServer) {
-      try { callbackServer.close(); } catch { /* ignore */ }
+      try {
+        callbackServer.close();
+      } catch {
+        /* ignore */
+      }
       callbackServer = null;
     }
 
@@ -133,15 +137,22 @@ export function startAuthFlow(): Promise<boolean> {
     });
 
     // 5-minute timeout
-    const timeout = setTimeout(() => {
-      cleanup();
-      reject(new Error("Authentication timed out. Please try again."));
-    }, 5 * 60 * 1000);
+    const timeout = setTimeout(
+      () => {
+        cleanup();
+        reject(new Error("Authentication timed out. Please try again."));
+      },
+      5 * 60 * 1000,
+    );
 
     function cleanup() {
       clearTimeout(timeout);
       if (callbackServer) {
-        try { callbackServer.close(); } catch { /* ignore */ }
+        try {
+          callbackServer.close();
+        } catch {
+          /* ignore */
+        }
         callbackServer = null;
       }
     }
@@ -287,12 +298,16 @@ async function getOrCreateBackupFolder(): Promise<string> {
     fields: "id",
   });
 
-  if (!folderResponse.data.id) throw new Error("Failed to create backup folder");
+  if (!folderResponse.data.id)
+    throw new Error("Failed to create backup folder");
   return folderResponse.data.id;
 }
 
-export async function uploadBackupToGoogleDrive(filePath: string): Promise<string> {
-  if (!isAuthenticated()) throw new Error("Not authenticated with Google Drive");
+export async function uploadBackupToGoogleDrive(
+  filePath: string,
+): Promise<string> {
+  if (!isAuthenticated())
+    throw new Error("Not authenticated with Google Drive");
   if (!fs.existsSync(filePath)) throw new Error("Backup file not found");
 
   const client = initializeOAuth2Client();
@@ -317,7 +332,8 @@ export async function uploadBackupToGoogleDrive(filePath: string): Promise<strin
 }
 
 export async function listGoogleDriveBackups(): Promise<GoogleDriveBackup[]> {
-  if (!isAuthenticated()) throw new Error("Not authenticated with Google Drive");
+  if (!isAuthenticated())
+    throw new Error("Not authenticated with Google Drive");
 
   const client = initializeOAuth2Client();
   const drive = google.drive({ version: "v3", auth: client as any });
@@ -345,7 +361,8 @@ export async function downloadBackupFromGoogleDrive(
   fileId: string,
   destinationPath: string,
 ): Promise<void> {
-  if (!isAuthenticated()) throw new Error("Not authenticated with Google Drive");
+  if (!isAuthenticated())
+    throw new Error("Not authenticated with Google Drive");
 
   const client = initializeOAuth2Client();
   const drive = google.drive({ version: "v3", auth: client as any });
@@ -363,8 +380,11 @@ export async function downloadBackupFromGoogleDrive(
   });
 }
 
-export async function deleteBackupFromGoogleDrive(fileId: string): Promise<void> {
-  if (!isAuthenticated()) throw new Error("Not authenticated with Google Drive");
+export async function deleteBackupFromGoogleDrive(
+  fileId: string,
+): Promise<void> {
+  if (!isAuthenticated())
+    throw new Error("Not authenticated with Google Drive");
 
   const client = initializeOAuth2Client();
   const drive = google.drive({ version: "v3", auth: client as any });
@@ -380,4 +400,32 @@ export function logout(): void {
 export async function getGoogleDriveFolderUrl(): Promise<string> {
   const folderId = await getOrCreateBackupFolder();
   return `https://drive.google.com/drive/folders/${folderId}`;
+}
+
+export async function uploadFile(
+  filePath: string,
+  fileName: string,
+  mimeType: string,
+): Promise<string> {
+  if (!isAuthenticated()) throw new Error("Not authenticated with Google Drive");
+  if (!fs.existsSync(filePath)) throw new Error("File not found");
+
+  const client = initializeOAuth2Client();
+  const drive = google.drive({ version: "v3", auth: client as any });
+
+  const folderId = await getOrCreateBackupFolder();
+  const response = await drive.files.create({
+    requestBody: {
+      name: fileName,
+      parents: [folderId],
+    },
+    media: {
+      mimeType,
+      body: fs.createReadStream(filePath),
+    },
+    fields: "id",
+  });
+
+  if (!response.data.id) throw new Error("Failed to upload file");
+  return response.data.id;
 }

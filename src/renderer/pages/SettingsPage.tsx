@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState, AppDispatch } from "../store";
-import { toggleDarkMode } from "../store/slices/uiSlice";
+import { toggleDarkMode, setTheme, type AppTheme } from "../store/slices/uiSlice";
 import { toast } from "react-toastify";
 import { confirmDeleteRecord } from "../utils/confirmDelete";
 import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
@@ -55,7 +55,7 @@ type SettingsTab = "general" | "logs";
 
 export default function SettingsPage() {
   const { user } = useSelector((state: RootState) => state.auth);
-  const { darkMode } = useSelector((state: RootState) => state.ui);
+  const { darkMode, theme } = useSelector((state: RootState) => state.ui);
   const dispatch = useDispatch<AppDispatch>();
   const isSuperAdmin = user?.role === "super_admin";
   const { requestAuth, PasswordModal } = useSuperadminAuth();
@@ -294,28 +294,84 @@ export default function SettingsPage() {
             </dl>
           </div>
 
-          {/* Appearance */}
+          {/* Appearance / Theme */}
           <div className="card">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              {darkMode ? <FiMoon size={18} /> : <FiSun size={18} />}
               Appearance
             </h2>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {darkMode ? <FiMoon size={20} /> : <FiSun size={20} />}
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    Dark Mode
-                  </p>
-                  <p className="text-sm text-gray-500">Toggle dark/light theme</p>
-                </div>
-              </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Classic Light */}
               <button
-                onClick={() => dispatch(toggleDarkMode())}
-                className={`relative w-14 h-7 rounded-full transition-colors ${darkMode ? "bg-blue-600" : "bg-gray-300"}`}
+                onClick={() => dispatch(setTheme("light" as AppTheme))}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                  theme === "light"
+                    ? "border-blue-600 bg-blue-50"
+                    : "border-gray-200 dark:border-gray-700 hover:border-blue-300"
+                }`}
               >
-                <span
-                  className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-transform ${darkMode ? "left-8" : "left-1"}`}
-                ></span>
+                <div className="flex items-center gap-2 mb-2">
+                  <FiSun size={18} className="text-yellow-500" />
+                  <span className="font-semibold text-gray-900 dark:text-white text-sm">Classic Light</span>
+                  {theme === "light" && (
+                    <span className="ml-auto text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">Active</span>
+                  )}
+                </div>
+                <div className="flex gap-1 mb-2">
+                  {["#FFFFFF","#1E3A8A","#F3F4F6","#111827"].map(c => (
+                    <div key={c} className="w-5 h-5 rounded-full border border-gray-200" style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">Clean & professional. Default business theme.</p>
+              </button>
+
+              {/* Dark Mode */}
+              <button
+                onClick={() => dispatch(setTheme("dark" as AppTheme))}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                  theme === "dark"
+                    ? "border-blue-500 bg-gray-900"
+                    : "border-gray-200 dark:border-gray-700 hover:border-blue-300"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <FiMoon size={18} className="text-blue-400" />
+                  <span className="font-semibold text-gray-900 dark:text-white text-sm">Dark Mode</span>
+                  {theme === "dark" && (
+                    <span className="ml-auto text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">Active</span>
+                  )}
+                </div>
+                <div className="flex gap-1 mb-2">
+                  {["#111827","#22C55E","#1F2937","#F9FAFB"].map(c => (
+                    <div key={c} className="w-5 h-5 rounded-full border border-gray-600" style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">Sleek & modern. Easy on the eyes at night.</p>
+              </button>
+
+              {/* Eco / Hybrid */}
+              <button
+                onClick={() => dispatch(setTheme("eco" as AppTheme))}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                  theme === "eco"
+                    ? "border-green-500 bg-green-50"
+                    : "border-gray-200 dark:border-gray-700 hover:border-green-300"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-base">🌿</span>
+                  <span className="font-semibold text-gray-900 dark:text-white text-sm">Eco / Hybrid</span>
+                  {theme === "eco" && (
+                    <span className="ml-auto text-xs bg-green-600 text-white px-2 py-0.5 rounded-full">Active</span>
+                  )}
+                </div>
+                <div className="flex gap-1 mb-2">
+                  {["#ECFDF5","#10B981","#D1FAE5","#065F46"].map(c => (
+                    <div key={c} className="w-5 h-5 rounded-full border border-green-200" style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">Calm & refreshing. Eco-friendly green theme.</p>
               </button>
             </div>
           </div>

@@ -7,7 +7,11 @@ import {
   PAYMENT_TYPES,
   INSTALLMENT_DURATION_TYPES,
 } from "../../shared/constants";
-import { formatCnic, isValidCnic, CNIC_PLACEHOLDER } from "../../shared/constants";
+import {
+  formatCnic,
+  isValidCnic,
+  CNIC_PLACEHOLDER,
+} from "../../shared/constants";
 import { toast } from "react-toastify";
 import { FiArrowLeft, FiSearch } from "react-icons/fi";
 import { toFileUrl } from "../utils/filePaths";
@@ -95,7 +99,9 @@ export default function SaleFormPage() {
 
   // State passed back from CustomerFormPage after creating a new customer
   const locationState = location.state as any;
-  const restoredForm = locationState?.saleForm as typeof defaultForm | undefined;
+  const restoredForm = locationState?.saleForm as
+    | typeof defaultForm
+    | undefined;
   const restoredStep = locationState?.saleStep as number | undefined;
   const newCustomerId = locationState?.newCustomerId as string | undefined;
 
@@ -128,12 +134,17 @@ export default function SaleFormPage() {
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccountOption[]>([]);
-  const [installmentSchedule, setInstallmentSchedule] = useState<InstallmentDraft[]>([]);
+  const [installmentSchedule, setInstallmentSchedule] = useState<
+    InstallmentDraft[]
+  >([]);
   const [scheduleLocked, setScheduleLocked] = useState(false);
 
   // Vehicle search by chassis number
   const [chassisSearch, setChassisSearch] = useState("");
   const [searchResults, setSearchResults] = useState<VehicleOption[]>([]);
+  const [paymentMethodOption, setPaymentMethodOption] = useState<
+    "full_cash" | "half_half" | "full_bank" | null
+  >(null);
 
   const [form, setForm] = useState(() => {
     if (restoredForm) {
@@ -145,7 +156,9 @@ export default function SaleFormPage() {
     return defaultForm;
   });
 
-  const selectedVehicle = vehicles.find((vehicle) => vehicle.id === form.vehicle_id);
+  const selectedVehicle = vehicles.find(
+    (vehicle) => vehicle.id === form.vehicle_id,
+  );
   const suggestedPrice = selectedVehicle
     ? selectedVehicle.selling_price ||
       selectedVehicle.total_cost ||
@@ -159,7 +172,10 @@ export default function SaleFormPage() {
     () =>
       Math.max(
         0,
-        round2((parseFloat(form.sale_price) || 0) - (parseFloat(form.down_payment) || 0)),
+        round2(
+          (parseFloat(form.sale_price) || 0) -
+            (parseFloat(form.down_payment) || 0),
+        ),
       ),
     [form.sale_price, form.down_payment],
   );
@@ -263,9 +279,14 @@ export default function SaleFormPage() {
     const witnessCnic = sale.customer?.witness_cnic || "";
     const witnessPhone = sale.customer?.witness_phone || "";
     const witnessCnicPhoto = sale.customer?.witness_cnic_photo_path || "";
-    const witnessCnicPhotoBack = sale.customer?.witness_cnic_photo_back_path || "";
+    const witnessCnicPhotoBack =
+      sale.customer?.witness_cnic_photo_back_path || "";
     const hasWitness = Boolean(
-      witnessName || witnessFatherName || witnessCnic || witnessPhone || witnessCnicPhoto,
+      witnessName ||
+      witnessFatherName ||
+      witnessCnic ||
+      witnessPhone ||
+      witnessCnicPhoto,
     );
 
     const firstInstallmentDate =
@@ -368,7 +389,9 @@ export default function SaleFormPage() {
     if (result.success) {
       // Filter to only matching chassis numbers
       const filtered = (result.data.data || []).filter((v: any) =>
-        v.chassis_number?.toLowerCase().includes(chassisSearch.trim().toLowerCase()),
+        v.chassis_number
+          ?.toLowerCase()
+          .includes(chassisSearch.trim().toLowerCase()),
       );
       setSearchResults(filtered);
     }
@@ -387,6 +410,14 @@ export default function SaleFormPage() {
       ].includes(field)
     ) {
       setScheduleLocked(false);
+      // Reset payment method option when payment_type or amount changes
+      if (
+        field === "payment_type" ||
+        field === "down_payment" ||
+        field === "sale_price"
+      ) {
+        setPaymentMethodOption(null);
+      }
     }
   };
 
@@ -422,7 +453,10 @@ export default function SaleFormPage() {
     const selected = await window.api.selectImage();
     if (!selected.success || !selected.data) return;
 
-    const saved = await window.api.saveImage(selected.data, "witness-cnic-back");
+    const saved = await window.api.saveImage(
+      selected.data,
+      "witness-cnic-back",
+    );
     if (!saved.success || !saved.data) {
       toast.error(saved.error || "Failed to save witness CNIC back image");
       return;
@@ -438,7 +472,8 @@ export default function SaleFormPage() {
         if (!form.vehicle_id) errs.vehicle_id = "Please select a vehicle";
       }
       if (s === 1) {
-        if (!form.customer_id) errs.customer_id = "Please select or add a customer";
+        if (!form.customer_id)
+          errs.customer_id = "Please select or add a customer";
       }
       if (s === 2) {
         if (!form.sale_price || parseFloat(form.sale_price) <= 0)
@@ -450,7 +485,11 @@ export default function SaleFormPage() {
         else if (Math.abs(scheduleTotal - remainingAmount) > 1)
           errs.schedule = "Installment amounts must match remaining balance";
       }
-      if (s === witnessStepIndex && form.witness_cnic && !isValidCnic(form.witness_cnic)) {
+      if (s === witnessStepIndex && form.witness_required) {
+        if (!form.witness_name.trim()) errs.witness_name = "Witness name is required";
+        if (!form.witness_cnic.trim()) errs.witness_cnic = "Witness CNIC is required";
+        else if (!isValidCnic(form.witness_cnic)) errs.witness_cnic = "Invalid CNIC format (XXXXX-XXXXXXX-X)";
+      } else if (s === witnessStepIndex && form.witness_cnic && !isValidCnic(form.witness_cnic)) {
         errs.witness_cnic = "Invalid CNIC format (XXXXX-XXXXXXX-X)";
       }
       setErrors(errs);
@@ -461,7 +500,14 @@ export default function SaleFormPage() {
       }
       return true;
     },
-    [form, scheduleTotal, remainingAmount, installmentSchedule, installmentStepIndex, witnessStepIndex],
+    [
+      form,
+      scheduleTotal,
+      remainingAmount,
+      installmentSchedule,
+      installmentStepIndex,
+      witnessStepIndex,
+    ],
   );
 
   const goNext = () => {
@@ -515,7 +561,9 @@ export default function SaleFormPage() {
       ? await window.api.updateSale(user.id, id!, saleData)
       : await window.api.createSale(user.id, saleData);
     if (result.success) {
-      toast.success(isEdit ? "Sale updated successfully" : "Sale created successfully");
+      toast.success(
+        isEdit ? "Sale updated successfully" : "Sale created successfully",
+      );
       navigate(`/sales/${result.data.id}`);
     } else {
       toast.error(result.error);
@@ -530,6 +578,35 @@ export default function SaleFormPage() {
     return `${account.name}${secondary}`;
   };
 
+  const applyPaymentMethodOption = (
+    option: "full_cash" | "half_half" | "full_bank",
+  ) => {
+    // Determine the amount to split (down_payment for installments, sale_price for cash)
+    const amountToSplit =
+      form.payment_type === "installment"
+        ? parseFloat(form.down_payment) || 0
+        : parseFloat(form.sale_price) || 0;
+
+    let cashAmount = 0;
+    let bankAmount = 0;
+
+    if (option === "full_cash") {
+      cashAmount = amountToSplit;
+      bankAmount = 0;
+    } else if (option === "half_half") {
+      const half = round2(amountToSplit / 2);
+      cashAmount = half;
+      bankAmount = round2(amountToSplit - half);
+    } else if (option === "full_bank") {
+      cashAmount = 0;
+      bankAmount = amountToSplit;
+    }
+
+    setPaymentMethodOption(option);
+    update("cash_amount", String(cashAmount));
+    update("bank_transfer_amount", String(bankAmount));
+  };
+
   const fieldError = (field: string) =>
     errors[field] ? (
       <p className="text-red-500 text-xs mt-1">{errors[field]}</p>
@@ -540,8 +617,52 @@ export default function SaleFormPage() {
   const renderSelectVehicle = () => (
     <div className="card">
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-        Search Vehicle by Chassis Number
+        Select Vehicle
       </h2>
+
+      {/* Vehicle Dropdown */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Select from Available Vehicles
+        </label>
+        <select
+          value={form.vehicle_id}
+          onChange={(e) => {
+            update("vehicle_id", e.target.value);
+            const vehicle = vehicles.find((v) => v.id === e.target.value);
+            if (vehicle) {
+              const candidatePrice =
+                vehicle.selling_price ||
+                vehicle.total_cost ||
+                vehicle.purchase_price ||
+                0;
+              if (candidatePrice > 0) {
+                update("sale_price", String(candidatePrice));
+              }
+              setChassisSearch("");
+              setSearchResults([]);
+            }
+          }}
+          className="input-field"
+        >
+          <option value="">-- Choose a vehicle --</option>
+          {vehicles.map((vehicle) => (
+            <option key={vehicle.id} value={vehicle.id}>
+              {vehicle.make} {vehicle.model} (
+              {(vehicle as any).year_of_manufacture || vehicle.year}) - Chassis:{" "}
+              {vehicle.chassis_number || "N/A"}
+            </option>
+          ))}
+        </select>
+        {fieldError("vehicle_id")}
+      </div>
+
+      {/* Search by Chassis Number */}
+      <div className="border-t pt-4">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+          Or Search Vehicle by Chassis Number
+        </h3>
+      </div>
       <div className="flex gap-2 mb-4">
         <input
           type="text"
@@ -578,7 +699,10 @@ export default function SaleFormPage() {
                   setVehicles((prev) => [vehicle, ...prev]);
                 }
                 const candidatePrice =
-                  vehicle.selling_price || vehicle.total_cost || vehicle.purchase_price || 0;
+                  vehicle.selling_price ||
+                  vehicle.total_cost ||
+                  vehicle.purchase_price ||
+                  0;
                 if (candidatePrice > 0) {
                   update("sale_price", String(candidatePrice));
                 }
@@ -592,10 +716,12 @@ export default function SaleFormPage() {
               }`}
             >
               <p className="font-medium text-gray-900 dark:text-white">
-                {vehicle.make} {vehicle.model} ({(vehicle as any).year_of_manufacture || vehicle.year})
+                {vehicle.make} {vehicle.model} (
+                {(vehicle as any).year_of_manufacture || vehicle.year})
               </p>
               <p className="text-sm text-gray-500">
-                Chassis: {vehicle.chassis_number} | Reg: {vehicle.registration_number || "N/A"}
+                Chassis: {vehicle.chassis_number} | Reg:{" "}
+                {vehicle.registration_number || "N/A"}
               </p>
             </button>
           ))}
@@ -611,12 +737,18 @@ export default function SaleFormPage() {
       {fieldError("vehicle_id")}
       {selectedVehicle && (
         <div className="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/30">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Selected Vehicle</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+            Selected Vehicle
+          </p>
           <p className="font-medium text-gray-900 dark:text-white">
-            {selectedVehicle.make} {selectedVehicle.model} ({(selectedVehicle as any).year_of_manufacture || selectedVehicle.year})
+            {selectedVehicle.make} {selectedVehicle.model} (
+            {(selectedVehicle as any).year_of_manufacture ||
+              selectedVehicle.year}
+            )
           </p>
           <p className="text-sm text-gray-500 mt-1">
-            Chassis: {selectedVehicle.chassis_number} | Suggested price: PKR {suggestedPrice.toLocaleString()}
+            Chassis: {selectedVehicle.chassis_number} | Suggested price: PKR{" "}
+            {suggestedPrice.toLocaleString()}
           </p>
         </div>
       )}
@@ -683,10 +815,16 @@ export default function SaleFormPage() {
 
       {selectedCustomer && (
         <div className="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-700/30">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Selected Buyer</p>
-          <p className="font-medium text-gray-900 dark:text-white">{selectedCustomer.name}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+            Selected Buyer
+          </p>
+          <p className="font-medium text-gray-900 dark:text-white">
+            {selectedCustomer.name}
+          </p>
           {selectedCustomer.cnic && (
-            <p className="text-sm text-gray-500 mt-1">CNIC: {selectedCustomer.cnic}</p>
+            <p className="text-sm text-gray-500 mt-1">
+              CNIC: {selectedCustomer.cnic}
+            </p>
           )}
         </div>
       )}
@@ -705,7 +843,9 @@ export default function SaleFormPage() {
               onChange={() => update("witness_required", true)}
               className="rounded"
             />
-            <span className="text-sm text-gray-700 dark:text-gray-300">Yes</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              Yes
+            </span>
           </label>
           <label className="inline-flex items-center gap-2 cursor-pointer">
             <input
@@ -800,7 +940,9 @@ export default function SaleFormPage() {
           <input
             type="number"
             value={form.installment_count}
-            onChange={(event) => update("installment_count", event.target.value)}
+            onChange={(event) =>
+              update("installment_count", event.target.value)
+            }
             className="input-field"
             min={1}
           />
@@ -811,7 +953,9 @@ export default function SaleFormPage() {
           </label>
           <select
             value={form.installment_duration_type}
-            onChange={(event) => update("installment_duration_type", event.target.value)}
+            onChange={(event) =>
+              update("installment_duration_type", event.target.value)
+            }
             className="input-field"
           >
             {INSTALLMENT_DURATION_TYPES.map((durationType) => (
@@ -828,7 +972,9 @@ export default function SaleFormPage() {
           <input
             type="date"
             value={form.installment_start_date}
-            onChange={(event) => update("installment_start_date", event.target.value)}
+            onChange={(event) =>
+              update("installment_start_date", event.target.value)
+            }
             className="input-field"
           />
         </div>
@@ -858,7 +1004,11 @@ export default function SaleFormPage() {
                       type="date"
                       value={row.due_date}
                       onChange={(event) =>
-                        updateInstallment(row.installment_number, "due_date", event.target.value)
+                        updateInstallment(
+                          row.installment_number,
+                          "due_date",
+                          event.target.value,
+                        )
                       }
                       className="input-field py-1"
                     />
@@ -868,7 +1018,11 @@ export default function SaleFormPage() {
                       type="number"
                       value={row.amount}
                       onChange={(event) =>
-                        updateInstallment(row.installment_number, "amount", event.target.value)
+                        updateInstallment(
+                          row.installment_number,
+                          "amount",
+                          event.target.value,
+                        )
                       }
                       className="input-field py-1 text-right"
                     />
@@ -890,56 +1044,143 @@ export default function SaleFormPage() {
   const renderPaymentMethod = () => (
     <div className="card">
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-        Payment Method (Cash & Bank Transfer)
+        Payment Method Options
       </h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        Specify how much is paid in cash and how much via bank transfer.
+        Select how to split the payment amount between cash and bank transfer.
       </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Cash Amount (PKR)
-          </label>
-          <input
-            type="number"
-            value={form.cash_amount}
-            onChange={(event) => update("cash_amount", event.target.value)}
-            className="input-field"
-            placeholder="0"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Bank Transfer Amount (PKR)
-          </label>
-          <input
-            type="number"
-            value={form.bank_transfer_amount}
-            onChange={(event) => update("bank_transfer_amount", event.target.value)}
-            className="input-field"
-            placeholder="0"
-          />
-        </div>
-        {(parseFloat(form.bank_transfer_amount) || 0) > 0 && (
-          <div className="md:col-span-2">
+
+      {/* Amount to split display */}
+      <div className="mb-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          {form.payment_type === "installment"
+            ? "Net Cash (Down Payment)"
+            : "Total Sale Price"}
+          :
+          <span className="font-bold text-lg text-blue-600 dark:text-blue-400 ml-2">
+            PKR{" "}
+            {round2(
+              form.payment_type === "installment"
+                ? parseFloat(form.down_payment) || 0
+                : parseFloat(form.sale_price) || 0,
+            ).toLocaleString()}
+          </span>
+        </p>
+      </div>
+
+      {/* Payment method options */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+        <button
+          type="button"
+          onClick={() => applyPaymentMethodOption("full_cash")}
+          className={`p-4 rounded-lg border-2 transition-all text-left ${
+            paymentMethodOption === "full_cash"
+              ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+              : "border-gray-200 dark:border-gray-700 hover:border-green-300"
+          }`}
+        >
+          <p className="font-semibold text-gray-900 dark:text-white">
+            💰 Full Cash
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            100% paid in cash
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => applyPaymentMethodOption("half_half")}
+          className={`p-4 rounded-lg border-2 transition-all text-left ${
+            paymentMethodOption === "half_half"
+              ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+              : "border-gray-200 dark:border-gray-700 hover:border-blue-300"
+          }`}
+        >
+          <p className="font-semibold text-gray-900 dark:text-white">
+            ⚖️ Half & Half
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            50% cash, 50% bank transfer
+          </p>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => applyPaymentMethodOption("full_bank")}
+          className={`p-4 rounded-lg border-2 transition-all text-left ${
+            paymentMethodOption === "full_bank"
+              ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
+              : "border-gray-200 dark:border-gray-700 hover:border-purple-300"
+          }`}
+        >
+          <p className="font-semibold text-gray-900 dark:text-white">
+            🏦 Full Bank
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            100% paid via bank transfer
+          </p>
+        </button>
+      </div>
+
+      {/* Manual adjustment section */}
+      <div className="border-t pt-4">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+          Or manually adjust amounts:
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Select Receiving Bank Account
+              Cash Amount (PKR)
             </label>
-            <select
-              value={form.bank_account_id}
-              onChange={(event) => update("bank_account_id", event.target.value)}
-              className={`input-field ${errors.bank_account_id ? "border-red-500" : ""}`}
-            >
-              <option value="">-- Select Bank Account --</option>
-              {bankAccounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {bankLabel(account)}
-                </option>
-              ))}
-            </select>
-            {fieldError("bank_account_id")}
+            <input
+              type="number"
+              value={form.cash_amount}
+              onChange={(event) => {
+                update("cash_amount", event.target.value);
+                setPaymentMethodOption(null);
+              }}
+              className="input-field"
+              placeholder="0"
+            />
           </div>
-        )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Bank Transfer Amount (PKR)
+            </label>
+            <input
+              type="number"
+              value={form.bank_transfer_amount}
+              onChange={(event) => {
+                update("bank_transfer_amount", event.target.value);
+                setPaymentMethodOption(null);
+              }}
+              className="input-field"
+              placeholder="0"
+            />
+          </div>
+          {(parseFloat(form.bank_transfer_amount) || 0) > 0 && (
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Select Receiving Bank Account
+              </label>
+              <select
+                value={form.bank_account_id}
+                onChange={(event) =>
+                  update("bank_account_id", event.target.value)
+                }
+                className={`input-field ${errors.bank_account_id ? "border-red-500" : ""}`}
+              >
+                <option value="">-- Select Bank Account --</option>
+                {bankAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {bankLabel(account)}
+                  </option>
+                ))}
+              </select>
+              {fieldError("bank_account_id")}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -968,7 +1209,9 @@ export default function SaleFormPage() {
           <input
             type="text"
             value={form.witness_father_name}
-            onChange={(event) => update("witness_father_name", event.target.value)}
+            onChange={(event) =>
+              update("witness_father_name", event.target.value)
+            }
             className="input-field"
           />
         </div>
@@ -979,7 +1222,9 @@ export default function SaleFormPage() {
           <input
             type="text"
             value={form.witness_cnic}
-            onChange={(event) => update("witness_cnic", formatCnic(event.target.value))}
+            onChange={(event) =>
+              update("witness_cnic", formatCnic(event.target.value))
+            }
             className={`input-field ${errors.witness_cnic ? "border-red-500" : ""}`}
             placeholder={CNIC_PLACEHOLDER}
             maxLength={15}
@@ -1015,7 +1260,9 @@ export default function SaleFormPage() {
                   src={toFileUrl(form.witness_cnic_photo_path)}
                   alt="Witness CNIC Front"
                   className="w-44 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = IMG_PLACEHOLDER;
+                  }}
                 />
                 <button
                   type="button"
@@ -1038,7 +1285,9 @@ export default function SaleFormPage() {
               onClick={handleWitnessCnicBackImageSelect}
               className="btn-secondary"
             >
-              {form.witness_cnic_photo_back_path ? "Replace Back" : "Upload Back"}
+              {form.witness_cnic_photo_back_path
+                ? "Replace Back"
+                : "Upload Back"}
             </button>
             {form.witness_cnic_photo_back_path && (
               <div className="flex items-start gap-3">
@@ -1046,7 +1295,9 @@ export default function SaleFormPage() {
                   src={toFileUrl(form.witness_cnic_photo_back_path)}
                   alt="Witness CNIC Back"
                   className="w-44 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = IMG_PLACEHOLDER;
+                  }}
                 />
                 <button
                   type="button"
@@ -1068,7 +1319,9 @@ export default function SaleFormPage() {
       if (value === undefined || value === "" || value === 0) return null;
       return (
         <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-          <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {label}
+          </span>
           <span className="text-sm font-medium text-gray-900 dark:text-white text-right max-w-[60%]">
             {value}
           </span>
@@ -1081,15 +1334,26 @@ export default function SaleFormPage() {
         {/* Vehicle */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Vehicle</h3>
-            <button type="button" onClick={() => setStep(0)} className="text-sm text-primary-600 hover:underline">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Vehicle
+            </h3>
+            <button
+              type="button"
+              onClick={() => setStep(0)}
+              className="text-sm text-primary-600 hover:underline"
+            >
               Edit
             </button>
           </div>
           {selectedVehicle && (
             <p className="font-medium text-gray-900 dark:text-white mb-2">
-              {selectedVehicle.make} {selectedVehicle.model} ({(selectedVehicle as any).year_of_manufacture || selectedVehicle.year})
-              {selectedVehicle.registration_number ? ` - ${selectedVehicle.registration_number}` : ""}
+              {selectedVehicle.make} {selectedVehicle.model} (
+              {(selectedVehicle as any).year_of_manufacture ||
+                selectedVehicle.year}
+              )
+              {selectedVehicle.registration_number
+                ? ` - ${selectedVehicle.registration_number}`
+                : ""}
             </p>
           )}
         </div>
@@ -1097,16 +1361,26 @@ export default function SaleFormPage() {
         {/* Buyer */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Buyer</h3>
-            <button type="button" onClick={() => setStep(1)} className="text-sm text-primary-600 hover:underline">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Buyer
+            </h3>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="text-sm text-primary-600 hover:underline"
+            >
               Edit
             </button>
           </div>
           {selectedCustomer && (
             <>
-              <p className="font-medium text-gray-900 dark:text-white">{selectedCustomer.name}</p>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {selectedCustomer.name}
+              </p>
               {selectedCustomer.cnic && (
-                <p className="text-sm text-gray-500 mt-1">CNIC: {selectedCustomer.cnic}</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  CNIC: {selectedCustomer.cnic}
+                </p>
               )}
             </>
           )}
@@ -1115,21 +1389,56 @@ export default function SaleFormPage() {
         {/* Payment */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Payment</h3>
-            <button type="button" onClick={() => setStep(2)} className="text-sm text-primary-600 hover:underline">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Payment
+            </h3>
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              className="text-sm text-primary-600 hover:underline"
+            >
               Edit
             </button>
           </div>
-          {reviewRow("Sale Price", `PKR ${(parseFloat(form.sale_price) || 0).toLocaleString()}`)}
-          {reviewRow("Payment Type", PAYMENT_TYPES.find((t) => t.value === form.payment_type)?.label)}
-          {reviewRow("Cash Amount", form.cash_amount ? `PKR ${(parseFloat(form.cash_amount) || 0).toLocaleString()}` : undefined)}
-          {reviewRow("Bank Transfer", form.bank_transfer_amount ? `PKR ${(parseFloat(form.bank_transfer_amount) || 0).toLocaleString()}` : undefined)}
-          {form.bank_account_id && reviewRow("Bank Account", bankAccounts.find((a) => a.id === form.bank_account_id)?.name)}
+          {reviewRow(
+            "Sale Price",
+            `PKR ${(parseFloat(form.sale_price) || 0).toLocaleString()}`,
+          )}
+          {reviewRow(
+            "Payment Type",
+            PAYMENT_TYPES.find((t) => t.value === form.payment_type)?.label,
+          )}
+          {reviewRow(
+            "Cash Amount",
+            form.cash_amount
+              ? `PKR ${(parseFloat(form.cash_amount) || 0).toLocaleString()}`
+              : undefined,
+          )}
+          {reviewRow(
+            "Bank Transfer",
+            form.bank_transfer_amount
+              ? `PKR ${(parseFloat(form.bank_transfer_amount) || 0).toLocaleString()}`
+              : undefined,
+          )}
+          {form.bank_account_id &&
+            reviewRow(
+              "Bank Account",
+              bankAccounts.find((a) => a.id === form.bank_account_id)?.name,
+            )}
           {form.payment_type === "installment" && (
             <>
-              {reviewRow("Net Cash", `PKR ${(parseFloat(form.down_payment) || 0).toLocaleString()}`)}
-              {reviewRow("Installments", `${form.installment_count} (${form.installment_duration_type})`)}
-              {reviewRow("Remaining", `PKR ${remainingAmount.toLocaleString()}`)}
+              {reviewRow(
+                "Net Cash",
+                `PKR ${(parseFloat(form.down_payment) || 0).toLocaleString()}`,
+              )}
+              {reviewRow(
+                "Installments",
+                `${form.installment_count} (${form.installment_duration_type})`,
+              )}
+              {reviewRow(
+                "Remaining",
+                `PKR ${remainingAmount.toLocaleString()}`,
+              )}
             </>
           )}
           {reviewRow("Notes", form.notes)}
@@ -1139,8 +1448,14 @@ export default function SaleFormPage() {
         {form.witness_required && (
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Witness</h3>
-              <button type="button" onClick={() => setStep(witnessStepIndex)} className="text-sm text-primary-600 hover:underline">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Witness
+              </h3>
+              <button
+                type="button"
+                onClick={() => setStep(witnessStepIndex)}
+                className="text-sm text-primary-600 hover:underline"
+              >
                 Edit
               </button>
             </div>
@@ -1161,7 +1476,8 @@ export default function SaleFormPage() {
     if (step === 2) return renderPayment();
     if (step === installmentStepIndex) return renderInstallmentDetails();
     if (step === paymentMethodStepIndex) return renderPaymentMethod();
-    if (form.witness_required && step === witnessStepIndex) return renderWitness();
+    if (form.witness_required && step === witnessStepIndex)
+      return renderWitness();
     return renderReview();
   };
 

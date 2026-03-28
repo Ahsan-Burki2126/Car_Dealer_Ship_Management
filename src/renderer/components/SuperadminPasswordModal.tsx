@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useSelector } from "react-redux";
 import { toast } from "react-toastify";
+import type { RootState } from "../store";
 
 interface Props {
   isOpen: boolean;
@@ -18,6 +20,17 @@ export default function SuperadminPasswordModal({
 }: Props) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Clear password and focus input on every mount (key-driven remount guarantees this)
+  useEffect(() => {
+    setPassword("");
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -54,12 +67,14 @@ export default function SuperadminPasswordModal({
         </p>
         <form onSubmit={handleSubmit}>
           <input
+            ref={inputRef}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="input-field mb-4"
             placeholder="Enter superadmin password"
-            autoFocus
+            disabled={loading}
+            autoComplete="off"
           />
           <div className="flex gap-3 justify-end">
             <button
@@ -73,11 +88,7 @@ export default function SuperadminPasswordModal({
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={loading}
-            >
+            <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? "Verifying..." : "Confirm"}
             </button>
           </div>
@@ -97,15 +108,18 @@ export default function SuperadminPasswordModal({
  */
 export function useSuperadminAuth() {
   const [isOpen, setIsOpen] = useState(false);
+  const [openKey, setOpenKey] = useState(0);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   const requestAuth = (action: () => void) => {
     setPendingAction(() => action);
+    setOpenKey((k) => k + 1);
     setIsOpen(true);
   };
 
   const PasswordModal = (props?: { title?: string; message?: string }) => (
     <SuperadminPasswordModal
+      key={openKey}
       isOpen={isOpen}
       title={props?.title}
       message={props?.message}
@@ -122,4 +136,82 @@ export function useSuperadminAuth() {
   );
 
   return { requestAuth, PasswordModal };
+}
+
+/**
+ * Hook for role-based access control.
+ * Regular users: can only ADD items
+ * Superadmin: can ADD, EDIT, DELETE (edit/delete require password verification)
+ */
+export function useAccessControl() {
+  const { user } = useSelector((state: RootState) => state.auth);
+  const [isOpen, setIsOpen] = useState(false);
+  const [openKey, setOpenKey] = useState(0);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [actionType, setActionType] = useState<"edit" | "delete">("delete");
+
+  const isSuperAdmin = user?.role === "super_admin";
+  const canAdd = true;
+  const canEdit = isSuperAdmin;
+  const canDelete = isSuperAdmin;
+
+  const requestEditAction = (action: () => void) => {
+    if (!canEdit) {
+      toast.error("You don't have permission to edit items");
+      return;
+    }
+    setActionType("edit");
+    setPendingAction(() => action);
+    setOpenKey((k) => k + 1);
+    setIsOpen(true);
+  };
+
+  const requestDeleteAction = (action: () => void) => {
+    if (!canDelete) {
+      toast.error("You don't have permission to delete items");
+      return;
+    }
+    setActionType("delete");
+    setPendingAction(() => action);
+    setOpenKey((k) => k + 1);
+    setIsOpen(true);
+  };
+
+  const messages = {
+    edit: {
+      title: "Superadmin Authorization Required",
+      message: "Please enter the superadmin password to edit this item.",
+    },
+    delete: {
+      title: "Superadmin Authorization Required",
+      message: "Please enter the superadmin password to delete this item.",
+    },
+  };
+
+  const PasswordModal = () => (
+    <SuperadminPasswordModal
+      key={openKey}
+      isOpen={isOpen}
+      title={messages[actionType].title}
+      message={messages[actionType].message}
+      onConfirm={() => {
+        setIsOpen(false);
+        if (pendingAction) pendingAction();
+        setPendingAction(null);
+      }}
+      onCancel={() => {
+        setIsOpen(false);
+        setPendingAction(null);
+      }}
+    />
+  );
+
+  return {
+    canAdd,
+    canEdit,
+    canDelete,
+    requestEditAction,
+    requestDeleteAction,
+    PasswordModal,
+  };
 }

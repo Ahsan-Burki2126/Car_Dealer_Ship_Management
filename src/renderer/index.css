@@ -2,9 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme: CSS custom properties ───────────────────────────────────────── */
+:root {
+  --theme-transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+/* Eco / Hybrid theme overrides */
+.theme-eco {
+  --eco-bg: #ECFDF5;
+  --eco-bg-card: #FFFFFF;
+  --eco-bg-sidebar: #D1FAE5;
+  --eco-border: #A7F3D0;
+  --eco-primary: #10B981;
+  --eco-primary-hover: #059669;
+  --eco-secondary: #D1FAE5;
+  --eco-text: #065F46;
+  --eco-text-muted: #047857;
+  --eco-input-bg: #F0FDF4;
+}
+
+.theme-eco body {
+  background-color: var(--eco-bg) !important;
+  color: var(--eco-text) !important;
+  transition: var(--theme-transition);
+}
+
 @layer base {
   body {
     @apply font-sans antialiased;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 }
 
@@ -89,11 +115,110 @@
     transition: opacity 0.15s ease;
   }
   .damage-marker circle {
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
   }
   .damage-marker:hover {
     opacity: 1 !important;
   }
+}
+
+/* ── Eco theme component overrides ─────────────────────────────────────────
+   Applied when <html> has class "theme-eco".
+   These override the Tailwind utility classes for the eco palette.
+   ────────────────────────────────────────────────────────────────────────── */
+
+.theme-eco .card,
+.theme-eco .stat-card {
+  background-color: #FFFFFF !important;
+  border-color: #A7F3D0 !important;
+  color: #065F46 !important;
+}
+
+.theme-eco aside {
+  background-color: #D1FAE5 !important;
+  border-color: #A7F3D0 !important;
+}
+
+.theme-eco header {
+  background-color: #ECFDF5 !important;
+  border-color: #A7F3D0 !important;
+}
+
+.theme-eco main {
+  background-color: #ECFDF5 !important;
+}
+
+.theme-eco .btn-primary {
+  background-color: #10B981 !important;
+  color: #FFFFFF !important;
+}
+.theme-eco .btn-primary:hover {
+  background-color: #059669 !important;
+}
+
+.theme-eco .btn-secondary {
+  background-color: #D1FAE5 !important;
+  color: #065F46 !important;
+}
+.theme-eco .btn-secondary:hover {
+  background-color: #A7F3D0 !important;
+}
+
+.theme-eco .input-field {
+  background-color: #F0FDF4 !important;
+  border-color: #6EE7B7 !important;
+  color: #065F46 !important;
+}
+.theme-eco .input-field:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25) !important;
+}
+
+.theme-eco .table-header {
+  color: #047857 !important;
+}
+.theme-eco .table-cell {
+  color: #065F46 !important;
+}
+.theme-eco tbody tr:hover {
+  background-color: #D1FAE5 !important;
+}
+
+.theme-eco .sidebar-link {
+  color: #065F46 !important;
+}
+.theme-eco .sidebar-link:hover {
+  background-color: #A7F3D0 !important;
+  color: #064E3B !important;
+}
+.theme-eco .sidebar-link-active {
+  background-color: #10B981 !important;
+  color: #FFFFFF !important;
+}
+
+.theme-eco h1,
+.theme-eco h2,
+.theme-eco h3 {
+  color: #064E3B !important;
+}
+
+.theme-eco p,
+.theme-eco span,
+.theme-eco label {
+  color: inherit;
+}
+
+.theme-eco .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #A7F3D0 !important;
+}
+
+.theme-eco .border-gray-200 {
+  border-color: #A7F3D0 !important;
+}
+
+.theme-eco select option {
+  background-color: #ECFDF5;
+  color: #065F46;
 }
 
 /* ─── Inspection Print Portal ────────────────────────────────────────────────

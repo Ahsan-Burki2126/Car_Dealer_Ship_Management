@@ -13,6 +13,7 @@ import {
   FiSettings,
   FiUserCheck,
   FiDatabase,
+  FiTrendingUp,
 } from "react-icons/fi";
 
 const navItems = [
@@ -59,12 +60,18 @@ const navItems = [
     roles: ["super_admin", "admin"],
   },
   {
+    path: "/investors",
+    label: "Investors",
+    icon: FiTrendingUp,
+    roles: ["super_admin", "admin"],
+  },
+  {
     path: "/backup",
     label: "Backup",
     icon: FiDatabase,
     roles: ["super_admin", "admin"],
   },
-  { path: "/users", label: "Users", icon: FiUserCheck, roles: ["super_admin", "admin"] },
+  { path: "/users", label: "Users", icon: FiUserCheck, roles: ["super_admin"] },
   {
     path: "/settings",
     label: "Settings",
@@ -96,9 +103,7 @@ export default function Sidebar() {
               <h1 className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
                 Pak Japan Motors
               </h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Layyah
-              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Layyah</p>
             </div>
           )}
         </div>

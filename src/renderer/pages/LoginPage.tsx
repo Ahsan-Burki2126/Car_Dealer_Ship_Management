@@ -22,11 +22,28 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 to-primary-900 p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative"
+      style={{
+        backgroundImage: `url('/images/Gemini_Generated_Image_ijx1kxijx1kxijx1.png')`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+      }}
+    >
+      {/* Blurred overlay */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundColor: "rgba(0, 0, 0, 0)",
+        }}
+      />
+
+      {/* Content */}
+      <div className="w-full max-w-md relative z-10">
+        <div className="rounded-2xl shadow-2xl p-8 border border-white/10 dark:border-gray-700/10">
           {/* Logo */}
-          <div className="text-center mb-8">
+          {/* <div className="text-center mb-8">
             <div className="w-16 h-16 mx-auto rounded-xl bg-primary-600 flex items-center justify-center mb-4">
               <FiTruck className="text-white text-3xl" />
             </div>
@@ -36,7 +53,7 @@ export default function LoginPage() {
             <p className="text-gray-500 dark:text-gray-400 mt-1">
               Layyah — Sign in to your account
             </p>
-          </div>
+          </div> */}
 
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
@@ -86,9 +103,9 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-xs text-gray-400">
+          {/* <p className="mt-6 text-center text-xs text-gray-400">
             Default: superadmin / admin123
-          </p>
+          </p> */}
         </div>
       </div>
     </div>

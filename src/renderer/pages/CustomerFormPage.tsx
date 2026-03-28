@@ -126,8 +126,10 @@ export default function CustomerFormPage() {
       const errs: Record<string, string> = {};
       if (s === 0) {
         if (!form.name.trim()) errs.name = "Full name is required";
-        if (form.cnic && !isValidCnic(form.cnic))
-          errs.cnic = "Invalid CNIC format (XXXXX-XXXXXXX-X)";
+        if (!form.phone.trim()) errs.phone = "Phone number is required";
+        if (!form.cnic.trim()) errs.cnic = "CNIC is required";
+        else if (!isValidCnic(form.cnic)) errs.cnic = "Invalid CNIC format (XXXXX-XXXXXXX-X)";
+        if (!form.father_name.trim()) errs.father_name = "Father's name is required";
       }
       setErrors(errs);
       if (Object.keys(errs).length > 0) {
@@ -168,19 +170,21 @@ export default function CustomerFormPage() {
             value={form.name}
             onChange={(e) => update("name", e.target.value)}
             className={`input-field ${errors.name ? "border-red-500" : ""}`}
+            required
           />
           {fieldError("name")}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Father's Name
+            Father's Name *
           </label>
           <input
             type="text"
             value={form.father_name}
             onChange={(e) => update("father_name", e.target.value)}
-            className="input-field"
+            className={`input-field ${errors.father_name ? "border-red-500" : ""}`}
           />
+          {fieldError("father_name")}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -195,7 +199,7 @@ export default function CustomerFormPage() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            CNIC
+            CNIC *
           </label>
           <input
             type="text"
@@ -204,19 +208,21 @@ export default function CustomerFormPage() {
             className={`input-field ${errors.cnic ? "border-red-500" : ""}`}
             placeholder={CNIC_PLACEHOLDER}
             maxLength={15}
+            required
           />
           {fieldError("cnic")}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Phone
+            Phone *
           </label>
           <input
             type="text"
             value={form.phone}
             onChange={(e) => update("phone", e.target.value)}
-            className="input-field"
+            className={`input-field ${errors.phone ? "border-red-500" : ""}`}
           />
+          {fieldError("phone")}
         </div>
       </div>
     </div>

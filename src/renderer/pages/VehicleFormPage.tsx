@@ -5,10 +5,11 @@ import type { RootState } from "../store";
 import type { Vehicle, VehicleInspection } from "../../shared/types";
 import { formatCnic, isValidCnic, CNIC_PLACEHOLDER } from "../../shared/constants";
 import { toast } from "react-toastify";
-import { FiArrowLeft } from "react-icons/fi";
+import { FiArrowLeft, FiFileText, FiUploadCloud, FiSkipForward } from "react-icons/fi";
 import { toFileUrl } from "../utils/filePaths";
 import ErrorBoundary from "../components/ErrorBoundary";
 import FormStepper, { StepNavigation } from "../components/FormStepper";
+import { generatePurchaseReportPdf } from "../utils/pdfGenerator";
 
 const IMG_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='140'%3E%3Crect width='200' height='140' fill='%23e5e7eb'/%3E%3Ctext x='100' y='76' text-anchor='middle' fill='%239ca3af' font-size='13' font-family='sans-serif'%3ENo image%3C/text%3E%3C/svg%3E";
@@ -44,6 +45,9 @@ export default function VehicleFormPage() {
   const isEdit = Boolean(id);
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [savedFormData, setSavedFormData] = useState<typeof form | null>(null);
+  const [pdfSaving, setPdfSaving] = useState(false);
 
   const [form, setForm] = useState({
     photo_path: "",
@@ -152,10 +156,49 @@ export default function VehicleFormPage() {
 
     if (result.success) {
       toast.success(isEdit ? "Vehicle updated" : "Vehicle added");
-      navigate(isEdit ? `/vehicles/${id}` : "/vehicles");
+      if (!isEdit) {
+        setSavedFormData(form);
+        setShowPdfModal(true);
+      } else {
+        navigate(`/vehicles/${id}`);
+      }
     } else {
       toast.error(result.error);
     }
+  };
+
+  const handlePdfSave = async (uploadToDrive: boolean) => {
+    if (!savedFormData || !user) return;
+    setPdfSaving(true);
+    try {
+      const doc = generatePurchaseReportPdf({
+        ...savedFormData,
+        purchase_price: parseFloat(savedFormData.purchase_price) || 0,
+      });
+      const pdfBytes = new Uint8Array(doc.output("arraybuffer"));
+      const chassis = (savedFormData.chassis_number || "").trim().replace(/[^a-zA-Z0-9]/g, "_");
+      const fileName = chassis
+        ? `${chassis}.pdf`
+        : `purchase_report_${new Date().toISOString().split("T")[0]}.pdf`;
+
+      const result = await (window.api as any).savePdfToBackup(
+        user.id,
+        pdfBytes,
+        fileName,
+        uploadToDrive,
+      );
+      if (result.success) {
+        const driveMsg = uploadToDrive && result.data?.driveFileId ? " & uploaded to Google Drive" : "";
+        toast.success(`Purchase report saved locally${driveMsg}`);
+      } else {
+        toast.error(result.error || "Failed to save PDF");
+      }
+    } catch (err) {
+      toast.error("Failed to generate PDF");
+    }
+    setPdfSaving(false);
+    setShowPdfModal(false);
+    navigate("/vehicles");
   };
 
   const updateForm = (field: string, value: any) =>
@@ -212,10 +255,15 @@ export default function VehicleFormPage() {
         if (!form.make.trim()) errs.make = "Make is required";
         if (!form.model.trim()) errs.model = "Model is required";
         if (!form.year_of_manufacture) errs.year_of_manufacture = "Year of manufacture is required";
+        if (!form.chassis_number.trim()) errs.chassis_number = "Chassis number is required";
+        if (!form.engine_number.trim()) errs.engine_number = "Engine number is required";
+        if (!form.color.trim()) errs.color = "Color is required";
       }
       if (s === 1) {
         if (!form.purchase_price || parseFloat(form.purchase_price) <= 0)
           errs.purchase_price = "Purchase price is required";
+        if (!form.purchase_date) errs.purchase_date = "Purchase date is required";
+        if (!form.seller_name.trim()) errs.seller_name = "Seller name is required";
         if (form.seller_cnic && !isValidCnic(form.seller_cnic))
           errs.seller_cnic = "Invalid CNIC format (XXXXX-XXXXXXX-X)";
       }
@@ -341,36 +389,40 @@ export default function VehicleFormPage() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Chassis Number
+            Chassis Number *
           </label>
           <input
             type="text"
             value={form.chassis_number}
-            onChange={(e) => updateForm("chassis_number", e.target.value)}
-            className="input-field"
+            onChange={(e) => updateForm("chassis_number", e.target.value.toUpperCase())}
+            className={`input-field ${errors.chassis_number ? "border-red-500" : ""}`}
+            placeholder="e.g. ABC123XYZ456789"
           />
+          {fieldError("chassis_number")}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Engine Number
+            Engine Number *
           </label>
           <input
             type="text"
             value={form.engine_number}
-            onChange={(e) => updateForm("engine_number", e.target.value)}
-            className="input-field"
+            onChange={(e) => updateForm("engine_number", e.target.value.toUpperCase())}
+            className={`input-field ${errors.engine_number ? "border-red-500" : ""}`}
           />
+          {fieldError("engine_number")}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Color
+            Color *
           </label>
           <input
             type="text"
             value={form.color}
             onChange={(e) => updateForm("color", e.target.value)}
-            className="input-field"
+            className={`input-field ${errors.color ? "border-red-500" : ""}`}
           />
+          {fieldError("color")}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -483,14 +535,16 @@ export default function VehicleFormPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Purchase Date
+            Purchase Date *
           </label>
           <input
             type="date"
             value={form.purchase_date}
             onChange={(e) => updateForm("purchase_date", e.target.value)}
-            className="input-field"
+            className={`input-field ${errors.purchase_date ? "border-red-500" : ""}`}
+            required
           />
+          {fieldError("purchase_date")}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -506,14 +560,15 @@ export default function VehicleFormPage() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Seller Name
+            Seller Name *
           </label>
           <input
             type="text"
             value={form.seller_name}
             onChange={(e) => updateForm("seller_name", e.target.value)}
-            className="input-field"
+            className={`input-field ${errors.seller_name ? "border-red-500" : ""}`}
           />
+          {fieldError("seller_name")}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -916,6 +971,58 @@ export default function VehicleFormPage() {
         onSubmit={handleSubmit}
         submitLabel={isEdit ? "Update Vehicle" : "Save Vehicle"}
       />
+
+      {/* PDF Save Modal */}
+      {showPdfModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <FiFileText className="text-blue-600 dark:text-blue-400" size={32} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                  Generate Purchase Report?
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Vehicle added successfully. Would you like to generate and save the purchase report PDF?
+                  {savedFormData?.chassis_number && (
+                    <span className="block mt-1 font-medium text-gray-700 dark:text-gray-300">
+                      File will be saved as: <span className="text-blue-600">{savedFormData.chassis_number}.pdf</span>
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="flex flex-col w-full gap-3 mt-2">
+                <button
+                  onClick={() => handlePdfSave(true)}
+                  disabled={pdfSaving}
+                  className="btn-primary flex items-center justify-center gap-2 w-full disabled:opacity-50"
+                >
+                  <FiUploadCloud size={16} />
+                  {pdfSaving ? "Saving..." : "Yes — Save Locally & Upload to Google Drive"}
+                </button>
+                <button
+                  onClick={() => handlePdfSave(false)}
+                  disabled={pdfSaving}
+                  className="btn-secondary flex items-center justify-center gap-2 w-full disabled:opacity-50"
+                >
+                  <FiFileText size={16} />
+                  Yes — Save Locally Only
+                </button>
+                <button
+                  onClick={() => { setShowPdfModal(false); navigate("/vehicles"); }}
+                  disabled={pdfSaving}
+                  className="flex items-center justify-center gap-2 w-full py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-50"
+                >
+                  <FiSkipForward size={14} />
+                  Skip — Don't Generate PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

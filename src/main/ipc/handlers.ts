@@ -69,13 +69,18 @@ export function registerIpcHandlers(): void {
         const db = getDatabase();
         const bcrypt = require("bcryptjs");
         const superadmin = db
-          .prepare("SELECT password_hash FROM users WHERE role = 'super_admin' AND is_active = 1 LIMIT 1")
+          .prepare(
+            "SELECT password_hash FROM users WHERE role = 'super_admin' AND is_active = 1 LIMIT 1",
+          )
           .get() as { password_hash: string } | undefined;
         if (!superadmin) {
           return { success: false, error: "No superadmin account found" };
         }
         const valid = bcrypt.compareSync(password, superadmin.password_hash);
-        return { success: valid, error: valid ? undefined : "Invalid superadmin password" };
+        return {
+          success: valid,
+          error: valid ? undefined : "Invalid superadmin password",
+        };
       } catch (e) {
         return handleError(e);
       }
@@ -121,7 +126,7 @@ export function registerIpcHandlers(): void {
     "auth:deleteUser",
     async (_event, adminId: string, userId: string) => {
       try {
-        requireRole(adminId, ["super_admin", "admin"]);
+        requireRole(adminId, ["super_admin"]);
         authService.deleteUser(adminId, userId);
         return { success: true };
       } catch (e) {
@@ -517,10 +522,10 @@ export function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.handle("reports:profit", async (_event, userId: string) => {
+  ipcMain.handle("reports:profit", async (_event, userId: string, period?: string, date?: string) => {
     try {
       requireRole(userId, ["super_admin", "admin"]);
-      return { success: true, data: reportService.getProfitReport() };
+      return { success: true, data: reportService.getProfitReport(period as any, date) };
     } catch (e) {
       return handleError(e);
     }
@@ -927,6 +932,146 @@ export function registerIpcHandlers(): void {
         return handleError(e);
       }
     },
+  );
+
+  // =========== INVESTORS ===========
+  ipcMain.handle("investors:getAll", async (_event, userId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const db = getDatabase();
+      const rows = db.prepare(`
+        SELECT i.*,
+          COALESCE((SELECT SUM(w.amount) FROM investor_withdrawals w WHERE w.investor_id = i.id), 0) AS total_withdrawn
+        FROM investors i
+        WHERE i.is_active = 1
+        ORDER BY i.created_at DESC
+      `).all();
+      return { success: true, data: rows };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("investors:add", async (_event, userId: string, data: any) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const db = getDatabase();
+      const { v4: uuidv4Local } = require("uuid");
+      const id = uuidv4Local();
+      db.prepare(
+        `INSERT INTO investors (id, name, contact, investment_amount, notes, photo_path, cnic_photo_front_path, cnic_photo_back_path, address, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(id, data.name, data.contact || "", data.investment_amount || 0, data.notes || "",
+        data.photo_path || "", data.cnic_photo_front_path || "", data.cnic_photo_back_path || "",
+        data.address || "", userId);
+      const investor = db.prepare("SELECT * FROM investors WHERE id = ?").get(id);
+      return { success: true, data: investor };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("investors:delete", async (_event, userId: string, investorId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const db = getDatabase();
+      db.prepare("UPDATE investors SET is_active = 0 WHERE id = ?").run(investorId);
+      return { success: true };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("investors:update", async (_event, userId: string, investorId: string, data: any) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const db = getDatabase();
+      db.prepare(
+        `UPDATE investors SET name = ?, contact = ?, investment_amount = ?, notes = ?,
+         photo_path = ?, cnic_photo_front_path = ?, cnic_photo_back_path = ?, address = ?,
+         updated_at = datetime('now') WHERE id = ?`
+      ).run(data.name, data.contact || "", data.investment_amount || 0, data.notes || "",
+        data.photo_path || "", data.cnic_photo_front_path || "", data.cnic_photo_back_path || "",
+        data.address || "", investorId);
+      const investor = db.prepare("SELECT * FROM investors WHERE id = ?").get(investorId);
+      return { success: true, data: investor };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  // =========== INVESTOR WITHDRAWALS ===========
+  ipcMain.handle("investorWithdrawals:add", async (_event, userId: string, data: any) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const db = getDatabase();
+      const { v4: uuidv4Local } = require("uuid");
+      const id = uuidv4Local();
+      db.prepare(
+        `INSERT INTO investor_withdrawals (id, investor_id, amount, date, reason, notes, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).run(id, data.investor_id, data.amount, data.date, data.reason, data.notes || "", userId);
+      const withdrawal = db.prepare("SELECT * FROM investor_withdrawals WHERE id = ?").get(id);
+      return { success: true, data: withdrawal };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("investorWithdrawals:getByInvestor", async (_event, userId: string, investorId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const db = getDatabase();
+      const rows = db.prepare(
+        "SELECT * FROM investor_withdrawals WHERE investor_id = ? ORDER BY date DESC, created_at DESC"
+      ).all(investorId);
+      return { success: true, data: rows };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("investorWithdrawals:delete", async (_event, userId: string, withdrawalId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const db = getDatabase();
+      db.prepare("DELETE FROM investor_withdrawals WHERE id = ?").run(withdrawalId);
+      return { success: true };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  // =========== PDF SAVE TO LOCAL BACKUP ===========
+  ipcMain.handle(
+    "files:savePdfToBackup",
+    async (_event, userId: string, pdfData: Uint8Array, fileName: string, uploadToGoogleDrive: boolean) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        const backupDir = path.join(app.getPath("userData"), "purchase-reports");
+        if (!fs.existsSync(backupDir)) {
+          fs.mkdirSync(backupDir, { recursive: true });
+        }
+        const safeName = fileName.replace(/[^a-zA-Z0-9_\-\.]/g, "_");
+        const localPath = path.join(backupDir, safeName.endsWith(".pdf") ? safeName : `${safeName}.pdf`);
+        fs.writeFileSync(localPath, Buffer.from(pdfData));
+
+        let driveFileId: string | null = null;
+        if (uploadToGoogleDrive) {
+          try {
+            const googleDriveService = require("../services/googleDriveService");
+            if (googleDriveService.isAuthenticated()) {
+              driveFileId = await googleDriveService.uploadFile(localPath, safeName.endsWith(".pdf") ? safeName : `${safeName}.pdf`, "application/pdf");
+            }
+          } catch (driveErr) {
+            console.error("Google Drive upload failed:", driveErr);
+          }
+        }
+        return { success: true, data: { localPath, driveFileId } };
+      } catch (e) {
+        return handleError(e);
+      }
+    }
   );
 
   ipcMain.handle(

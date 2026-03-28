@@ -9,6 +9,14 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
   const purchaseDate =
     data.purchase_date || new Date().toISOString().split("T")[0];
 
+  // Enforce unique chassis number
+  if (data.chassis_number && data.chassis_number.trim()) {
+    const existing = db.prepare(
+      "SELECT id FROM vehicles WHERE chassis_number = ? AND chassis_number != '' AND is_deleted = 0"
+    ).get(data.chassis_number.trim());
+    if (existing) throw new Error(`A vehicle with chassis number "${data.chassis_number.trim()}" already exists.`);
+  }
+
   const inspectionJson = data.vehicleInspection
     ? JSON.stringify(data.vehicleInspection)
     : null;
@@ -242,6 +250,14 @@ export function updateVehicle(
     .prepare("SELECT * FROM vehicles WHERE id = ? AND is_deleted = 0")
     .get(id) as any;
   if (!existing) throw new Error("Vehicle not found");
+
+  // Enforce unique chassis number on update (exclude current vehicle)
+  if (data.chassis_number && data.chassis_number.trim()) {
+    const duplicate = db.prepare(
+      "SELECT id FROM vehicles WHERE chassis_number = ? AND chassis_number != '' AND is_deleted = 0 AND id != ?"
+    ).get(data.chassis_number.trim(), id);
+    if (duplicate) throw new Error(`A vehicle with chassis number "${data.chassis_number.trim()}" already exists.`);
+  }
 
   const updates: string[] = [];
   const values: any[] = [];

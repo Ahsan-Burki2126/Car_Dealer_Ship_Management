@@ -262,40 +262,32 @@ export function deleteUser(adminId: string, userId: string): void {
   const admin = db
     .prepare("SELECT role, username FROM users WHERE id = ?")
     .get(adminId) as { role: UserRole; username: string } | undefined;
-  if (!admin || (admin.role !== "super_admin" && admin.role !== "admin")) {
-    throw new Error("Only Super Admin or Admin can delete users");
+  if (!admin || admin.role !== "super_admin") {
+    throw new Error("Only Super Admin can delete users");
   }
   if (adminId === userId) {
     throw new Error("You cannot delete your own account");
   }
 
   const existing = db
-    .prepare("SELECT id, username, role, is_active FROM users WHERE id = ?")
+    .prepare("SELECT id, username, role FROM users WHERE id = ?")
     .get(userId) as
-    | { id: string; username: string; role: UserRole; is_active: number }
+    | { id: string; username: string; role: UserRole }
     | undefined;
   if (!existing) {
     throw new Error("User not found");
   }
-  if (!existing.is_active) {
-    throw new Error("User is already deleted");
-  }
 
   if (existing.role === "super_admin") {
     const superAdminCount = db
-      .prepare(
-        "SELECT COUNT(*) as count FROM users WHERE role = 'super_admin' AND is_active = 1",
-      )
+      .prepare("SELECT COUNT(*) as count FROM users WHERE role = 'super_admin'")
       .get() as { count: number };
     if (superAdminCount.count <= 1) {
-      throw new Error("Cannot delete the last active Super Admin");
+      throw new Error("Cannot delete the last Super Admin");
     }
   }
 
-  db.prepare(
-    "UPDATE users SET is_active = 0, updated_at = datetime('now') WHERE id = ?",
-  ).run(userId);
-
+  // Log the deletion before hard delete
   db.prepare(
     `
     INSERT INTO audit_logs (id, user_id, username, role, action_type, affected_entity, entity_id, old_value, timestamp)
@@ -309,4 +301,7 @@ export function deleteUser(adminId: string, userId: string): void {
     userId,
     JSON.stringify({ username: existing.username, role: existing.role }),
   );
+
+  // Hard delete: permanently remove from database
+  db.prepare("DELETE FROM users WHERE id = ?").run(userId);
 }

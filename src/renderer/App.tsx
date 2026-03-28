@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState, AppDispatch } from "./store";
-import { setDarkMode } from "./store/slices/uiSlice";
+import { setDarkMode, setTheme } from "./store/slices/uiSlice";
 
 // Layout
 import MainLayout from "./components/layout/MainLayout";
@@ -25,6 +25,7 @@ import ReportsPage from "./pages/ReportsPage";
 import UsersPage from "./pages/UsersPage";
 import SettingsPage from "./pages/SettingsPage";
 import BackupPage from "./pages/BackupPage";
+import InvestorsPage from "./pages/InvestorsPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useSelector(
@@ -48,10 +49,11 @@ function RoleRoute({
 
 export default function App() {
   const dispatch = useDispatch<AppDispatch>();
-  const { darkMode } = useSelector((state: RootState) => state.ui);
+  const { darkMode, theme } = useSelector((state: RootState) => state.ui);
 
   useEffect(() => {
-    dispatch(setDarkMode(darkMode));
+    // Restore persisted theme on startup
+    dispatch(setTheme(theme));
   }, []);
 
   return (
@@ -165,7 +167,7 @@ export default function App() {
         <Route
           path="users"
           element={
-            <RoleRoute roles={["super_admin", "admin"]}>
+            <RoleRoute roles={["super_admin"]}>
               <UsersPage />
             </RoleRoute>
           }
@@ -179,6 +181,14 @@ export default function App() {
           }
         />
         <Route path="settings" element={<SettingsPage />} />
+        <Route
+          path="investors"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <InvestorsPage />
+            </RoleRoute>
+          }
+        />
       </Route>
     </Routes>
   );
