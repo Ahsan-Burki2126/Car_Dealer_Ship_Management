@@ -72,8 +72,16 @@
       "dist/**/*",
       "node_modules/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "public/images/PAK_JAPAN logo.png",
+        "to": "icons/app-icon.png"
+      }
+    ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "signAndEditExecutable": false,
+      "icon": "public/images/PAK_JAPAN logo.png"
     }
   }
 }

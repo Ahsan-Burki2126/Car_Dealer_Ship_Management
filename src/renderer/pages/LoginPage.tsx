@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import type { AppDispatch, RootState } from "../store";
 import { loginUser, clearError } from "../store/slices/authSlice";
 import { FiTruck, FiLock, FiUser } from "react-icons/fi";
+import bgImage from "../assets/Gemini_Generated_Image_ijx1kxijx1kxijx1.png";
 
 export default function LoginPage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -25,7 +26,7 @@ export default function LoginPage() {
     <div
       className="min-h-screen flex items-center justify-center p-4 relative"
       style={{
-        backgroundImage: `url('/images/Gemini_Generated_Image_ijx1kxijx1kxijx1.png')`,
+        backgroundImage: `url('${bgImage}')`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundAttachment: "fixed",

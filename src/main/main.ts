@@ -5,6 +5,7 @@ import {
   globalShortcut,
   protocol,
   net,
+  Menu,
 } from "electron";
 import path from "path";
 import http from "http";
@@ -96,12 +97,20 @@ function findVitePort(): Promise<number> {
 }
 
 async function createWindow(): Promise<void> {
+  // Remove the native menu bar (File, Edit, View, …) in all modes
+  Menu.setApplicationMenu(null);
+
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, "icons/app-icon.png")
+    : path.join(__dirname, "../../../public/images/PAK_JAPAN logo.png");
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1024,
     minHeight: 768,
     title: "Pak Japan Motors, Layyah",
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -146,7 +155,7 @@ async function createWindow(): Promise<void> {
     mainWindow.loadURL(`http://localhost:${port}`);
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
+    mainWindow.loadFile(path.join(__dirname, "../../renderer/index.html"));
   }
 
   mainWindow.on("closed", () => {
