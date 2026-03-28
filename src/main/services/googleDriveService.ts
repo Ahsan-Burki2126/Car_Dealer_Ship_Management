@@ -15,13 +15,9 @@ import { OAuth2Client } from "google-auth-library";
  */
 
 // ── OAuth credentials ────────────────────────────────────────────────────
-// Replace the placeholders below with your own Google Cloud Console
-// "Desktop app" OAuth 2.0 Client credentials before building for production.
-const GOOGLE_CLIENT_ID =
-  process.env.GOOGLE_CLIENT_ID ||
-  "";
-const GOOGLE_CLIENT_SECRET =
-  process.env.GOOGLE_CLIENT_SECRET || "";
+// Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file (never commit .env).
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 const REDIRECT_PORT = 3000;
 const GOOGLE_REDIRECT_URL = `http://localhost:${REDIRECT_PORT}/auth/google/callback`;
 

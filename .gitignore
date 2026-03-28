@@ -1,1 +1,72 @@
-node_modules
+# ===========================
+# Dependencies
+# ===========================
+node_modules/
+
+# ===========================
+# Build outputs
+# ===========================
+dist/
+release/
+out/
+
+# ===========================
+# Environment & Secrets
+# ===========================
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Google OAuth credentials (never commit these)
+google-drive-config.json
+*-credentials.json
+*-oauth.json
+service-account*.json
+
+# ===========================
+# Electron userData (runtime)
+# ===========================
+# SQLite database
+*.db
+*.db-wal
+*.db-shm
+
+# User images / uploads
+images/
+
+# Backups
+Backups/
+backup-settings.json
+purchase-reports/
+
+# ===========================
+# Logs
+# ===========================
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===========================
+# OS files
+# ===========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===========================
+# Editor / IDE
+# ===========================
+.vscode/settings.json
+.idea/
+*.suo
+*.user
+
+# ===========================
+# Test artifacts
+# ===========================
+test-results/
+playwright-report/
