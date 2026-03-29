@@ -148,27 +148,36 @@ export function getDashboardStats(): DashboardStats {
 }
 
 export function getSalesReport(
-  period: "daily" | "weekly" | "monthly" | "annual",
-  date?: string,
+  period: "daily" | "weekly" | "monthly" | "annual" | "custom",
+  startOrDate?: string,
+  endDateParam?: string,
 ): EnhancedSalesReport {
   const db = getDatabase();
-  const baseDate = date ? new Date(date) : new Date();
   let startDate: string;
-  let endDate: string = format(baseDate, "yyyy-MM-dd");
+  let endDate: string;
 
-  switch (period) {
-    case "daily":
-      startDate = endDate;
-      break;
-    case "weekly":
-      startDate = format(subDays(baseDate, 7), "yyyy-MM-dd");
-      break;
-    case "monthly":
-      startDate = format(subDays(baseDate, 30), "yyyy-MM-dd");
-      break;
-    case "annual":
-      startDate = format(subDays(baseDate, 365), "yyyy-MM-dd");
-      break;
+  if (period === "custom" && startOrDate && endDateParam) {
+    startDate = startOrDate;
+    endDate = endDateParam;
+  } else {
+    const baseDate = startOrDate ? new Date(startOrDate) : new Date();
+    endDate = format(baseDate, "yyyy-MM-dd");
+    switch (period) {
+      case "daily":
+        startDate = endDate;
+        break;
+      case "weekly":
+        startDate = format(subDays(baseDate, 7), "yyyy-MM-dd");
+        break;
+      case "monthly":
+        startDate = format(subDays(baseDate, 30), "yyyy-MM-dd");
+        break;
+      case "annual":
+        startDate = format(subDays(baseDate, 365), "yyyy-MM-dd");
+        break;
+      default:
+        startDate = endDate;
+    }
   }
 
   const salesData = db
@@ -207,7 +216,16 @@ export function getSalesReport(
     .get(startDate, endDate) as any;
 
   // ── Chart breakdown data ───────────────────────────────────────────
-  const chart_data = getChartBreakdown(db, period, startDate, endDate, baseDate);
+  const chartPeriod = period === "custom"
+    ? (() => {
+        const days = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000);
+        if (days <= 14) return "weekly";
+        if (days <= 90) return "monthly";
+        return "annual";
+      })()
+    : period;
+  const baseDate = period === "custom" ? new Date(endDate) : (startOrDate ? new Date(startOrDate) : new Date());
+  const chart_data = getChartBreakdown(db, chartPeriod, startDate, endDate, baseDate);
 
   // ── Top vehicles sold in period ────────────────────────────────────
   const topVehicles = db
@@ -349,30 +367,30 @@ function getSalesDataForRange(
 }
 
 export function getProfitReport(
-  period?: "daily" | "weekly" | "monthly" | "annual",
-  date?: string,
+  period?: "daily" | "weekly" | "monthly" | "annual" | "custom",
+  startOrDate?: string,
+  endDateParam?: string,
 ): ProfitReport[] {
   const db = getDatabase();
-  const baseDate = date ? new Date(date) : new Date();
   let dateFilter = "";
   let params: string[] = [];
 
   if (period) {
     let startDate: string;
-    const endDate = format(baseDate, "yyyy-MM-dd");
-    switch (period) {
-      case "daily":
-        startDate = endDate;
-        break;
-      case "weekly":
-        startDate = format(subDays(baseDate, 7), "yyyy-MM-dd");
-        break;
-      case "monthly":
-        startDate = format(subDays(baseDate, 30), "yyyy-MM-dd");
-        break;
-      case "annual":
-        startDate = format(subDays(baseDate, 365), "yyyy-MM-dd");
-        break;
+    let endDate: string;
+    if (period === "custom" && startOrDate && endDateParam) {
+      startDate = startOrDate;
+      endDate = endDateParam;
+    } else {
+      const baseDate = startOrDate ? new Date(startOrDate) : new Date();
+      endDate = format(baseDate, "yyyy-MM-dd");
+      switch (period) {
+        case "daily": startDate = endDate; break;
+        case "weekly": startDate = format(subDays(baseDate, 7), "yyyy-MM-dd"); break;
+        case "monthly": startDate = format(subDays(baseDate, 30), "yyyy-MM-dd"); break;
+        case "annual": startDate = format(subDays(baseDate, 365), "yyyy-MM-dd"); break;
+        default: startDate = endDate; break;
+      }
     }
     dateFilter = "AND s.date BETWEEN ? AND ?";
     params = [startDate!, endDate];

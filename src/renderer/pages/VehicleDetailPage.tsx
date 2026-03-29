@@ -14,6 +14,7 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import InspectionReportPrint from "../components/inspection/InspectionReportPrint";
 import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 import { generateVehiclePurchasePdf } from "../utils/pdfGenerator";
+import AmountWords from "../components/AmountWords";
 
 // Grey SVG shown when a local image fails to load (missing file, 403, etc.)
 const IMG_PLACEHOLDER =
@@ -399,6 +400,7 @@ export default function VehicleDetailPage() {
                 className="input-field"
                 required
               />
+              <AmountWords value={expenseForm.amount} />
               <input
                 type="date"
                 value={expenseForm.date}
@@ -406,6 +408,7 @@ export default function VehicleDetailPage() {
                   setExpenseForm({ ...expenseForm, date: e.target.value })
                 }
                 className="input-field"
+                required
               />
               <input
                 type="text"

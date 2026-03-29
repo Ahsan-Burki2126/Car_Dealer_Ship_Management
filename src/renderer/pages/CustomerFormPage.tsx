@@ -183,6 +183,7 @@ export default function CustomerFormPage() {
             value={form.father_name}
             onChange={(e) => update("father_name", e.target.value)}
             className={`input-field ${errors.father_name ? "border-red-500" : ""}`}
+            required
           />
           {fieldError("father_name")}
         </div>
@@ -221,6 +222,7 @@ export default function CustomerFormPage() {
             value={form.phone}
             onChange={(e) => update("phone", e.target.value)}
             className={`input-field ${errors.phone ? "border-red-500" : ""}`}
+            required
           />
           {fieldError("phone")}
         </div>
@@ -331,6 +333,7 @@ export default function CustomerFormPage() {
             value={form.address}
             onChange={(e) => update("address", e.target.value)}
             className="input-field"
+            required
           />
         </div>
 

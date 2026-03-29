@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Suspense, useCallback } from "react";
+import React, { useEffect, useState, Suspense, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
@@ -10,6 +10,7 @@ import { toFileUrl } from "../utils/filePaths";
 import ErrorBoundary from "../components/ErrorBoundary";
 import FormStepper, { StepNavigation } from "../components/FormStepper";
 import { generatePurchaseReportPdf } from "../utils/pdfGenerator";
+import AmountWords from "../components/AmountWords";
 
 const IMG_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='140'%3E%3Crect width='200' height='140' fill='%23e5e7eb'/%3E%3Ctext x='100' y='76' text-anchor='middle' fill='%239ca3af' font-size='13' font-family='sans-serif'%3ENo image%3C/text%3E%3C/svg%3E";
@@ -30,13 +31,7 @@ const VehicleInspectionSVG = React.lazy(() =>
   }),
 );
 
-const STEPS = [
-  { label: "Vehicle Details" },
-  { label: "Seller & Purchase" },
-  { label: "Witness" },
-  { label: "Inspection" },
-  { label: "Review" },
-];
+const WITNESS_CONFIRM_STEP = 2; // always present
 
 export default function VehicleFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -77,6 +72,7 @@ export default function VehicleFormPage() {
     seller_address: "",
     seller_cnic: "",
     seller_phone: "",
+    seller_witness_required: false as boolean,
     seller_witness_name: "",
     seller_witness_father_name: "",
     seller_witness_cnic: "",
@@ -124,6 +120,7 @@ export default function VehicleFormPage() {
         seller_address: v.seller_address || "",
         seller_cnic: v.seller_cnic || "",
         seller_phone: v.seller_phone || "",
+        seller_witness_required: Boolean(v.seller_witness_name || v.seller_witness_cnic),
         seller_witness_name: v.seller_witness_name || "",
         seller_witness_father_name: v.seller_witness_father_name || "",
         seller_witness_cnic: v.seller_witness_cnic || "",
@@ -248,6 +245,23 @@ export default function VehicleFormPage() {
     updateForm("seller_cnic_photo_back_path", saved.data);
   };
 
+  // Dynamic steps
+  const STEPS = useMemo(() => {
+    const base = [
+      { label: "Vehicle Details" },
+      { label: "Seller & Purchase" },
+      { label: "Witness?" },
+    ];
+    if (form.seller_witness_required) base.push({ label: "Witness" });
+    base.push({ label: "Inspection" });
+    base.push({ label: "Review" });
+    return base;
+  }, [form.seller_witness_required]);
+
+  const witnessStepIdx     = form.seller_witness_required ? WITNESS_CONFIRM_STEP + 1 : -1;
+  const inspectionStepIdx  = form.seller_witness_required ? WITNESS_CONFIRM_STEP + 2 : WITNESS_CONFIRM_STEP + 1;
+  const reviewStepIdx      = form.seller_witness_required ? WITNESS_CONFIRM_STEP + 3 : WITNESS_CONFIRM_STEP + 2;
+
   const validateStep = useCallback(
     (s: number): boolean => {
       const errs: Record<string, string> = {};
@@ -267,19 +281,18 @@ export default function VehicleFormPage() {
         if (form.seller_cnic && !isValidCnic(form.seller_cnic))
           errs.seller_cnic = "Invalid CNIC format (XXXXX-XXXXXXX-X)";
       }
-      if (s === 2) {
+      if (s === witnessStepIdx && form.seller_witness_required) {
         if (form.seller_witness_cnic && !isValidCnic(form.seller_witness_cnic))
           errs.seller_witness_cnic = "Invalid CNIC format (XXXXX-XXXXXXX-X)";
       }
       setErrors(errs);
       if (Object.keys(errs).length > 0) {
-        const msg = Object.values(errs)[0];
-        toast.error(msg);
+        toast.error(Object.values(errs)[0]);
         return false;
       }
       return true;
     },
-    [form],
+    [form, witnessStepIdx],
   );
 
   const goNext = () => {
@@ -337,6 +350,7 @@ export default function VehicleFormPage() {
             value={form.make}
             onChange={(e) => updateForm("make", e.target.value)}
             className={`input-field ${errors.make ? "border-red-500" : ""}`}
+            required
           />
           {fieldError("make")}
         </div>
@@ -349,6 +363,7 @@ export default function VehicleFormPage() {
             value={form.model}
             onChange={(e) => updateForm("model", e.target.value)}
             className={`input-field ${errors.model ? "border-red-500" : ""}`}
+            required
           />
           {fieldError("model")}
         </div>
@@ -361,6 +376,7 @@ export default function VehicleFormPage() {
             value={form.year_of_manufacture}
             onChange={(e) => updateForm("year_of_manufacture", parseInt(e.target.value))}
             className={`input-field ${errors.year_of_manufacture ? "border-red-500" : ""}`}
+            required
           />
           {fieldError("year_of_manufacture")}
         </div>
@@ -397,6 +413,7 @@ export default function VehicleFormPage() {
             onChange={(e) => updateForm("chassis_number", e.target.value.toUpperCase())}
             className={`input-field ${errors.chassis_number ? "border-red-500" : ""}`}
             placeholder="e.g. ABC123XYZ456789"
+            required
           />
           {fieldError("chassis_number")}
         </div>
@@ -409,6 +426,7 @@ export default function VehicleFormPage() {
             value={form.engine_number}
             onChange={(e) => updateForm("engine_number", e.target.value.toUpperCase())}
             className={`input-field ${errors.engine_number ? "border-red-500" : ""}`}
+            required
           />
           {fieldError("engine_number")}
         </div>
@@ -421,6 +439,7 @@ export default function VehicleFormPage() {
             value={form.color}
             onChange={(e) => updateForm("color", e.target.value)}
             className={`input-field ${errors.color ? "border-red-500" : ""}`}
+            required
           />
           {fieldError("color")}
         </div>
@@ -555,7 +574,9 @@ export default function VehicleFormPage() {
             value={form.purchase_price}
             onChange={(e) => updateForm("purchase_price", e.target.value)}
             className={`input-field ${errors.purchase_price ? "border-red-500" : ""}`}
+            required
           />
+          <AmountWords value={form.purchase_price} />
           {fieldError("purchase_price")}
         </div>
         <div>
@@ -567,6 +588,7 @@ export default function VehicleFormPage() {
             value={form.seller_name}
             onChange={(e) => updateForm("seller_name", e.target.value)}
             className={`input-field ${errors.seller_name ? "border-red-500" : ""}`}
+            required
           />
           {fieldError("seller_name")}
         </div>
@@ -579,6 +601,7 @@ export default function VehicleFormPage() {
             value={form.seller_father_name}
             onChange={(e) => updateForm("seller_father_name", e.target.value)}
             className="input-field"
+            required
           />
         </div>
         <div>
@@ -603,6 +626,7 @@ export default function VehicleFormPage() {
             className={`input-field ${errors.seller_cnic ? "border-red-500" : ""}`}
             placeholder={CNIC_PLACEHOLDER}
             maxLength={15}
+            required
           />
           {fieldError("seller_cnic")}
         </div>
@@ -615,6 +639,7 @@ export default function VehicleFormPage() {
             value={form.seller_phone}
             onChange={(e) => updateForm("seller_phone", e.target.value)}
             className="input-field"
+            required
           />
         </div>
         <div className="md:col-span-3">
@@ -626,6 +651,7 @@ export default function VehicleFormPage() {
             value={form.seller_address}
             onChange={(e) => updateForm("seller_address", e.target.value)}
             className="input-field"
+            required
           />
         </div>
         <div className="md:col-span-3">
@@ -713,6 +739,51 @@ export default function VehicleFormPage() {
     </div>
   );
 
+  const renderWitnessConfirmation = () => (
+    <div className="card">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        Witness
+      </h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+        Is there a witness for this purchase?
+      </p>
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          type="button"
+          onClick={() => {
+            updateForm("seller_witness_required", true);
+            setStep(WITNESS_CONFIRM_STEP + 1);
+          }}
+          className={`p-6 rounded-xl border-2 text-center transition-all ${
+            form.seller_witness_required
+              ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+              : "border-gray-200 dark:border-gray-700 hover:border-blue-300"
+          }`}
+        >
+          <p className="text-2xl mb-2">✅</p>
+          <p className="font-semibold text-gray-900 dark:text-white">Yes, add witness</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Proceed to witness details</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            updateForm("seller_witness_required", false);
+            setStep(WITNESS_CONFIRM_STEP + 1);
+          }}
+          className={`p-6 rounded-xl border-2 text-center transition-all ${
+            form.seller_witness_required === false
+              ? "border-gray-400 bg-gray-50 dark:bg-gray-700/30"
+              : "border-gray-200 dark:border-gray-700 hover:border-gray-400"
+          }`}
+        >
+          <p className="text-2xl mb-2">⏭️</p>
+          <p className="font-semibold text-gray-900 dark:text-white">No witness</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Skip and continue</p>
+        </button>
+      </div>
+    </div>
+  );
+
   const renderWitness = () => (
     <div className="space-y-6">
       {/* Seller Witness */}
@@ -730,6 +801,7 @@ export default function VehicleFormPage() {
               value={form.seller_witness_name}
               onChange={(e) => updateForm("seller_witness_name", e.target.value)}
               className="input-field"
+              required={form.seller_witness_required}
             />
           </div>
           <div>
@@ -741,6 +813,7 @@ export default function VehicleFormPage() {
               value={form.seller_witness_father_name}
               onChange={(e) => updateForm("seller_witness_father_name", e.target.value)}
               className="input-field"
+              required={form.seller_witness_required}
             />
           </div>
           <div>
@@ -754,6 +827,7 @@ export default function VehicleFormPage() {
               className={`input-field ${errors.seller_witness_cnic ? "border-red-500" : ""}`}
               placeholder={CNIC_PLACEHOLDER}
               maxLength={15}
+              required={form.seller_witness_required}
             />
             {fieldError("seller_witness_cnic")}
           </div>
@@ -766,6 +840,7 @@ export default function VehicleFormPage() {
               value={form.seller_witness_phone}
               onChange={(e) => updateForm("seller_witness_phone", e.target.value)}
               className="input-field"
+              required={form.seller_witness_required}
             />
           </div>
         </div>
@@ -937,13 +1012,14 @@ export default function VehicleFormPage() {
     );
   };
 
-  const stepContent = [
-    renderVehicleDetails,
-    renderSellerPurchase,
-    renderWitness,
-    renderInspection,
-    renderReview,
-  ];
+  const getStepContent = () => {
+    if (step === 0) return renderVehicleDetails();
+    if (step === 1) return renderSellerPurchase();
+    if (step === WITNESS_CONFIRM_STEP) return renderWitnessConfirmation();
+    if (step === witnessStepIdx) return renderWitness();
+    if (step === inspectionStepIdx) return renderInspection();
+    return renderReview();
+  };
 
   return (
     <div className="space-y-6">
@@ -961,7 +1037,7 @@ export default function VehicleFormPage() {
 
       <FormStepper steps={STEPS} currentStep={step} onStepClick={goToStep} />
 
-      {stepContent[step]()}
+      {getStepContent()}
 
       <StepNavigation
         currentStep={step}

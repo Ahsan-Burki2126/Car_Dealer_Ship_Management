@@ -16,6 +16,7 @@ import { toast } from "react-toastify";
 import { FiArrowLeft, FiSearch } from "react-icons/fi";
 import { toFileUrl } from "../utils/filePaths";
 import FormStepper, { StepNavigation } from "../components/FormStepper";
+import AmountWords from "../components/AmountWords";
 
 const IMG_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='140'%3E%3Crect width='200' height='140' fill='%23e5e7eb'/%3E%3Ctext x='100' y='76' text-anchor='middle' fill='%239ca3af' font-size='13' font-family='sans-serif'%3ENo image%3C/text%3E%3C/svg%3E";
@@ -201,8 +202,8 @@ export default function SaleFormPage() {
     if (form.payment_type === "installment") {
       base.push({ label: "Installment Details" });
     }
-    // Payment method step (cash & bank transfer split)
     base.push({ label: "Payment Method" });
+    base.push({ label: "Witness?" }); // Always present — confirmation step
     if (form.witness_required) {
       base.push({ label: "Witness" });
     }
@@ -213,12 +214,13 @@ export default function SaleFormPage() {
   // Calculate step indices dynamically
   const installmentStepIndex = form.payment_type === "installment" ? 3 : -1;
   const paymentMethodStepIndex = form.payment_type === "installment" ? 4 : 3;
+  const witnessConfirmStepIndex = paymentMethodStepIndex + 1; // always present
   const witnessStepIndex = form.witness_required
-    ? paymentMethodStepIndex + 1
+    ? witnessConfirmStepIndex + 1
     : -1;
   const reviewStepIndex = form.witness_required
-    ? paymentMethodStepIndex + 2
-    : paymentMethodStepIndex + 1;
+    ? witnessConfirmStepIndex + 2
+    : witnessConfirmStepIndex + 1;
 
   // Clear location state after restoring to prevent re-restore on refresh
   useEffect(() => {
@@ -829,36 +831,6 @@ export default function SaleFormPage() {
         </div>
       )}
 
-      {/* Witness toggle */}
-      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Add witness for this sale?
-        </p>
-        <div className="flex gap-4">
-          <label className="inline-flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="witness_required"
-              checked={form.witness_required === true}
-              onChange={() => update("witness_required", true)}
-              className="rounded"
-            />
-            <span className="text-sm text-gray-700 dark:text-gray-300">
-              Yes
-            </span>
-          </label>
-          <label className="inline-flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="witness_required"
-              checked={form.witness_required === false}
-              onChange={() => update("witness_required", false)}
-              className="rounded"
-            />
-            <span className="text-sm text-gray-700 dark:text-gray-300">No</span>
-          </label>
-        </div>
-      </div>
     </div>
   );
 
@@ -877,7 +849,9 @@ export default function SaleFormPage() {
             value={form.sale_price}
             onChange={(event) => update("sale_price", event.target.value)}
             className={`input-field ${errors.sale_price ? "border-red-500" : ""}`}
+            required
           />
+          <AmountWords value={form.sale_price} />
           {fieldError("sale_price")}
         </div>
         <div>
@@ -907,7 +881,9 @@ export default function SaleFormPage() {
               value={form.down_payment}
               onChange={(event) => update("down_payment", event.target.value)}
               className="input-field"
+              required
             />
+            <AmountWords value={form.down_payment} />
           </div>
         )}
       </div>
@@ -945,6 +921,7 @@ export default function SaleFormPage() {
             }
             className="input-field"
             min={1}
+            required
           />
         </div>
         <div>
@@ -976,6 +953,7 @@ export default function SaleFormPage() {
               update("installment_start_date", event.target.value)
             }
             className="input-field"
+            required
           />
         </div>
       </div>
@@ -1011,6 +989,7 @@ export default function SaleFormPage() {
                         )
                       }
                       className="input-field py-1"
+                      required
                     />
                   </td>
                   <td className="py-1">
@@ -1025,6 +1004,7 @@ export default function SaleFormPage() {
                         )
                       }
                       className="input-field py-1 text-right"
+                      required
                     />
                   </td>
                 </tr>
@@ -1142,6 +1122,7 @@ export default function SaleFormPage() {
               className="input-field"
               placeholder="0"
             />
+            <AmountWords value={form.cash_amount} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -1157,6 +1138,7 @@ export default function SaleFormPage() {
               className="input-field"
               placeholder="0"
             />
+            <AmountWords value={form.bank_transfer_amount} />
           </div>
           {(parseFloat(form.bank_transfer_amount) || 0) > 0 && (
             <div className="md:col-span-2">
@@ -1185,6 +1167,51 @@ export default function SaleFormPage() {
     </div>
   );
 
+  const renderWitnessConfirmation = () => (
+    <div className="card">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+        Witness
+      </h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+        Is there a witness for this sale?
+      </p>
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          type="button"
+          onClick={() => {
+            update("witness_required", true);
+            setStep(witnessConfirmStepIndex + 1);
+          }}
+          className={`p-6 rounded-xl border-2 text-center transition-all ${
+            form.witness_required
+              ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+              : "border-gray-200 dark:border-gray-700 hover:border-blue-300"
+          }`}
+        >
+          <p className="text-2xl mb-2">✅</p>
+          <p className="font-semibold text-gray-900 dark:text-white">Yes, add witness</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Proceed to witness details</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            update("witness_required", false);
+            setStep(witnessConfirmStepIndex + 1);
+          }}
+          className={`p-6 rounded-xl border-2 text-center transition-all ${
+            form.witness_required === false
+              ? "border-gray-400 bg-gray-50 dark:bg-gray-700/30"
+              : "border-gray-200 dark:border-gray-700 hover:border-gray-400"
+          }`}
+        >
+          <p className="text-2xl mb-2">⏭️</p>
+          <p className="font-semibold text-gray-900 dark:text-white">No witness</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Skip and go to review</p>
+        </button>
+      </div>
+    </div>
+  );
+
   const renderWitness = () => (
     <div className="card">
       <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
@@ -1200,6 +1227,7 @@ export default function SaleFormPage() {
             value={form.witness_name}
             onChange={(event) => update("witness_name", event.target.value)}
             className="input-field"
+            required={form.witness_required}
           />
         </div>
         <div>
@@ -1213,6 +1241,7 @@ export default function SaleFormPage() {
               update("witness_father_name", event.target.value)
             }
             className="input-field"
+            required={form.witness_required}
           />
         </div>
         <div>
@@ -1228,6 +1257,7 @@ export default function SaleFormPage() {
             className={`input-field ${errors.witness_cnic ? "border-red-500" : ""}`}
             placeholder={CNIC_PLACEHOLDER}
             maxLength={15}
+            required={form.witness_required}
           />
           {fieldError("witness_cnic")}
         </div>
@@ -1240,6 +1270,7 @@ export default function SaleFormPage() {
             value={form.witness_phone}
             onChange={(event) => update("witness_phone", event.target.value)}
             className="input-field"
+            required={form.witness_required}
           />
         </div>
         <div className="md:col-span-2">
@@ -1476,8 +1507,8 @@ export default function SaleFormPage() {
     if (step === 2) return renderPayment();
     if (step === installmentStepIndex) return renderInstallmentDetails();
     if (step === paymentMethodStepIndex) return renderPaymentMethod();
-    if (form.witness_required && step === witnessStepIndex)
-      return renderWitness();
+    if (step === witnessConfirmStepIndex) return renderWitnessConfirmation();
+    if (form.witness_required && step === witnessStepIndex) return renderWitness();
     return renderReview();
   };
 
@@ -1499,14 +1530,28 @@ export default function SaleFormPage() {
 
       {getStepContent()}
 
-      <StepNavigation
-        currentStep={step}
-        totalSteps={steps.length}
-        onBack={goBack}
-        onNext={goNext}
-        onSubmit={handleSubmit}
-        submitLabel={isEdit ? "Update Sale" : "Create Sale"}
-      />
+      {/* Hide Next on the witness confirmation step — the Yes/No buttons advance it */}
+      {step !== witnessConfirmStepIndex && (
+        <StepNavigation
+          currentStep={step}
+          totalSteps={steps.length}
+          onBack={goBack}
+          onNext={goNext}
+          onSubmit={handleSubmit}
+          submitLabel={isEdit ? "Update Sale" : "Create Sale"}
+        />
+      )}
+      {step === witnessConfirmStepIndex && (
+        <div className="flex justify-start">
+          <button
+            type="button"
+            onClick={goBack}
+            className="btn-secondary"
+          >
+            Back
+          </button>
+        </div>
+      )}
     </div>
   );
 }

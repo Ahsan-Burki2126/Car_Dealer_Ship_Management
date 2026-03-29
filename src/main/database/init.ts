@@ -502,6 +502,23 @@ export function initializeDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_investor_withdrawals_investor ON investor_withdrawals(investor_id);
   `);
 
+  // Investor additions table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS investor_additions (
+      id TEXT PRIMARY KEY,
+      investor_id TEXT NOT NULL,
+      amount REAL NOT NULL,
+      date TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      notes TEXT,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (investor_id) REFERENCES investors(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_investor_additions_investor ON investor_additions(investor_id);
+  `);
+
   // Create default super admin if not exists
   const existingAdmin = database
     .prepare("SELECT id FROM users WHERE role = ?")

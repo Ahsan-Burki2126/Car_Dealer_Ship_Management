@@ -21,6 +21,8 @@ interface Sale {
   customer_name: string;
   vehicle_name: string;
   sale_price: number;
+  purchase_price: number;
+  total_cost: number;
   payment_type: string;
   status: string;
   sale_date: string;
@@ -146,7 +148,9 @@ export default function SalesPage() {
                 <th className="table-header">Customer</th>
                 <th className="table-header">Vehicle</th>
                 <th className="table-header">Type</th>
+                <th className="table-header text-right">Purchase</th>
                 <th className="table-header text-right">Sale Price</th>
+                <th className="table-header text-right">Profit</th>
                 <th className="table-header text-right">Paid</th>
                 <th className="table-header text-right">Balance</th>
                 <th className="table-header">Status</th>
@@ -157,14 +161,14 @@ export default function SalesPage() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="table-cell text-center">
+                  <td colSpan={12} className="table-cell text-center">
                     Loading...
                   </td>
                 </tr>
               ) : sales.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={12}
                     className="table-cell text-center text-gray-500"
                   >
                     No sales found
@@ -184,8 +188,14 @@ export default function SalesPage() {
                     </td>
                     <td className="table-cell">{s.vehicle_name}</td>
                     <td className="table-cell capitalize">{s.payment_type}</td>
+                    <td className="table-cell text-right text-gray-500">
+                      {formatCurrency(s.purchase_price || s.total_cost)}
+                    </td>
                     <td className="table-cell text-right">
                       {formatCurrency(s.sale_price)}
+                    </td>
+                    <td className={`table-cell text-right font-semibold ${(s.sale_price - (s.total_cost || s.purchase_price)) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {formatCurrency(s.sale_price - (s.total_cost || s.purchase_price || 0))}
                     </td>
                     <td className="table-cell text-right text-green-600">
                       {formatCurrency(s.total_paid)}

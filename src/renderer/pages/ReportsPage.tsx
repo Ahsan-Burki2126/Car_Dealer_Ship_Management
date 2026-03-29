@@ -99,6 +99,8 @@ export default function ReportsPage() {
   const { user } = useSelector((state: RootState) => state.auth);
   const [tab, setTab] = useState<ReportTab>("sales");
   const [period, setPeriod] = useState("monthly");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [salesReport, setSalesReport] = useState<SalesReport | null>(null);
   const [profitReport, setProfitReport] = useState<ProfitReportItem[]>([]);
   const [inventoryReport, setInventoryReport] =
@@ -112,17 +114,25 @@ export default function ReportsPage() {
   const [expandedVehicle, setExpandedVehicle] = useState<string | null>(null);
 
   useEffect(() => {
-    if (tab !== "vehicle_search") loadReport();
+    if (tab !== "vehicle_search" && period !== "custom") loadReport();
   }, [tab, period, user?.id]);
 
   const loadReport = async () => {
     if (!user) return;
+    if (period === "custom" && (!dateFrom || !dateTo)) {
+      toast.error("Please select both From and To dates");
+      return;
+    }
     setLoading(true);
     if (tab === "sales") {
-      const result = await window.api.getSalesReport(user!.id, period);
+      const result = period === "custom"
+        ? await window.api.getSalesReport(user!.id, "custom", dateFrom, dateTo)
+        : await window.api.getSalesReport(user!.id, period);
       if (result.success) setSalesReport(result.data);
     } else if (tab === "profit") {
-      const result = await window.api.getProfitReport(user!.id, period);
+      const result = period === "custom"
+        ? await window.api.getProfitReport(user!.id, "custom", dateFrom, dateTo)
+        : await window.api.getProfitReport(user!.id, period);
       if (result.success) setProfitReport(result.data || []);
     } else if (tab === "inventory") {
       const result = await window.api.getInventoryReport(user!.id);
@@ -144,11 +154,13 @@ export default function ReportsPage() {
     setExporting(true);
     try {
       // Also load profit + inventory for the full report
-      const profitRes = await window.api.getProfitReport(user.id);
+      const profitRes = period === "custom"
+        ? await window.api.getProfitReport(user.id, "custom", dateFrom, dateTo)
+        : await window.api.getProfitReport(user.id, period);
       const invRes = await window.api.getInventoryReport(user.id);
 
       const doc = generateSalesReportPdf({
-        period: PERIOD_LABELS[period] || period,
+        period: period === "custom" ? `${dateFrom} to ${dateTo}` : (PERIOD_LABELS[period] || period),
         periodRange: salesReport.period,
         salesReport,
         profitReport: profitRes.success ? profitRes.data || [] : [],
@@ -251,6 +263,51 @@ export default function ReportsPage() {
         ))}
       </div>
 
+      {/* ── Period / Date Range Selector ── */}
+      {tab !== "vehicle_search" && (
+        <div className="card py-3 px-4 flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-400 shrink-0">Period:</span>
+          <div className="flex flex-wrap gap-2">
+            {["daily", "weekly", "monthly", "annual", "custom"].map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 rounded text-sm capitalize ${period === p ? "bg-blue-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"}`}
+              >
+                {p === "custom" ? "Custom Range" : p.charAt(0).toUpperCase() + p.slice(1)}
+              </button>
+            ))}
+          </div>
+          {period === "custom" && (
+            <div className="flex flex-wrap items-center gap-2 ml-2">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="input-field w-auto text-sm"
+              />
+              <span className="text-gray-400 text-sm">→</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="input-field w-auto text-sm"
+              />
+              <button
+                onClick={loadReport}
+                disabled={!dateFrom || !dateTo || loading}
+                className="btn-primary text-sm py-1.5 px-4 disabled:opacity-50"
+              >
+                Generate
+              </button>
+            </div>
+          )}
+          {tab !== "inventory" && period !== "custom" && salesReport && (
+            <span className="text-xs text-gray-400 ml-auto">{salesReport.period}</span>
+          )}
+        </div>
+      )}
+
       {loading && (
         <div className="text-center py-12 text-gray-500">Loading report...</div>
       )}
@@ -258,21 +315,6 @@ export default function ReportsPage() {
       {/* ═══════════════ SALES REPORT ═══════════════ */}
       {tab === "sales" && salesReport && !loading && (
         <div className="space-y-6">
-          <div className="flex gap-2">
-            {["daily", "weekly", "monthly", "annual"].map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded text-sm ${period === p ? "bg-blue-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"}`}
-              >
-                {p.charAt(0).toUpperCase() + p.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          <div className="text-xs text-gray-400 mb-2">
-            Period: {salesReport.period}
-          </div>
 
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -479,22 +521,6 @@ export default function ReportsPage() {
       {/* ═══════════════ PROFIT REPORT ═══════════════ */}
       {tab === "profit" && !loading && (
         <div className="space-y-6">
-          {/* Period selector for profit */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Period:</span>
-            {["daily", "weekly", "monthly", "annual"].map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded text-sm ${period === p ? "bg-blue-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"}`}
-              >
-                {p.charAt(0).toUpperCase() + p.slice(1)}
-              </button>
-            ))}
-            <span className="text-xs text-gray-400 ml-1">
-              Showing vehicles sold in the selected period
-            </span>
-          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="card text-center bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
               <p className="text-2xl font-bold text-green-600">

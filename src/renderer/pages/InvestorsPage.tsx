@@ -4,10 +4,11 @@ import type { RootState } from "../store";
 import { toast } from "react-toastify";
 import {
   FiPlus, FiTrash2, FiEdit2, FiX, FiCheck, FiTrendingUp,
-  FiCamera, FiUser, FiDollarSign, FiArrowDownCircle, FiEye, FiChevronDown, FiChevronUp,
+  FiCamera, FiUser, FiDollarSign, FiArrowDownCircle, FiArrowUpCircle, FiChevronDown, FiChevronUp,
 } from "react-icons/fi";
 import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 import { toFileUrl } from "../utils/filePaths";
+import AmountWords from "../components/AmountWords";
 
 interface Investor {
   id: string;
@@ -15,11 +16,22 @@ interface Investor {
   contact: string;
   investment_amount: number;
   total_withdrawn: number;
+  total_added: number;
   notes: string;
   address: string;
   photo_path: string;
   cnic_photo_front_path: string;
   cnic_photo_back_path: string;
+  created_at: string;
+}
+
+interface Addition {
+  id: string;
+  investor_id: string;
+  amount: number;
+  date: string;
+  reason: string;
+  notes: string;
   created_at: string;
 }
 
@@ -66,6 +78,15 @@ export default function InvestorsPage() {
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [loadingWithdrawals, setLoadingWithdrawals] = useState(false);
 
+  // Addition modal
+  const [additionInvestor, setAdditionInvestor] = useState<Investor | null>(null);
+  const [additionForm, setAdditionForm] = useState({ amount: "", date: new Date().toISOString().split("T")[0], reason: "", notes: "" });
+  const [additions, setAdditions] = useState<Addition[]>([]);
+  const [loadingAdditions, setLoadingAdditions] = useState(false);
+
+  // Inline additions
+  const [inlineAdditions, setInlineAdditions] = useState<Record<string, Addition[]>>({});
+
   // Inline expand panel
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [inlineWithdrawals, setInlineWithdrawals] = useState<Record<string, Withdrawal[]>>({});
@@ -90,12 +111,11 @@ export default function InvestorsPage() {
 
   // ---- Photo upload helpers ----
   const pickPhoto = async (field: keyof typeof form) => {
-    const path = await (window.api as any).selectImage();
-    if (path) {
-      const saved = await (window.api as any).saveImage(path, "investors");
-      if (saved?.success) {
-        setForm((p) => ({ ...p, [field]: saved.path }));
-      }
+    const selected = await (window.api as any).selectImage();
+    if (!selected?.success || !selected.data) return;
+    const saved = await (window.api as any).saveImage(selected.data, "investors");
+    if (saved?.success && saved.data) {
+      setForm((p) => ({ ...p, [field]: saved.data }));
     }
   };
 
@@ -176,15 +196,23 @@ export default function InvestorsPage() {
     setExpandedId(invId);
     if (!inlineWithdrawals[invId]) {
       setLoadingInline((p) => ({ ...p, [invId]: true }));
-      const result = await (window.api as any).getInvestorWithdrawals(user!.id, invId);
-      if (result.success) setInlineWithdrawals((p) => ({ ...p, [invId]: result.data || [] }));
+      const [wRes, aRes] = await Promise.all([
+        (window.api as any).getInvestorWithdrawals(user!.id, invId),
+        (window.api as any).getInvestorAdditions(user!.id, invId),
+      ]);
+      if (wRes.success) setInlineWithdrawals((p) => ({ ...p, [invId]: wRes.data || [] }));
+      if (aRes.success) setInlineAdditions((p) => ({ ...p, [invId]: aRes.data || [] }));
       setLoadingInline((p) => ({ ...p, [invId]: false }));
     }
   };
 
   const refreshInline = async (invId: string) => {
-    const result = await (window.api as any).getInvestorWithdrawals(user!.id, invId);
-    if (result.success) setInlineWithdrawals((p) => ({ ...p, [invId]: result.data || [] }));
+    const [wRes, aRes] = await Promise.all([
+      (window.api as any).getInvestorWithdrawals(user!.id, invId),
+      (window.api as any).getInvestorAdditions(user!.id, invId),
+    ]);
+    if (wRes.success) setInlineWithdrawals((p) => ({ ...p, [invId]: wRes.data || [] }));
+    if (aRes.success) setInlineAdditions((p) => ({ ...p, [invId]: aRes.data || [] }));
   };
 
   // ---- Withdrawals ----
@@ -246,6 +274,57 @@ export default function InvestorsPage() {
     }
   };
 
+  // ---- Additions ----
+  const openAdditions = async (inv: Investor) => {
+    setAdditionInvestor(inv);
+    setAdditionForm({ amount: "", date: new Date().toISOString().split("T")[0], reason: "", notes: "" });
+    setLoadingAdditions(true);
+    const result = await (window.api as any).getInvestorAdditions(user!.id, inv.id);
+    if (result.success) setAdditions(result.data || []);
+    setLoadingAdditions(false);
+  };
+
+  const handleAddAddition = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!additionInvestor) return;
+    const amount = parseFloat(additionForm.amount);
+    if (isNaN(amount) || amount <= 0) { toast.error("Enter a valid amount"); return; }
+    if (!additionForm.reason.trim()) { toast.error("Reason is required"); return; }
+
+    const result = await (window.api as any).addInvestorAddition(user!.id, {
+      investor_id: additionInvestor.id,
+      amount,
+      date: additionForm.date,
+      reason: additionForm.reason.trim(),
+      notes: additionForm.notes.trim(),
+    });
+    if (result.success) {
+      toast.success("Additional investment recorded");
+      setAdditionForm({ amount: "", date: new Date().toISOString().split("T")[0], reason: "", notes: "" });
+      const refreshed = await (window.api as any).getInvestorAdditions(user!.id, additionInvestor.id);
+      if (refreshed.success) setAdditions(refreshed.data || []);
+      refreshInline(additionInvestor.id);
+      loadInvestors();
+    } else {
+      toast.error(result.error || "Failed to record addition");
+    }
+  };
+
+  const handleDeleteAddition = async (aId: string) => {
+    if (!additionInvestor) return;
+    if (!window.confirm("Delete this addition record?")) return;
+    const result = await (window.api as any).deleteInvestorAddition(user!.id, aId);
+    if (result.success) {
+      toast.success("Addition deleted");
+      const refreshed = await (window.api as any).getInvestorAdditions(user!.id, additionInvestor.id);
+      if (refreshed.success) setAdditions(refreshed.data || []);
+      refreshInline(additionInvestor.id);
+      loadInvestors();
+    } else {
+      toast.error(result.error || "Failed to delete addition");
+    }
+  };
+
   const handleCalculate = () => {
     const profit = parseFloat(calcProfit);
     const investment = parseFloat(calcInvestment);
@@ -257,7 +336,7 @@ export default function InvestorsPage() {
   };
 
   const fmt = (v: number) => `PKR ${v?.toLocaleString() || "0"}`;
-  const totalInvestment = investors.reduce((s, i) => s + i.investment_amount, 0);
+  const totalInvestment = investors.reduce((s, i) => s + i.investment_amount + (i.total_added || 0), 0);
   const totalWithdrawn = investors.reduce((s, i) => s + (i.total_withdrawn || 0), 0);
   const netInvestment = totalInvestment - totalWithdrawn;
 
@@ -342,6 +421,7 @@ export default function InvestorsPage() {
                   min={0}
                   required
                 />
+                <AmountWords value={form.investment_amount} />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address *</label>
@@ -459,7 +539,8 @@ export default function InvestorsPage() {
                 <th className="table-header">Investor</th>
                 <th className="table-header">Contact</th>
                 <th className="table-header">Address</th>
-                <th className="table-header text-right">Investment</th>
+                <th className="table-header text-right">Initial</th>
+                <th className="table-header text-right">Added</th>
                 <th className="table-header text-right">Withdrawn</th>
                 <th className="table-header text-right">Net</th>
                 <th className="table-header">Added</th>
@@ -468,12 +549,12 @@ export default function InvestorsPage() {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
-                <tr><td colSpan={8} className="table-cell text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={9} className="table-cell text-center py-8 text-gray-400">Loading...</td></tr>
               ) : investors.length === 0 ? (
-                <tr><td colSpan={8} className="table-cell text-center py-8 text-gray-400">No investors added yet</td></tr>
+                <tr><td colSpan={9} className="table-cell text-center py-8 text-gray-400">No investors added yet</td></tr>
               ) : (
                 investors.map((inv) => {
-                  const net = inv.investment_amount - (inv.total_withdrawn || 0);
+                  const net = inv.investment_amount + (inv.total_added || 0) - (inv.total_withdrawn || 0);
                   return (
                     <React.Fragment key={inv.id}>
                       <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
@@ -492,6 +573,9 @@ export default function InvestorsPage() {
                         <td className="table-cell text-gray-500 text-sm">{inv.contact || "-"}</td>
                         <td className="table-cell text-gray-500 text-sm max-w-[150px] truncate">{inv.address || "-"}</td>
                         <td className="table-cell text-right font-semibold text-blue-600">{fmt(inv.investment_amount)}</td>
+                        <td className="table-cell text-right font-semibold text-green-600">
+                          {inv.total_added ? fmt(inv.total_added) : "-"}
+                        </td>
                         <td className="table-cell text-right font-semibold text-red-500">
                           {inv.total_withdrawn ? fmt(inv.total_withdrawn) : "-"}
                         </td>
@@ -505,6 +589,13 @@ export default function InvestorsPage() {
                               title="View details & withdrawals"
                             >
                               {expandedId === inv.id ? <FiChevronUp size={15} /> : <FiChevronDown size={15} />}
+                            </button>
+                            <button
+                              onClick={() => openAdditions(inv)}
+                              className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                              title="Record additional investment"
+                            >
+                              <FiArrowUpCircle size={15} />
                             </button>
                             <button
                               onClick={() => openWithdrawals(inv)}
@@ -571,6 +662,54 @@ export default function InvestorsPage() {
                                 </div>
                               </div>
 
+                              {/* Additional Investments History */}
+                              <div>
+                                <p className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">
+                                  Additional Investments
+                                </p>
+                                {loadingInline[inv.id] ? (
+                                  <p className="text-sm text-gray-400 py-2">Loading...</p>
+                                ) : !inlineAdditions[inv.id] || inlineAdditions[inv.id].length === 0 ? (
+                                  <p className="text-sm text-gray-400 italic py-2">No additional investments recorded.</p>
+                                ) : (
+                                  <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
+                                    <table className="min-w-full text-sm">
+                                      <thead className="bg-gray-100 dark:bg-gray-700">
+                                        <tr>
+                                          <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">#</th>
+                                          <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Date</th>
+                                          <th className="px-3 py-2 text-right text-xs font-semibold text-gray-500 dark:text-gray-400">Amount</th>
+                                          <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Reason</th>
+                                          <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Notes</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                                        {inlineAdditions[inv.id].map((a, idx) => (
+                                          <tr key={a.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                                            <td className="px-3 py-2 text-gray-400 text-xs">{idx + 1}</td>
+                                            <td className="px-3 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                                              {new Date(a.date).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" })}
+                                            </td>
+                                            <td className="px-3 py-2 text-right font-semibold text-green-600 whitespace-nowrap">
+                                              + {fmt(a.amount)}
+                                            </td>
+                                            <td className="px-3 py-2 text-gray-700 dark:text-gray-200">{a.reason}</td>
+                                            <td className="px-3 py-2 text-gray-400 dark:text-gray-500 italic">{a.notes || "—"}</td>
+                                          </tr>
+                                        ))}
+                                        <tr className="bg-green-50 dark:bg-green-900/20 font-semibold">
+                                          <td colSpan={2} className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">Total Added</td>
+                                          <td className="px-3 py-2 text-right text-green-600">
+                                            + {fmt(inlineAdditions[inv.id].reduce((s, a) => s + a.amount, 0))}
+                                          </td>
+                                          <td colSpan={2} />
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+
                               {/* Withdrawal History */}
                               <div>
                                 <p className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">
@@ -633,6 +772,95 @@ export default function InvestorsPage() {
         </div>
       </div>
 
+      {/* Addition Modal */}
+      {additionInvestor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <FiArrowUpCircle className="text-green-600" />
+                    Additional Investment — {additionInvestor.name}
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    Current total: <span className="font-semibold text-blue-600">{fmt(additionInvestor.investment_amount + (additionInvestor.total_added || 0))}</span>
+                  </p>
+                </div>
+                <button onClick={() => setAdditionInvestor(null)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500">
+                  <FiX size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddAddition} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-4">
+                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Record New Investment</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Amount (PKR) *</label>
+                    <input type="number" value={additionForm.amount}
+                      onChange={(e) => setAdditionForm((p) => ({ ...p, amount: e.target.value }))}
+                      className="input-field text-sm" placeholder="0" min={1} required />
+                    <AmountWords value={additionForm.amount} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date *</label>
+                    <input type="date" value={additionForm.date}
+                      onChange={(e) => setAdditionForm((p) => ({ ...p, date: e.target.value }))}
+                      className="input-field text-sm" required />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Reason *</label>
+                    <input type="text" value={additionForm.reason}
+                      onChange={(e) => setAdditionForm((p) => ({ ...p, reason: e.target.value }))}
+                      className="input-field text-sm" placeholder="Why is this investment being added?" required />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
+                    <input type="text" value={additionForm.notes}
+                      onChange={(e) => setAdditionForm((p) => ({ ...p, notes: e.target.value }))}
+                      className="input-field text-sm" placeholder="Optional details" />
+                  </div>
+                </div>
+                <div className="flex justify-end mt-3">
+                  <button type="submit" className="btn-primary flex items-center gap-2 text-sm">
+                    <FiCheck size={14} /> Record Investment
+                  </button>
+                </div>
+              </form>
+
+              <div>
+                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Addition History</p>
+                {loadingAdditions ? (
+                  <p className="text-sm text-gray-400 text-center py-4">Loading...</p>
+                ) : additions.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">No additional investments recorded yet</p>
+                ) : (
+                  <div className="space-y-2">
+                    {additions.map((a) => (
+                      <div key={a.id} className="flex items-start justify-between bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg px-3 py-2.5">
+                        <div>
+                          <p className="text-sm font-semibold text-green-600">+ {fmt(a.amount)}</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{a.reason}</p>
+                          {a.notes && <p className="text-xs text-gray-400 mt-0.5">{a.notes}</p>}
+                          <p className="text-xs text-gray-400 mt-0.5">{new Date(a.date).toLocaleDateString()}</p>
+                        </div>
+                        <button
+                          onClick={() => requestAuth(() => handleDeleteAddition(a.id))}
+                          className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded ml-2 flex-shrink-0"
+                          title="Delete"
+                        >
+                          <FiTrash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Withdrawal Modal */}
       {withdrawalInvestor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -668,6 +896,7 @@ export default function InvestorsPage() {
                       min={1}
                       required
                     />
+                    <AmountWords value={withdrawalForm.amount} />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date *</label>

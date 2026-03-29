@@ -460,6 +460,7 @@ export default function SettingsPage() {
                   }
                   className="input-field"
                   placeholder="Account Title"
+                  required
                 />
                 <input
                   type="text"
@@ -469,6 +470,7 @@ export default function SettingsPage() {
                   }
                   className="input-field"
                   placeholder="Account Number"
+                  required
                 />
                 <select
                   value={bankForm.type}

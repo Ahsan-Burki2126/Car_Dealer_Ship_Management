@@ -11,6 +11,7 @@ import {
   FiChevronRight,
 } from "react-icons/fi";
 import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
+import AmountWords from "../components/AmountWords";
 
 interface Expense {
   id: string;
@@ -166,6 +167,7 @@ export default function ExpensesPage() {
                 className="input-field"
                 required
               />
+              <AmountWords value={form.amount} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

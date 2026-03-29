@@ -138,10 +138,10 @@ contextBridge.exposeInMainWorld("api", {
   // Reports
   getDashboardStats: (userId: string) =>
     ipcRenderer.invoke("reports:dashboard", userId),
-  getSalesReport: (userId: string, period: string, date?: string) =>
-    ipcRenderer.invoke("reports:sales", userId, period, date),
-  getProfitReport: (userId: string, period?: string, date?: string) =>
-    ipcRenderer.invoke("reports:profit", userId, period, date),
+  getSalesReport: (userId: string, period: string, startOrDate?: string, endDate?: string) =>
+    ipcRenderer.invoke("reports:sales", userId, period, startOrDate, endDate),
+  getProfitReport: (userId: string, period?: string, startOrDate?: string, endDate?: string) =>
+    ipcRenderer.invoke("reports:profit", userId, period, startOrDate, endDate),
   getInventoryReport: (userId: string) =>
     ipcRenderer.invoke("reports:inventory", userId),
   getAuditLogs: (userId: string, filters: any) =>
@@ -231,4 +231,12 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("investorWithdrawals:getByInvestor", userId, investorId),
   deleteInvestorWithdrawal: (userId: string, withdrawalId: string) =>
     ipcRenderer.invoke("investorWithdrawals:delete", userId, withdrawalId),
+
+  // Investor Additions
+  addInvestorAddition: (userId: string, data: any) =>
+    ipcRenderer.invoke("investorAdditions:add", userId, data),
+  getInvestorAdditions: (userId: string, investorId: string) =>
+    ipcRenderer.invoke("investorAdditions:getByInvestor", userId, investorId),
+  deleteInvestorAddition: (userId: string, additionId: string) =>
+    ipcRenderer.invoke("investorAdditions:delete", userId, additionId),
 });

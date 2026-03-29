@@ -989,84 +989,167 @@ export function generateVehiclePurchasePdf(vehicle: {
 
   let y = 38;
 
-  // Vehicle Information
-  y = sectionHeading(doc, "Vehicle Information", y);
-  const vehicleDetails: [string, string][] = [
-    ["Make", vehicle.make],
-    ["Model", vehicle.model],
-    ["Year of Manufacture", String(vehicle.year_of_manufacture)],
-  ];
-  if (vehicle.year_of_import) vehicleDetails.push(["Year of Import", String(vehicle.year_of_import)]);
-  if (vehicle.color) vehicleDetails.push(["Color", vehicle.color]);
-  if (vehicle.registration_number) vehicleDetails.push(["Registration Number", vehicle.registration_number]);
-  if (vehicle.chassis_number) vehicleDetails.push(["Chassis Number", vehicle.chassis_number]);
-  if (vehicle.engine_number) vehicleDetails.push(["Engine Number", vehicle.engine_number]);
-  if (vehicle.assembling_company) vehicleDetails.push(["Assembling Company", vehicle.assembling_company]);
-  vehicleDetails.push(["Extra Keys Available", vehicle.extra_keys_available ? `Yes (${vehicle.extra_keys_count || 0})` : "No"]);
-  vehicleDetails.push(["File Available", vehicle.file_available ? `Yes (${vehicle.file_pages || 0} pages)` : "No"]);
-  vehicleDetails.push(["Current Smart Card", vehicle.current_smart_card ? `Yes (${vehicle.smart_card_count || 0} cards)` : "No"]);
+  const MID = pw / 2;
+  let rowIdx = 0;
 
-  vehicleDetails.forEach(([label, value]) => {
-    detailRow(doc, label, value, 15, y);
-    y += 10;
-  });
+  const drawRowBg = (ry: number) => {
+    if (rowIdx % 2 === 0) {
+      setColor(doc, LIGHT_BG, "fill");
+      doc.rect(15, ry - 4, pw - 30, 7.5, "F");
+    }
+    rowIdx++;
+  };
 
-  y += 5;
+  const sectionBox = (title: string, startY: number): number => {
+    setColor(doc, BRAND, "fill");
+    drawRoundedRect(doc, 15, startY - 5, pw - 30, 9, 2, "F");
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    setColor(doc, WHITE);
+    doc.text(title.toUpperCase(), 20, startY + 1);
+    return startY + 12;
+  };
 
-  // Purchase Information
-  y = sectionHeading(doc, "Purchase Information", y);
-  detailRow(doc, "Purchase Date", vehicle.purchase_date || "N/A", 15, y);
-  y += 10;
-  detailRow(doc, "Purchase Price", formatCurrency(vehicle.purchase_price), 15, y);
-  y += 15;
-
-  // Seller Information
-  if (vehicle.seller_name) {
-    y = sectionHeading(doc, "Seller Information", y);
-    if (vehicle.seller_name) { detailRow(doc, "Name", vehicle.seller_name, 15, y); y += 10; }
-    if (vehicle.seller_father_name) { detailRow(doc, "Father's Name", vehicle.seller_father_name, 15, y); y += 10; }
-    if (vehicle.seller_caste) { detailRow(doc, "Caste / Tribe", vehicle.seller_caste, 15, y); y += 10; }
-    if (vehicle.seller_cnic) { detailRow(doc, "CNIC", vehicle.seller_cnic, 15, y); y += 10; }
-    if (vehicle.seller_phone) { detailRow(doc, "Contact", vehicle.seller_phone, 15, y); y += 10; }
-    if (vehicle.seller_address) { detailRow(doc, "Address", vehicle.seller_address, 15, y); y += 10; }
-    y += 5;
-  }
-
-  // Witness Information
-  if (vehicle.seller_witness_name) {
-    if (y > 240) { doc.addPage(); y = 20; }
-    y = sectionHeading(doc, "Witness Information", y);
-    if (vehicle.seller_witness_name) { detailRow(doc, "Name", vehicle.seller_witness_name, 15, y); y += 10; }
-    if (vehicle.seller_witness_cnic) { detailRow(doc, "CNIC", vehicle.seller_witness_cnic, 15, y); y += 10; }
-    if (vehicle.seller_witness_phone) { detailRow(doc, "Contact", vehicle.seller_witness_phone, 15, y); y += 10; }
-  }
-
-  // Notes
-  if (vehicle.notes) {
-    if (y > 245) { doc.addPage(); y = 20; }
-    y = sectionHeading(doc, "Notes", y);
-    doc.setFontSize(8);
+  const dualRow = (
+    lLabel: string, lValue: string | undefined,
+    rLabel: string, rValue: string | undefined,
+    ry: number,
+  ): number => {
+    drawRowBg(ry);
+    doc.setFontSize(8.5);
+    const lv = lValue || "-";
+    const rv = rValue || "-";
     doc.setFont("helvetica", "normal");
     setColor(doc, GRAY);
-    const noteLines = doc.splitTextToSize(vehicle.notes, pw - 40);
-    doc.text(noteLines, 15, y);
-    y += noteLines.length * 4 + 4;
+    doc.text(`${lLabel}:`, 20, ry);
+    doc.setFont("helvetica", "bold");
+    setColor(doc, DARK);
+    doc.text(lv, MID - 5, ry, { align: "right" });
+    setColor(doc, BORDER, "draw");
+    doc.setLineWidth(0.2);
+    doc.line(MID, ry - 3, MID, ry + 2);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, GRAY);
+    doc.text(`${rLabel}:`, MID + 5, ry);
+    doc.setFont("helvetica", "bold");
+    setColor(doc, DARK);
+    doc.text(rv, pw - 20, ry, { align: "right" });
+    return ry + 7.5;
+  };
+
+  const singleRow = (label: string, value: string | undefined, ry: number): number => {
+    if (!value) return ry;
+    drawRowBg(ry);
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, GRAY);
+    doc.text(`${label}:`, 20, ry);
+    doc.setFont("helvetica", "bold");
+    setColor(doc, DARK);
+    doc.text(String(value), pw - 20, ry, { align: "right" });
+    return ry + 7.5;
+  };
+
+  // ── Vehicle Details ───────────────────────────────────────────────────────
+  y = sectionBox("Vehicle Details", y);
+  rowIdx = 0;
+  y = dualRow("Make", vehicle.make, "Model", vehicle.model, y);
+  y = dualRow(
+    "Year", String(vehicle.year_of_manufacture || "-"),
+    "Color", vehicle.color || "-",
+    y,
+  );
+  y = dualRow(
+    "Registration", vehicle.registration_number || "-",
+    "Chassis No.", vehicle.chassis_number || "-",
+    y,
+  );
+  y = dualRow(
+    "Engine No.", vehicle.engine_number || "-",
+    "Assembly", vehicle.assembling_company || "-",
+    y,
+  );
+  y = dualRow(
+    "Extra Keys",
+    vehicle.extra_keys_available ? `Yes (${vehicle.extra_keys_count || 0})` : "No",
+    "File",
+    vehicle.file_available ? `Yes (${vehicle.file_pages || 0} pages)` : "No",
+    y,
+  );
+  y = singleRow(
+    "Smart Card",
+    vehicle.current_smart_card ? `Yes (${vehicle.smart_card_count || 0})` : "No",
+    y,
+  );
+  y += 6;
+
+  // ── Purchase Details ──────────────────────────────────────────────────────
+  y = sectionBox("Purchase Details", y);
+  setColor(doc, GREEN, "fill");
+  drawRoundedRect(doc, 15, y - 3, pw - 30, 14, 3, "F");
+  doc.setFontSize(13);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, WHITE);
+  doc.text(`Purchase Price: ${formatCurrency(vehicle.purchase_price)}`, pw / 2, y + 6, { align: "center" });
+  y += 18;
+  rowIdx = 0;
+  y = singleRow(
+    "Purchase Date",
+    vehicle.purchase_date ? new Date(vehicle.purchase_date).toLocaleDateString() : "-",
+    y,
+  );
+  y += 6;
+
+  // ── Seller Information ────────────────────────────────────────────────────
+  if (vehicle.seller_name) {
+    if (y > 240) { doc.addPage(); y = 20; }
+    y = sectionBox("Seller Information", y);
+    rowIdx = 0;
+    y = dualRow("Name", vehicle.seller_name, "Father's Name", vehicle.seller_father_name || "-", y);
+    y = dualRow("Caste / Tribe", vehicle.seller_caste || "-", "CNIC", vehicle.seller_cnic || "-", y);
+    y = dualRow("Contact", vehicle.seller_phone || "-", "Address", vehicle.seller_address || "-", y);
+    y += 6;
   }
 
-  // Signatures
-  y = Math.max(y + 10, 240);
-  if (y > 260) { doc.addPage(); y = 240; }
+  // ── Witness Information ───────────────────────────────────────────────────
+  if (vehicle.seller_witness_name) {
+    if (y > 240) { doc.addPage(); y = 20; }
+    y = sectionBox("Witness Information", y);
+    rowIdx = 0;
+    y = dualRow("Name", vehicle.seller_witness_name, "CNIC", vehicle.seller_witness_cnic || "-", y);
+    y = singleRow("Contact", vehicle.seller_witness_phone || "-", y);
+    y += 6;
+  }
 
+  // ── Notes ─────────────────────────────────────────────────────────────────
+  if (vehicle.notes) {
+    if (y > 250) { doc.addPage(); y = 20; }
+    y = sectionBox("Notes", y);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, DARK);
+    const noteLines = doc.splitTextToSize(vehicle.notes, pw - 40);
+    doc.text(noteLines, 20, y);
+    y += noteLines.length * 5 + 8;
+  }
+
+  // ── Signatures ────────────────────────────────────────────────────────────
+  y = Math.max(y + 10, 248);
+  if (y > 265) { doc.addPage(); y = 250; }
   setColor(doc, BORDER, "draw");
   doc.setLineWidth(0.4);
   doc.line(15, y, 80, y);
   doc.line(pw - 80, y, pw - 15, y);
-
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   setColor(doc, GRAY);
   doc.text("Buyer's Signature", 47.5, y + 5, { align: "center" });
   doc.text("Seller's Signature", pw - 47.5, y + 5, { align: "center" });
+  doc.setFontSize(7);
+  doc.text("(Stamp / Seal)", pw / 2, y + 5, { align: "center" });
+  setColor(doc, BORDER, "draw");
+  doc.setLineWidth(0.2);
+  doc.circle(pw / 2, y - 8, 8, "S");
 
   addModernFooter(doc);
   return doc;
@@ -1145,112 +1228,152 @@ export function generatePurchaseReportPdf(vehicle: {
 
   let y = 40;
 
+  // ── Section header bar ────────────────────────────────────────────────────
   const sectionBox = (title: string, startY: number): number => {
     setColor(doc, BRAND, "fill");
-    drawRoundedRect(doc, 15, startY - 5, pw - 30, 8, 2, "F");
+    drawRoundedRect(doc, 15, startY - 5, pw - 30, 9, 2, "F");
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     setColor(doc, WHITE);
-    doc.text(title.toUpperCase(), 20, startY);
-    return startY + 10;
+    doc.text(title.toUpperCase(), 20, startY + 1);
+    return startY + 12;
   };
 
-  const rowPair = (label: string, value: string | undefined, x: number, rowY: number) => {
-    if (value === undefined || value === "") return;
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    setColor(doc, GRAY);
-    doc.text(`${label}:`, x, rowY);
+  // ── Two-column field row ───────────────────────────────────────────────────
+  // Left cell: x=15..pw/2-3  |  Right cell: x=pw/2+3..pw-15
+  const MID = pw / 2;
+  let rowIdx = 0;
+
+  const drawRowBg = (ry: number) => {
+    if (rowIdx % 2 === 0) {
+      setColor(doc, LIGHT_BG, "fill");
+      doc.rect(15, ry - 4, pw - 30, 7.5, "F");
+    }
+    rowIdx++;
+  };
+
+  // Two fields side by side — label left, value right-aligned within each half
+  const dualRow = (
+    lLabel: string, lValue: string | undefined,
+    rLabel: string, rValue: string | undefined,
+    ry: number,
+  ): number => {
+    drawRowBg(ry);
+    doc.setFontSize(8.5);
+    const lv = lValue || "-";
+    const rv = rValue || "-";
     doc.setFont("helvetica", "normal");
+    setColor(doc, GRAY);
+    doc.text(`${lLabel}:`, 20, ry);
+    doc.setFont("helvetica", "bold");
     setColor(doc, DARK);
-    doc.text(String(value), x + 42, rowY);
+    doc.text(lv, MID - 5, ry, { align: "right" });
+    setColor(doc, BORDER, "draw");
+    doc.setLineWidth(0.2);
+    doc.line(MID, ry - 3, MID, ry + 2);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, GRAY);
+    doc.text(`${rLabel}:`, MID + 5, ry);
+    doc.setFont("helvetica", "bold");
+    setColor(doc, DARK);
+    doc.text(rv, pw - 20, ry, { align: "right" });
+    return ry + 7.5;
   };
 
+  // Single full-width field
+  const singleRow = (label: string, value: string | undefined, ry: number): number => {
+    if (!value) return ry;
+    drawRowBg(ry);
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, GRAY);
+    doc.text(`${label}:`, 20, ry);
+    doc.setFont("helvetica", "bold");
+    setColor(doc, DARK);
+    doc.text(String(value), pw - 20, ry, { align: "right" });
+    return ry + 7.5;
+  };
+
+  // ── Vehicle Details ───────────────────────────────────────────────────────
   y = sectionBox("Vehicle Details", y);
-  y += 2;
-  rowPair("Make", vehicle.make, 15, y);
-  rowPair("Model", vehicle.model, pw / 2, y);
-  y += 8;
-  rowPair("Year", String(vehicle.year_of_manufacture || vehicle.year || "-"), 15, y);
-  rowPair("Color", vehicle.color || "-", pw / 2, y);
-  y += 8;
-  rowPair("Registration", vehicle.registration_number || "-", 15, y);
-  rowPair("Chassis No.", vehicle.chassis_number || "-", pw / 2, y);
-  y += 8;
-  rowPair("Engine No.", vehicle.engine_number || "-", 15, y);
-  rowPair("Assembly", vehicle.assembling_company || "-", pw / 2, y);
-  y += 8;
-  rowPair(
+  rowIdx = 0;
+  y = dualRow("Make", vehicle.make, "Model", vehicle.model, y);
+  y = dualRow(
+    "Year", String(vehicle.year_of_manufacture || vehicle.year || "-"),
+    "Color", vehicle.color || "-",
+    y,
+  );
+  y = dualRow(
+    "Registration", vehicle.registration_number || "-",
+    "Chassis No.", vehicle.chassis_number || "-",
+    y,
+  );
+  y = dualRow(
+    "Engine No.", vehicle.engine_number || "-",
+    "Assembly", vehicle.assembling_company || "-",
+    y,
+  );
+  y = dualRow(
     "Extra Keys",
     vehicle.extra_keys_available ? `Yes (${vehicle.extra_keys_count || 0})` : "No",
-    15, y
-  );
-  rowPair(
     "File",
     vehicle.file_available ? `Yes (${vehicle.file_pages || 0} pages)` : "No",
-    pw / 2, y
+    y,
   );
-  y += 8;
-  rowPair(
+  y = singleRow(
     "Smart Card",
     vehicle.current_smart_card ? `Yes (${vehicle.smart_card_count || 0})` : "No",
-    15, y
+    y,
   );
-  y += 14;
+  y += 6;
 
+  // ── Purchase Details ──────────────────────────────────────────────────────
   y = sectionBox("Purchase Details", y);
-  y += 2;
   setColor(doc, GREEN, "fill");
-  drawRoundedRect(doc, 15, y - 4, pw - 30, 14, 3, "F");
-  doc.setFontSize(12);
+  drawRoundedRect(doc, 15, y - 3, pw - 30, 14, 3, "F");
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
   setColor(doc, WHITE);
-  doc.text(`Purchase Price: ${formatCurrency(vehicle.purchase_price)}`, pw / 2, y + 5, { align: "center" });
+  doc.text(`Purchase Price: ${formatCurrency(vehicle.purchase_price)}`, pw / 2, y + 6, { align: "center" });
   y += 18;
-  rowPair(
+  rowIdx = 0;
+  y = singleRow(
     "Purchase Date",
     vehicle.purchase_date ? new Date(vehicle.purchase_date).toLocaleDateString() : "-",
-    15, y
+    y,
   );
-  y += 14;
+  y += 6;
 
+  // ── Seller Information ────────────────────────────────────────────────────
   if (vehicle.seller_name) {
+    if (y > 240) { doc.addPage(); y = 20; }
     y = sectionBox("Seller Information", y);
-    y += 2;
-    rowPair("Name", vehicle.seller_name, 15, y);
-    rowPair("Father's Name", vehicle.seller_father_name || "-", pw / 2, y);
-    y += 8;
-    rowPair("Caste/Tribe", vehicle.seller_caste || "-", 15, y);
-    rowPair("CNIC", vehicle.seller_cnic || "-", pw / 2, y);
-    y += 8;
-    rowPair("Contact", vehicle.seller_phone || "-", 15, y);
-    if (vehicle.seller_address) {
-      rowPair("Address", vehicle.seller_address, pw / 2, y);
-    }
-    y += 14;
+    rowIdx = 0;
+    y = dualRow("Name", vehicle.seller_name, "Father's Name", vehicle.seller_father_name || "-", y);
+    y = dualRow("Caste / Tribe", vehicle.seller_caste || "-", "CNIC", vehicle.seller_cnic || "-", y);
+    y = dualRow("Contact", vehicle.seller_phone || "-", "Address", vehicle.seller_address || "-", y);
+    y += 6;
   }
 
+  // ── Witness Information ───────────────────────────────────────────────────
   if (vehicle.seller_witness_name) {
     if (y > 240) { doc.addPage(); y = 20; }
     y = sectionBox("Witness Information", y);
-    y += 2;
-    rowPair("Witness Name", vehicle.seller_witness_name, 15, y);
-    rowPair("Father's Name", vehicle.seller_witness_father_name || "-", pw / 2, y);
-    y += 8;
-    rowPair("CNIC", vehicle.seller_witness_cnic || "-", 15, y);
-    rowPair("Contact", vehicle.seller_witness_phone || "-", pw / 2, y);
-    y += 14;
+    rowIdx = 0;
+    y = dualRow("Name", vehicle.seller_witness_name, "Father's Name", vehicle.seller_witness_father_name || "-", y);
+    y = dualRow("CNIC", vehicle.seller_witness_cnic || "-", "Contact", vehicle.seller_witness_phone || "-", y);
+    y += 6;
   }
 
+  // ── Notes ─────────────────────────────────────────────────────────────────
   if (vehicle.notes) {
     if (y > 250) { doc.addPage(); y = 20; }
     y = sectionBox("Notes", y);
-    y += 2;
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     setColor(doc, DARK);
     const splitNotes = doc.splitTextToSize(vehicle.notes, pw - 40);
-    doc.text(splitNotes, 15, y);
+    doc.text(splitNotes, 20, y);
     y += splitNotes.length * 5 + 8;
   }
 

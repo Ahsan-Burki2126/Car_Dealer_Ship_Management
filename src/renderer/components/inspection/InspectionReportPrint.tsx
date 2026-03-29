@@ -6,7 +6,7 @@ import { PANEL_REGIONS } from "./VehicleInspectionSVG";
 import { APP_NAME } from "../../../shared/constants";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const SVG_URL = "/assets/Ahsan's Car Blueprint Black & White.svg";
+import blueprintSvgRaw from "../../assets/blueprint.svg?raw";
 const SVG_W   = 4096;
 const SVG_H   = 4096;
 
@@ -346,13 +346,8 @@ export default function InspectionReportPrint({ vehicle, inspection, onClose }: 
 
   // Load the SVG blueprint once
   useEffect(() => {
-    fetch(encodeURI(SVG_URL))
-      .then((r) => r.text())
-      .then((text) => {
-        const match = text.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
-        setSvgInner(match ? match[1] : text);
-      })
-      .catch(() => setSvgInner(""));
+    const match = blueprintSvgRaw.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
+    setSvgInner(match ? match[1] : blueprintSvgRaw);
   }, []);
 
   // Off-screen portal: fixed far outside the viewport at A4 width so React

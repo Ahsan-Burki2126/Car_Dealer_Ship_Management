@@ -696,6 +696,7 @@ export function getSales(filters?: {
       `
       SELECT s.*, c.name as customer_name, c.cnic as customer_cnic, c.phone as customer_phone,
         v.make, v.model, v.year, v.registration_number, v.color,
+        v.purchase_price, v.total_cost,
         ba.name as bank_account_name,
         COALESCE((SELECT SUM(amount) FROM payments p WHERE p.sale_id = s.id), 0) as total_paid,
         (v.year || ' ' || v.make || ' ' || v.model) as vehicle_name
@@ -1156,6 +1157,8 @@ function mapSaleRow(row: Record<string, unknown>): Sale {
     ownership_transferred: Boolean(row.ownership_transferred),
     ownership_transfer_date: row.ownership_transfer_date ? String(row.ownership_transfer_date) : undefined,
     final_payment_date: row.final_payment_date ? String(row.final_payment_date) : undefined,
+    purchase_price: Number(row.purchase_price || 0),
+    total_cost: Number(row.total_cost || 0),
     notes: row.notes ? String(row.notes) : "",
     created_by: String(row.created_by || ""),
     created_at: String(row.created_at || ""),

@@ -509,12 +509,12 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "reports:sales",
-    async (_event, userId: string, period: string, date?: string) => {
+    async (_event, userId: string, period: string, startOrDate?: string, endDate?: string) => {
       try {
         requireRole(userId, ["super_admin", "admin"]);
         return {
           success: true,
-          data: reportService.getSalesReport(period as any, date),
+          data: reportService.getSalesReport(period as any, startOrDate, endDate),
         };
       } catch (e) {
         return handleError(e);
@@ -522,10 +522,10 @@ export function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.handle("reports:profit", async (_event, userId: string, period?: string, date?: string) => {
+  ipcMain.handle("reports:profit", async (_event, userId: string, period?: string, startOrDate?: string, endDate?: string) => {
     try {
       requireRole(userId, ["super_admin", "admin"]);
-      return { success: true, data: reportService.getProfitReport(period as any, date) };
+      return { success: true, data: reportService.getProfitReport(period as any, startOrDate, endDate) };
     } catch (e) {
       return handleError(e);
     }
@@ -941,7 +941,8 @@ export function registerIpcHandlers(): void {
       const db = getDatabase();
       const rows = db.prepare(`
         SELECT i.*,
-          COALESCE((SELECT SUM(w.amount) FROM investor_withdrawals w WHERE w.investor_id = i.id), 0) AS total_withdrawn
+          COALESCE((SELECT SUM(w.amount) FROM investor_withdrawals w WHERE w.investor_id = i.id), 0) AS total_withdrawn,
+          COALESCE((SELECT SUM(a.amount) FROM investor_additions a WHERE a.investor_id = i.id), 0) AS total_added
         FROM investors i
         WHERE i.is_active = 1
         ORDER BY i.created_at DESC
@@ -1036,6 +1037,48 @@ export function registerIpcHandlers(): void {
       requireRole(userId, ["super_admin", "admin"]);
       const db = getDatabase();
       db.prepare("DELETE FROM investor_withdrawals WHERE id = ?").run(withdrawalId);
+      return { success: true };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  // =========== INVESTOR ADDITIONS ===========
+  ipcMain.handle("investorAdditions:add", async (_event, userId: string, data: any) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const db = getDatabase();
+      const { v4: uuidv4Local } = require("uuid");
+      const id = uuidv4Local();
+      db.prepare(
+        `INSERT INTO investor_additions (id, investor_id, amount, date, reason, notes, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).run(id, data.investor_id, data.amount, data.date, data.reason, data.notes || "", userId);
+      const addition = db.prepare("SELECT * FROM investor_additions WHERE id = ?").get(id);
+      return { success: true, data: addition };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("investorAdditions:getByInvestor", async (_event, userId: string, investorId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const db = getDatabase();
+      const rows = db.prepare(
+        "SELECT * FROM investor_additions WHERE investor_id = ? ORDER BY date DESC, created_at DESC"
+      ).all(investorId);
+      return { success: true, data: rows };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("investorAdditions:delete", async (_event, userId: string, additionId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const db = getDatabase();
+      db.prepare("DELETE FROM investor_additions WHERE id = ?").run(additionId);
       return { success: true };
     } catch (e) {
       return handleError(e);

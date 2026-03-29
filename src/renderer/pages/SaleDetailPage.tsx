@@ -7,6 +7,7 @@ import { FiArrowLeft, FiCheck, FiPrinter, FiEdit, FiTrash2 } from "react-icons/f
 import { generateInvoicePdf } from "../utils/pdfGenerator";
 import { confirmDeleteRecord } from "../utils/confirmDelete";
 import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
+import AmountWords from "../components/AmountWords";
 
 interface SaleDetail {
   id: string;
@@ -518,7 +519,9 @@ export default function SaleDetailPage() {
                   className="input-field"
                   max={paymentModal.max}
                   min={1}
+                  required
                 />
+                <AmountWords value={paymentModal.amount} />
               </div>
               <div className="flex justify-end gap-3">
                 <button

@@ -57,7 +57,7 @@ const FILL_HOVER   = "rgba(59,130,246,0.35)";
 const FILL_PENDING = "rgba(59,130,246,0.55)";
 const FILL_MARKED  = "rgba(251,146,60,0.22)";
 
-const SVG_URL = "/assets/Ahsan's Car Blueprint Black & White.svg";
+import blueprintSvgRaw from "../../assets/blueprint.svg?raw";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface PendingClick { x: number; y: number; panelId: string }
@@ -94,17 +94,9 @@ export default function VehicleInspectionSVG({
 
   // ── 1. Load SVG blueprint ──────────────────────────────────────────────────
   useEffect(() => {
-    fetch(encodeURI(SVG_URL))
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.text();
-      })
-      .then((text) => {
-        const match = text.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
-        setSvgInner(match ? match[1] : text);
-        setSvgError(null);
-      })
-      .catch((err) => setSvgError("Could not load vehicle blueprint: " + err.message));
+    const match = blueprintSvgRaw.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
+    setSvgInner(match ? match[1] : blueprintSvgRaw);
+    setSvgError(null);
   }, []);
 
   // ── 2. After SVG renders: tag elements with data-panel via getBBox() ────────

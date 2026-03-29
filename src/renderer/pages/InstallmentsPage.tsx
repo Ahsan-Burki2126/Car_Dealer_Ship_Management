@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { toast } from "react-toastify";
 import { FiAlertTriangle, FiCheck, FiSearch } from "react-icons/fi";
+import AmountWords from "../components/AmountWords";
 
 interface OverdueInstallment {
   id: string;
@@ -231,6 +232,7 @@ export default function InstallmentsPage() {
                   max={paymentModal.max}
                   min={1}
                 />
+                <AmountWords value={paymentModal.amount} />
               </div>
               <div className="flex justify-end gap-3">
                 <button

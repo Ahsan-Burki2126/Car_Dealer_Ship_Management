@@ -69,9 +69,15 @@ export interface ElectronAPI {
   getSalesReport: (
     userId: string,
     period: string,
-    date?: string,
+    startOrDate?: string,
+    endDate?: string,
   ) => Promise<any>;
-  getProfitReport: (userId: string) => Promise<any>;
+  getProfitReport: (
+    userId: string,
+    period?: string,
+    startOrDate?: string,
+    endDate?: string,
+  ) => Promise<any>;
   getInventoryReport: (userId: string) => Promise<any>;
   getAuditLogs: (userId: string, filters: any) => Promise<any>;
   getVehicleSearchReport: (userId: string, search: string) => Promise<any>;

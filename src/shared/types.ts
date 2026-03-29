@@ -225,6 +225,8 @@ export interface Sale {
   ownership_transferred?: boolean;
   ownership_transfer_date?: string;
   final_payment_date?: string;
+  purchase_price?: number;
+  total_cost?: number;
   notes?: string;
   created_by: string;
   created_at: string;
