@@ -15,9 +15,9 @@ import { OAuth2Client } from "google-auth-library";
  */
 
 // ── OAuth credentials ────────────────────────────────────────────────────
-// Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file (never commit .env).
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
+// Read lazily so dotenv loaded in main.ts has time to populate process.env.
+const getClientId = () => process.env.GOOGLE_CLIENT_ID || "";
+const getClientSecret = () => process.env.GOOGLE_CLIENT_SECRET || "";
 const REDIRECT_PORT = 3000;
 const GOOGLE_REDIRECT_URL = `http://localhost:${REDIRECT_PORT}/auth/google/callback`;
 
@@ -66,8 +66,8 @@ function initializeOAuth2Client(): OAuth2Client {
   if (oauth2Client) return oauth2Client;
 
   oauth2Client = new OAuth2Client(
-    GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET,
+    getClientId(),
+    getClientSecret(),
     GOOGLE_REDIRECT_URL,
   );
 
@@ -87,8 +87,10 @@ function initializeOAuth2Client(): OAuth2Client {
 
 export function areCredentialsConfigured(): boolean {
   return (
-    !GOOGLE_CLIENT_ID.includes("YOUR_GOOGLE_CLIENT_ID_HERE") &&
-    !GOOGLE_CLIENT_SECRET.includes("YOUR_GOOGLE_CLIENT_SECRET_HERE")
+    !!getClientId() &&
+    !getClientId().includes("YOUR_GOOGLE_CLIENT_ID_HERE") &&
+    !!getClientSecret() &&
+    !getClientSecret().includes("YOUR_GOOGLE_CLIENT_SECRET_HERE")
   );
 }
 

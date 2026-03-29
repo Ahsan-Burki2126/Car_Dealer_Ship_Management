@@ -8,6 +8,13 @@ import {
   Menu,
 } from "electron";
 import path from "path";
+import dotenv from "dotenv";
+
+// Load .env — must happen before any service reads process.env
+const envPath = app.isPackaged
+  ? path.join(process.resourcesPath, ".env")
+  : path.join(__dirname, "../../../.env");
+dotenv.config({ path: envPath });
 import http from "http";
 import fs from "fs";
 import { pathToFileURL } from "url";
