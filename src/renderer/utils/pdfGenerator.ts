@@ -1103,15 +1103,23 @@ export function generateVehiclePurchasePdf(vehicle: {
 
   const singleRow = (label: string, value: string | undefined, ry: number): number => {
     if (!value) return ry;
-    drawRowBg(ry);
+    const labelW = 50;
+    const valueMaxW = pw - 30 - labelW;
+    const lines = doc.splitTextToSize(String(value), valueMaxW);
+    const rowH = Math.max(7.5, lines.length * 5 + 1);
+    if (rowIdx % 2 === 0) {
+      setColor(doc, LIGHT_BG, "fill");
+      doc.rect(15, ry - 4, pw - 30, rowH + 2, "F");
+    }
+    rowIdx++;
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "normal");
     setColor(doc, GRAY);
     doc.text(`${label}:`, 20, ry);
     doc.setFont("helvetica", "bold");
     setColor(doc, DARK);
-    doc.text(String(value), pw - 20, ry, { align: "right" });
-    return ry + 7.5;
+    doc.text(lines, 20 + labelW, ry);
+    return ry + rowH + 1;
   };
 
   // ── Vehicle Details ───────────────────────────────────────────────────────
@@ -1171,7 +1179,8 @@ export function generateVehiclePurchasePdf(vehicle: {
     rowIdx = 0;
     y = dualRow("Name", vehicle.seller_name, "Father's Name", vehicle.seller_father_name || "-", y);
     y = dualRow("Caste / Tribe", vehicle.seller_caste || "-", "CNIC", vehicle.seller_cnic || "-", y);
-    y = dualRow("Contact", vehicle.seller_phone || "-", "Address", vehicle.seller_address || "-", y);
+    y = singleRow("Contact", vehicle.seller_phone || "-", y);
+    y = singleRow("Address", vehicle.seller_address || "-", y);
     y += 6;
   }
 
@@ -1344,18 +1353,26 @@ export function generatePurchaseReportPdf(vehicle: {
     return ry + 7.5;
   };
 
-  // Single full-width field
+  // Single full-width field (wraps long values)
   const singleRow = (label: string, value: string | undefined, ry: number): number => {
     if (!value) return ry;
-    drawRowBg(ry);
+    const labelW = 50;
+    const valueMaxW = pw - 30 - labelW;
+    const lines = doc.splitTextToSize(String(value), valueMaxW);
+    const rowH = Math.max(7.5, lines.length * 5 + 1);
+    if (rowIdx % 2 === 0) {
+      setColor(doc, LIGHT_BG, "fill");
+      doc.rect(15, ry - 4, pw - 30, rowH + 2, "F");
+    }
+    rowIdx++;
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "normal");
     setColor(doc, GRAY);
     doc.text(`${label}:`, 20, ry);
     doc.setFont("helvetica", "bold");
     setColor(doc, DARK);
-    doc.text(String(value), pw - 20, ry, { align: "right" });
-    return ry + 7.5;
+    doc.text(lines, 20 + labelW, ry);
+    return ry + rowH + 1;
   };
 
   // ── Vehicle Details ───────────────────────────────────────────────────────
@@ -1415,7 +1432,8 @@ export function generatePurchaseReportPdf(vehicle: {
     rowIdx = 0;
     y = dualRow("Name", vehicle.seller_name, "Father's Name", vehicle.seller_father_name || "-", y);
     y = dualRow("Caste / Tribe", vehicle.seller_caste || "-", "CNIC", vehicle.seller_cnic || "-", y);
-    y = dualRow("Contact", vehicle.seller_phone || "-", "Address", vehicle.seller_address || "-", y);
+    y = singleRow("Contact", vehicle.seller_phone || "-", y);
+    y = singleRow("Address", vehicle.seller_address || "-", y);
     y += 6;
   }
 

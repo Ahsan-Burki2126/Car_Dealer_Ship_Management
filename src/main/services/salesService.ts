@@ -967,6 +967,64 @@ export function getOverdueInstallments(): Installment[] {
   }));
 }
 
+export function getInstallmentSales(): Array<{
+  sale_id: string;
+  invoice_number: string;
+  customer_name: string;
+  vehicle_name: string;
+  vehicle_price: number;
+  remaining_balance: number;
+  total_installments: number;
+  paid_installments: number;
+  overdue_installments: number;
+  next_due_date: string | null;
+  next_due_amount: number | null;
+  created_at: string;
+}> {
+  const db = getDatabase();
+  const today = format(new Date(), "yyyy-MM-dd");
+  // Mark overdue first
+  db.prepare(
+    `UPDATE installments SET status = 'overdue', updated_at = datetime('now')
+     WHERE status = 'pending' AND due_date < ?`,
+  ).run(today);
+
+  const rows = db
+    .prepare(
+      `SELECT s.id as sale_id, s.invoice_number, s.vehicle_price, s.remaining_balance, s.created_at,
+        c.name as customer_name,
+        (v.year || ' ' || v.make || ' ' || v.model) as vehicle_name,
+        (SELECT COUNT(*) FROM installments i WHERE i.sale_id = s.id) as total_installments,
+        (SELECT COUNT(*) FROM installments i WHERE i.sale_id = s.id AND i.status = 'paid') as paid_installments,
+        (SELECT COUNT(*) FROM installments i WHERE i.sale_id = s.id AND i.status = 'overdue') as overdue_installments,
+        (SELECT due_date FROM installments i WHERE i.sale_id = s.id AND i.status IN ('pending','overdue') ORDER BY due_date ASC LIMIT 1) as next_due_date,
+        (SELECT amount FROM installments i WHERE i.sale_id = s.id AND i.status IN ('pending','overdue') ORDER BY due_date ASC LIMIT 1) as next_due_amount
+       FROM sales s
+       JOIN customers c ON s.customer_id = c.id
+       LEFT JOIN vehicles v ON s.vehicle_id = v.id
+       WHERE s.payment_type = 'installment'
+         AND s.status NOT IN ('completed','cancelled')
+         AND s.is_deleted = 0
+       ORDER BY s.created_at DESC`,
+    )
+    .all() as Array<Record<string, unknown>>;
+
+  return rows.map((r) => ({
+    sale_id: r.sale_id as string,
+    invoice_number: r.invoice_number as string,
+    customer_name: r.customer_name as string,
+    vehicle_name: r.vehicle_name as string,
+    vehicle_price: r.vehicle_price as number,
+    remaining_balance: r.remaining_balance as number,
+    total_installments: r.total_installments as number,
+    paid_installments: r.paid_installments as number,
+    overdue_installments: r.overdue_installments as number,
+    next_due_date: (r.next_due_date as string) || null,
+    next_due_amount: (r.next_due_amount as number) || null,
+    created_at: r.created_at as string,
+  }));
+}
+
 export function getCustomerLedger(customerId: string): {
   sales: Sale[];
   payments: Array<Record<string, unknown>>;

@@ -35,6 +35,10 @@ contextBridge.exposeInMainWorld("api", {
   getVehicleById: (id: string) => ipcRenderer.invoke("vehicles:getById", id),
   updateVehicle: (userId: string, id: string, data: any) =>
     ipcRenderer.invoke("vehicles:update", userId, id, data),
+  repurchaseVehicle: (userId: string, vehicleId: string, data: any) =>
+    ipcRenderer.invoke("vehicles:repurchase", userId, vehicleId, data),
+  checkChassisExists: (chassis: string) =>
+    ipcRenderer.invoke("vehicles:checkChassis", chassis),
   deleteVehicle: (userId: string, id: string) =>
     ipcRenderer.invoke("vehicles:delete", userId, id),
   restoreVehicle: (userId: string, id: string) =>
@@ -80,6 +84,8 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("sales:payInstallment", userId, installmentId, data),
   getOverdueInstallments: (userId: string) =>
     ipcRenderer.invoke("sales:getOverdue", userId),
+  getInstallmentSales: (userId: string) =>
+    ipcRenderer.invoke("sales:getInstallmentSales", userId),
   getCustomerLedger: (userId: string, customerId: string) =>
     ipcRenderer.invoke("sales:getCustomerLedger", userId, customerId),
   transferOwnership: (userId: string, saleId: string) =>

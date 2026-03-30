@@ -52,9 +52,7 @@ export default function VehiclesPage() {
 
   const getStatusBadge = (status: VehicleStatus) => {
     const styles: Record<string, string> = {
-      purchased: "badge-info",
       in_stock: "badge-success",
-      reserved: "badge-warning",
       sold: "badge-gray",
       on_installments: "badge-warning",
     };
@@ -161,7 +159,9 @@ export default function VehiclesPage() {
                     <td className="table-cell">
                       {v.registration_number || "-"}
                     </td>
-                    <td className="table-cell">{(v as any).year_of_manufacture || (v as any).year}</td>
+                    <td className="table-cell">
+                      {(v as any).year_of_manufacture || (v as any).year}
+                    </td>
                     <td className="table-cell">{v.color || "-"}</td>
                     <td className="table-cell">
                       <span className={getStatusBadge(v.status)}>
@@ -187,7 +187,11 @@ export default function VehiclesPage() {
                           <FiEye size={16} />
                         </button>
                         <button
-                          onClick={() => requestAuth(() => navigate(`/vehicles/${v.id}/edit`))}
+                          onClick={() =>
+                            requestAuth(() =>
+                              navigate(`/vehicles/${v.id}/edit`),
+                            )
+                          }
                           className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400"
                           title="Edit"
                         >

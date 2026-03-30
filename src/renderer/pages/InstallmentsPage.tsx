@@ -19,9 +19,25 @@ interface OverdueInstallment {
   days_overdue: number;
 }
 
+interface InstallmentSale {
+  sale_id: string;
+  invoice_number: string;
+  customer_name: string;
+  vehicle_name: string;
+  vehicle_price: number;
+  remaining_balance: number;
+  total_installments: number;
+  paid_installments: number;
+  overdue_installments: number;
+  next_due_date: string | null;
+  next_due_amount: number | null;
+  created_at: string;
+}
+
 export default function InstallmentsPage() {
   const { user } = useSelector((state: RootState) => state.auth);
-  const [installments, setInstallments] = useState<OverdueInstallment[]>([]);
+  const [overdueList, setOverdueList] = useState<OverdueInstallment[]>([]);
+  const [installmentSales, setInstallmentSales] = useState<InstallmentSale[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [paymentModal, setPaymentModal] = useState<{
@@ -31,14 +47,18 @@ export default function InstallmentsPage() {
   } | null>(null);
 
   useEffect(() => {
-    loadOverdue();
+    loadAll();
   }, [user?.id]);
 
-  const loadOverdue = async () => {
+  const loadAll = async () => {
     if (!user) return;
     setLoading(true);
-    const result = await window.api.getOverdueInstallments(user!.id);
-    if (result.success) setInstallments(result.data || []);
+    const [overdueRes, salesRes] = await Promise.all([
+      window.api.getOverdueInstallments(user.id),
+      (window.api as any).getInstallmentSales(user.id),
+    ]);
+    if (overdueRes.success) setOverdueList(overdueRes.data || []);
+    if (salesRes?.success) setInstallmentSales(salesRes.data || []);
     setLoading(false);
   };
 
@@ -55,15 +75,15 @@ export default function InstallmentsPage() {
     if (result.success) {
       toast.success("Payment recorded");
       setPaymentModal(null);
-      loadOverdue();
+      loadAll();
     } else {
       toast.error(result.error);
     }
   };
 
-  const formatCurrency = (v: number) => `PKR ${v?.toLocaleString() || "0"}`;
+  const fmt = (v: number) => `PKR ${v?.toLocaleString() || "0"}`;
 
-  const filtered = installments.filter(
+  const filteredOverdue = overdueList.filter(
     (i) =>
       !search ||
       i.customer_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -71,7 +91,15 @@ export default function InstallmentsPage() {
       i.vehicle_name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const totalOverdue = filtered.reduce(
+  const filteredSales = installmentSales.filter(
+    (s) =>
+      !search ||
+      s.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+      s.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
+      s.vehicle_name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const totalOverdue = filteredOverdue.reduce(
     (sum, i) => sum + (i.amount - i.paid_amount),
     0,
   );
@@ -80,27 +108,137 @@ export default function InstallmentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Overdue Installments
+          Installments
         </h1>
-        <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-4 py-2 rounded-lg font-semibold">
-          Total Overdue: {formatCurrency(totalOverdue)}
+        {totalOverdue > 0 && (
+          <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 px-4 py-2 rounded-lg font-semibold">
+            Total Overdue: {fmt(totalOverdue)}
+          </div>
+        )}
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-md">
+        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          placeholder="Search by customer, invoice, vehicle..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="input-field pl-10"
+        />
+      </div>
+
+      {/* ── Section 1: All Installment Sales ─────────────────────────── */}
+      <div className="card">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Sales on Installments
+          <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+            ({filteredSales.length} active)
+          </span>
+        </h2>
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr>
+                <th className="table-header">Invoice</th>
+                <th className="table-header">Customer</th>
+                <th className="table-header">Vehicle</th>
+                <th className="table-header text-right">Remaining</th>
+                <th className="table-header text-center">Progress</th>
+                <th className="table-header">Next Due</th>
+                <th className="table-header text-right">Next Amount</th>
+                <th className="table-header text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="table-cell text-center">Loading...</td>
+                </tr>
+              ) : filteredSales.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="table-cell text-center text-gray-500">
+                    No active installment sales
+                  </td>
+                </tr>
+              ) : (
+                filteredSales.map((s) => {
+                  const progressPct = s.total_installments
+                    ? Math.round((s.paid_installments / s.total_installments) * 100)
+                    : 0;
+                  const hasOverdue = s.overdue_installments > 0;
+                  return (
+                    <tr
+                      key={s.sale_id}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 ${hasOverdue ? "bg-orange-50/40 dark:bg-orange-900/5" : ""}`}
+                    >
+                      <td className="table-cell font-mono text-sm">
+                        <Link
+                          to={`/sales/${s.sale_id}`}
+                          className="text-blue-600 hover:underline"
+                        >
+                          {s.invoice_number}
+                        </Link>
+                      </td>
+                      <td className="table-cell font-medium">{s.customer_name}</td>
+                      <td className="table-cell">{s.vehicle_name}</td>
+                      <td className="table-cell text-right font-semibold text-orange-600">
+                        {fmt(s.remaining_balance)}
+                      </td>
+                      <td className="table-cell text-center">
+                        <div className="flex items-center gap-2 justify-center">
+                          <div className="w-20 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-green-500 rounded-full"
+                              style={{ width: `${progressPct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            {s.paid_installments}/{s.total_installments}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        {s.next_due_date
+                          ? new Date(s.next_due_date).toLocaleDateString()
+                          : "—"}
+                      </td>
+                      <td className="table-cell text-right">
+                        {s.next_due_amount ? fmt(s.next_due_amount) : "—"}
+                      </td>
+                      <td className="table-cell text-center">
+                        {hasOverdue ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full">
+                            <FiAlertTriangle size={11} />
+                            {s.overdue_installments} Overdue
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
+                            On Track
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div className="card">
-        <div className="mb-4">
-          <div className="relative max-w-md">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-field pl-10"
-            />
-          </div>
-        </div>
-
+      {/* ── Section 2: Overdue Installments ──────────────────────────── */}
+      <div className="card border border-red-200 dark:border-red-800">
+        <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-4 flex items-center gap-2">
+          <FiAlertTriangle />
+          Overdue Installments
+          {filteredOverdue.length > 0 && (
+            <span className="ml-1 text-sm font-normal text-gray-500 dark:text-gray-400">
+              ({filteredOverdue.length})
+            </span>
+          )}
+        </h2>
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead>
@@ -120,21 +258,16 @@ export default function InstallmentsPage() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="table-cell text-center">
-                    Loading...
-                  </td>
+                  <td colSpan={10} className="table-cell text-center">Loading...</td>
                 </tr>
-              ) : filtered.length === 0 ? (
+              ) : filteredOverdue.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={10}
-                    className="table-cell text-center text-gray-500"
-                  >
+                  <td colSpan={10} className="table-cell text-center text-gray-500">
                     No overdue installments
                   </td>
                 </tr>
               ) : (
-                filtered.map((inst) => {
+                filteredOverdue.map((inst) => {
                   const remaining = inst.amount - inst.paid_amount;
                   return (
                     <tr
@@ -149,22 +282,18 @@ export default function InstallmentsPage() {
                           {inst.invoice_number}
                         </Link>
                       </td>
-                      <td className="table-cell font-medium">
-                        {inst.customer_name}
-                      </td>
+                      <td className="table-cell font-medium">{inst.customer_name}</td>
                       <td className="table-cell">{inst.vehicle_name}</td>
                       <td className="table-cell">{inst.installment_number}</td>
                       <td className="table-cell">
                         {new Date(inst.due_date).toLocaleDateString()}
                       </td>
-                      <td className="table-cell text-right">
-                        {formatCurrency(inst.amount)}
-                      </td>
+                      <td className="table-cell text-right">{fmt(inst.amount)}</td>
                       <td className="table-cell text-right text-green-600">
-                        {formatCurrency(inst.paid_amount)}
+                        {fmt(inst.paid_amount)}
                       </td>
                       <td className="table-cell text-right text-red-600 font-semibold">
-                        {formatCurrency(remaining)}
+                        {fmt(remaining)}
                       </td>
                       <td className="table-cell">
                         <span className="flex items-center gap-1 text-red-600 text-sm font-semibold">
@@ -210,7 +339,7 @@ export default function InstallmentsPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Amount (max: {formatCurrency(paymentModal.max)})
+                  Amount (max: {fmt(paymentModal.max)})
                 </label>
                 <input
                   type="number"

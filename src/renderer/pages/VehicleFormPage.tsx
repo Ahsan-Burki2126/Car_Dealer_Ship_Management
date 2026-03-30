@@ -44,6 +44,16 @@ export default function VehicleFormPage() {
   const [savedFormData, setSavedFormData] = useState<typeof form | null>(null);
   const [pdfSaving, setPdfSaving] = useState(false);
 
+  // Re-purchase flow: set when chassis collision is detected on field blur
+  const [chassisConflict, setChassisConflict] = useState<{
+    id: string;
+    name: string;
+    status: string;
+    active_sale_id: string | null;
+    active_sale_type: string | null;
+  } | null>(null);
+  const [isRepurchaseMode, setIsRepurchaseMode] = useState(false);
+
   const [form, setForm] = useState({
     photo_path: "",
     seller_photo_path: "",
@@ -134,6 +144,20 @@ export default function VehicleFormPage() {
     }
   };
 
+  // Called on blur of the chassis number field — checks for collision immediately
+  const handleChassisBlur = async () => {
+    const chassis = form.chassis_number.trim();
+    if (!chassis || isEdit) return;
+    const result = await (window.api as any).checkChassisExists(chassis);
+    if (result?.success && result.data?.exists) {
+      setChassisConflict(result.data);
+      setIsRepurchaseMode(false); // force user to confirm in modal
+    } else {
+      setChassisConflict(null);
+      setIsRepurchaseMode(false);
+    }
+  };
+
   const handleSubmit = async () => {
     const data = {
       ...form,
@@ -145,14 +169,17 @@ export default function VehicleFormPage() {
     };
 
     let result;
-    if (isEdit) {
+    if (isRepurchaseMode && chassisConflict) {
+      result = await (window.api as any).repurchaseVehicle(user!.id, chassisConflict.id, data);
+    } else if (isEdit) {
       result = await window.api.updateVehicle(user!.id, id!, data);
     } else {
       result = await window.api.addVehicle(user!.id, data);
     }
 
     if (result.success) {
-      toast.success(isEdit ? "Vehicle updated" : "Vehicle added");
+      const msg = isRepurchaseMode ? "Vehicle re-purchased successfully" : isEdit ? "Vehicle updated" : "Vehicle added";
+      toast.success(msg);
       if (!isEdit) {
         setSavedFormData(form);
         setShowPdfModal(true);
@@ -410,11 +437,24 @@ export default function VehicleFormPage() {
           <input
             type="text"
             value={form.chassis_number}
-            onChange={(e) => updateForm("chassis_number", e.target.value.toUpperCase())}
-            className={`input-field ${errors.chassis_number ? "border-red-500" : ""}`}
+            onChange={(e) => {
+              updateForm("chassis_number", e.target.value.toUpperCase());
+              // Clear re-purchase mode if user changes the chassis number
+              if (chassisConflict || isRepurchaseMode) {
+                setChassisConflict(null);
+                setIsRepurchaseMode(false);
+              }
+            }}
+            onBlur={handleChassisBlur}
+            className={`input-field ${errors.chassis_number ? "border-red-500" : ""} ${isRepurchaseMode ? "border-orange-500 bg-orange-50 dark:bg-orange-900/10" : ""}`}
             placeholder="e.g. ABC123XYZ456789"
             required
           />
+          {isRepurchaseMode && (
+            <p className="mt-1 text-xs font-semibold text-orange-600 dark:text-orange-400">
+              ⚠ Re-purchase mode — this will update the existing vehicle record
+            </p>
+          )}
           {fieldError("chassis_number")}
         </div>
         <div>
@@ -1093,6 +1133,66 @@ export default function VehicleFormPage() {
                 >
                   <FiSkipForward size={14} />
                   Skip — Don't Generate PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Re-purchase Confirmation Modal — shown immediately on chassis blur */}
+      {chassisConflict && !isRepurchaseMode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-lg w-full mx-4 border border-orange-200 dark:border-orange-800">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center flex-shrink-0">
+                  <span className="text-orange-600 dark:text-orange-400 text-xl font-bold">!</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    Vehicle Already Exists in System
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                    <span className="font-semibold">{chassisConflict.name}</span> with this chassis number is already recorded.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 text-sm space-y-2 border border-orange-200 dark:border-orange-700">
+                <p className="font-semibold text-orange-800 dark:text-orange-300">
+                  Current status: <span className="uppercase">{chassisConflict.status.replace(/_/g, " ")}</span>
+                </p>
+                {chassisConflict.active_sale_id && (
+                  <p className="text-orange-700 dark:text-orange-400">
+                    ⚠ This vehicle has an active {chassisConflict.active_sale_type === "installment" ? "installment sale" : "sale"}.
+                    The original buyer's outstanding installments will <strong>remain active</strong> — you can still collect those payments.
+                    Only the vehicle's physical status will be reset to In Stock.
+                  </p>
+                )}
+              </div>
+
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                This can happen when a buyer resells the vehicle to a third party who brings it back to your showroom.
+                Click <strong>Re-purchase</strong> to continue filling in the new purchase details for this vehicle.
+              </p>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setChassisConflict(null);
+                    setIsRepurchaseMode(false);
+                    updateForm("chassis_number", "");
+                  }}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => setIsRepurchaseMode(true)}
+                  className="btn-primary bg-orange-600 hover:bg-orange-700"
+                >
+                  Re-purchase Vehicle
                 </button>
               </div>
             </div>

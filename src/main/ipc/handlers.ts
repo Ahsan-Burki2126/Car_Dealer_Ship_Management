@@ -179,6 +179,27 @@ export function registerIpcHandlers(): void {
     }
   });
 
+  ipcMain.handle("vehicles:checkChassis", async (_event, chassis: string) => {
+    try {
+      return { success: true, data: vehicleService.checkChassisExists(chassis) };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle(
+    "vehicles:repurchase",
+    async (_event, userId: string, vehicleId: string, data: any) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        const vehicle = vehicleService.repurchaseVehicle(vehicleId, userId, data);
+        return { success: true, data: vehicle };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
   ipcMain.handle(
     "vehicles:update",
     async (_event, userId: string, id: string, data: any) => {
@@ -419,6 +440,15 @@ export function registerIpcHandlers(): void {
     try {
       requireRole(userId, ["super_admin", "admin"]);
       return { success: true, data: salesService.getOverdueInstallments() };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("sales:getInstallmentSales", async (_event, userId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      return { success: true, data: salesService.getInstallmentSales() };
     } catch (e) {
       return handleError(e);
     }

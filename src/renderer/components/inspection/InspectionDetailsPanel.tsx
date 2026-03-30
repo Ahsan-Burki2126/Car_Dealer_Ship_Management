@@ -42,13 +42,11 @@ export default function InspectionDetailsPanel({
   onClose,
   readonly = false,
 }: Props) {
-  const [panelId,  setPanelId]  = useState(marker.panelId);
   const [severity, setSeverity] = useState(marker.severity);
   const [notes,    setNotes]    = useState(marker.notes ?? "");
   const [isDirty,  setIsDirty]  = useState(false);
 
   useEffect(() => {
-    setPanelId(marker.panelId);
     setSeverity(marker.severity);
     setNotes(marker.notes ?? "");
     setIsDirty(false);
@@ -59,7 +57,6 @@ export default function InspectionDetailsPanel({
   const handleSave = () => {
     onUpdate({
       ...marker,
-      panelId,
       severity,
       damageType: SEVERITY_TO_DAMAGE[severity],
       notes,
@@ -68,7 +65,7 @@ export default function InspectionDetailsPanel({
   };
 
   const panelLabel =
-    PANEL_REGIONS.find((p) => p.id === panelId)?.label ?? panelId;
+    PANEL_REGIONS.find((p) => p.id === marker.panelId)?.label ?? marker.panelId;
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
@@ -102,20 +99,7 @@ export default function InspectionDetailsPanel({
           <label className="block font-medium text-gray-700 dark:text-gray-300 mb-1">
             Panel
           </label>
-          {readonly ? (
-            <p className="px-2 py-1 text-gray-900 dark:text-white">{panelLabel}</p>
-          ) : (
-            <select
-              value={panelId}
-              onChange={(e) => { setPanelId(e.target.value); mark(); }}
-              className="w-full rounded-md border border-gray-300 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-            >
-              {PANEL_REGIONS.map((p) => (
-                <option key={p.id} value={p.id}>{p.label}</option>
-              ))}
-              <option value="unknown">Other / Unknown</option>
-            </select>
-          )}
+          <p className="px-2 py-1 text-gray-900 dark:text-white">{panelLabel}</p>
         </div>
 
         {/* Severity / damage code */}

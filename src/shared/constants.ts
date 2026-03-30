@@ -23,9 +23,7 @@ export function isValidCnic(value: string): boolean {
 }
 
 export const VEHICLE_STATUSES = [
-  { value: "purchased", label: "Purchased" },
   { value: "in_stock", label: "In Stock" },
-  { value: "reserved", label: "Reserved" },
   { value: "sold", label: "Sold" },
   { value: "on_installments", label: "On Installments" },
 ] as const;

@@ -221,7 +221,6 @@ export default function ReportsPage() {
         { name: "In Stock", value: inventoryReport.in_stock, color: "#10b981" },
         { name: "Sold", value: inventoryReport.sold, color: "#3b82f6" },
         { name: "On Installments", value: inventoryReport.on_installments, color: "#f59e0b" },
-        { name: "Reserved", value: inventoryReport.reserved, color: "#8b5cf6" },
       ].filter((d) => d.value > 0)
     : [];
 
@@ -651,10 +650,6 @@ export default function ReportsPage() {
               <p className="text-3xl font-bold text-orange-600">{inventoryReport.long_staying}</p>
               <p className="text-sm text-gray-500">Long Staying (60+ days)</p>
             </div>
-            <div className="card text-center">
-              <p className="text-3xl font-bold text-teal-600">{inventoryReport.reserved}</p>
-              <p className="text-sm text-gray-500">Reserved</p>
-            </div>
           </div>
 
           {/* Inventory Pie Chart */}
@@ -694,7 +689,6 @@ export default function ReportsPage() {
                     { label: "In Stock", count: inventoryReport.in_stock, color: "bg-green-600" },
                     { label: "Sold", count: inventoryReport.sold, color: "bg-blue-600" },
                     { label: "On Installments", count: inventoryReport.on_installments, color: "bg-yellow-500" },
-                    { label: "Reserved", count: inventoryReport.reserved, color: "bg-purple-600" },
                     { label: "Long Staying", count: inventoryReport.long_staying, color: "bg-orange-500" },
                   ].map((s) => {
                     const pct = inventoryReport.total_vehicles > 0 ? (s.count / inventoryReport.total_vehicles) * 100 : 0;

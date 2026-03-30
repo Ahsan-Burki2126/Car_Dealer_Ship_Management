@@ -202,6 +202,10 @@
   color: #064E3B !important;
 }
 
+.theme-eco h1.brand-title {
+  color: #ffffff !important;
+}
+
 .theme-eco p,
 .theme-eco span,
 .theme-eco label {

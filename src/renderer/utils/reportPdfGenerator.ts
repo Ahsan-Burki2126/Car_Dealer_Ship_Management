@@ -618,7 +618,6 @@ function drawInventoryBreakdown(doc: jsPDF, inv: InventoryReport, y: number, mar
     { label: "In Stock", count: inv.in_stock, color: GREEN },
     { label: "Sold", count: inv.sold, color: BLUE },
     { label: "On Installments", count: inv.on_installments, color: AMBER },
-    { label: "Reserved", count: inv.reserved, color: PURPLE },
     { label: "Long Staying (60+ days)", count: inv.long_staying, color: ORANGE },
   ];
 

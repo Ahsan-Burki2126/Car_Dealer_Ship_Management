@@ -116,7 +116,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Branding Header */}
       <div className="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-xl p-6 text-white shadow-lg">
-        <h1 className="text-3xl font-bold tracking-wide">
+        <h1 className="text-3xl font-bold tracking-wide brand-title">
           Pak Japan Motors, Layyah
         </h1>
         <p className="text-blue-100 mt-1">

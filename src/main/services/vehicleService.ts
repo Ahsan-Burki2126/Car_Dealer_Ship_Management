@@ -9,12 +9,26 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
   const purchaseDate =
     data.purchase_date || new Date().toISOString().split("T")[0];
 
-  // Enforce unique chassis number
+  // Enforce unique chassis number — return structured info so UI can offer re-purchase
   if (data.chassis_number && data.chassis_number.trim()) {
     const existing = db.prepare(
-      "SELECT id FROM vehicles WHERE chassis_number = ? AND chassis_number != '' AND is_deleted = 0"
-    ).get(data.chassis_number.trim());
-    if (existing) throw new Error(`A vehicle with chassis number "${data.chassis_number.trim()}" already exists.`);
+      `SELECT v.id, v.status, v.make, v.model, v.year,
+         (SELECT s.id FROM sales s WHERE s.vehicle_id = v.id AND s.status = 'active' AND s.is_deleted = 0 LIMIT 1) as active_sale_id,
+         (SELECT s.payment_type FROM sales s WHERE s.vehicle_id = v.id AND s.status = 'active' AND s.is_deleted = 0 LIMIT 1) as active_sale_type
+       FROM vehicles v
+       WHERE v.chassis_number = ? AND v.chassis_number != '' AND v.is_deleted = 0`
+    ).get(data.chassis_number.trim()) as { id: string; status: string; make: string; model: string; year: number; active_sale_id: string | null; active_sale_type: string | null } | undefined;
+    if (existing) {
+      throw new Error(
+        `CHASSIS_EXISTS:${JSON.stringify({
+          id: existing.id,
+          status: existing.status,
+          name: `${existing.make} ${existing.model} (${existing.year})`,
+          active_sale_id: existing.active_sale_id,
+          active_sale_type: existing.active_sale_type,
+        })}`
+      );
+    }
   }
 
   const inspectionJson = data.vehicleInspection
@@ -188,6 +202,129 @@ export function addVehicle(userId: string, data: Partial<Vehicle>): Vehicle {
   );
 
   return getVehicleById(id)!;
+}
+
+/**
+ * Re-purchase a vehicle that already exists in the system (e.g. sold on installments,
+ * then resold by buyer to a third party who brings it back to the showroom).
+ *
+ * This will:
+ *  1. Keep ALL existing sales and installments intact — the original buyer still owes any
+ *     outstanding installments and those must continue to be collected normally.
+ *  2. Reset the vehicle's purchase details with the new seller's info + price.
+ *  3. Set vehicle status back to 'in_stock' so it can be sold again.
+ *
+ * The original sale is intentionally NOT cancelled because the debt is between the
+ * dealership and the original buyer, independent of who physically holds the car.
+ */
+export function repurchaseVehicle(vehicleId: string, userId: string, newData: Partial<Vehicle>): Vehicle {
+  const db = getDatabase();
+
+  const existing = db.prepare(
+    "SELECT * FROM vehicles WHERE id = ? AND is_deleted = 0"
+  ).get(vehicleId) as any;
+  if (!existing) throw new Error("Vehicle not found");
+
+  const purchaseDate = newData.purchase_date || new Date().toISOString().split("T")[0];
+
+  const tx = db.transaction(() => {
+    // NOTE: We deliberately do NOT touch the existing sales or installments.
+    // Person A's installment debt to the dealership remains active and collectible.
+
+    // Reset vehicle to in_stock with new purchase details
+    db.prepare(`
+      UPDATE vehicles SET
+        status = 'in_stock',
+        purchase_price = ?,
+        purchase_date = ?,
+        seller_name = ?,
+        seller_father_name = ?,
+        seller_caste = ?,
+        seller_address = ?,
+        seller_cnic = ?,
+        seller_phone = ?,
+        seller_photo_path = ?,
+        seller_cnic_photo_path = ?,
+        seller_cnic_photo_back_path = ?,
+        seller_witness_name = ?,
+        seller_witness_father_name = ?,
+        seller_witness_cnic = ?,
+        seller_witness_phone = ?,
+        total_expenses = 0,
+        total_cost = ?,
+        selling_price = NULL,
+        notes = ?,
+        updated_at = datetime('now'),
+        synced = 0
+      WHERE id = ?
+    `).run(
+      newData.purchase_price || 0,
+      purchaseDate,
+      newData.seller_name || "",
+      newData.seller_father_name || "",
+      newData.seller_caste || "",
+      newData.seller_address || "",
+      newData.seller_cnic || "",
+      newData.seller_phone || "",
+      newData.seller_photo_path || "",
+      newData.seller_cnic_photo_path || "",
+      newData.seller_cnic_photo_back_path || "",
+      newData.seller_witness_name || "",
+      newData.seller_witness_father_name || "",
+      newData.seller_witness_cnic || "",
+      newData.seller_witness_phone || "",
+      newData.purchase_price || 0,
+      newData.notes || "",
+      vehicleId,
+    );
+
+    // Record new purchase entry
+    db.prepare(
+      "INSERT INTO purchases (id, vehicle_id, purchase_price, purchase_date, notes, created_by) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run(uuidv4(), vehicleId, newData.purchase_price || 0, purchaseDate, newData.notes || "", userId);
+  });
+
+  tx();
+
+  const auditUser = db.prepare("SELECT username, role FROM users WHERE id = ?").get(userId) as any;
+  db.prepare(
+    `INSERT INTO audit_logs (id, user_id, username, role, action_type, affected_entity, entity_id, new_value, timestamp)
+     VALUES (?, ?, ?, ?, 'repurchase', 'vehicles', ?, ?, datetime('now'))`
+  ).run(uuidv4(), userId, auditUser?.username || "", auditUser?.role || "", vehicleId,
+    JSON.stringify({ chassis: existing.chassis_number, note: "Vehicle re-purchased after being resold externally" }));
+
+  return getVehicleById(vehicleId)!;
+}
+
+export function checkChassisExists(chassis: string): {
+  exists: boolean;
+  id?: string;
+  status?: string;
+  name?: string;
+  active_sale_id?: string | null;
+  active_sale_type?: string | null;
+} {
+  const db = getDatabase();
+  const trimmed = chassis.trim();
+  if (!trimmed) return { exists: false };
+
+  const row = db.prepare(
+    `SELECT v.id, v.status, v.make, v.model, v.year,
+       (SELECT s.id FROM sales s WHERE s.vehicle_id = v.id AND s.status = 'active' AND s.is_deleted = 0 LIMIT 1) as active_sale_id,
+       (SELECT s.payment_type FROM sales s WHERE s.vehicle_id = v.id AND s.status = 'active' AND s.is_deleted = 0 LIMIT 1) as active_sale_type
+     FROM vehicles v
+     WHERE v.chassis_number = ? AND v.chassis_number != '' AND v.is_deleted = 0`
+  ).get(trimmed) as any;
+
+  if (!row) return { exists: false };
+  return {
+    exists: true,
+    id: row.id,
+    status: row.status,
+    name: `${row.make} ${row.model} (${row.year})`,
+    active_sale_id: row.active_sale_id || null,
+    active_sale_type: row.active_sale_type || null,
+  };
 }
 
 export function getVehicles(filters?: {
