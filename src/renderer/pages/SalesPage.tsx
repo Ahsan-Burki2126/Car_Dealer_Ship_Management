@@ -12,7 +12,6 @@ import {
   FiChevronRight,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
-import { confirmDeleteRecord } from "../utils/confirmDelete";
 import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 
 interface Sale {
@@ -70,7 +69,6 @@ export default function SalesPage() {
 
   const handleDelete = async (saleId: string) => {
     if (!user) return;
-    if (!confirmDeleteRecord()) return;
 
     let result = await window.api.deleteSale(user.id, saleId, false);
     if (

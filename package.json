@@ -76,8 +76,8 @@
     ],
     "extraResources": [
       {
-        "from": "public/images/PAK_JAPAN logo.png",
-        "to": "icons/app-icon.png"
+        "from": "build/icon.ico",
+        "to": "icons/icon.ico"
       },
       {
         "from": ".env",
@@ -87,7 +87,7 @@
     "win": {
       "target": "nsis",
       "signAndEditExecutable": false,
-      "icon": "public/images/PAK_JAPAN logo.png"
+      "icon": "build/icon.ico"
     }
   }
 }

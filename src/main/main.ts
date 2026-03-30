@@ -109,7 +109,7 @@ async function createWindow(): Promise<void> {
   Menu.setApplicationMenu(null);
 
   const iconPath = app.isPackaged
-    ? path.join(process.resourcesPath, "icons/app-icon.png")
+    ? path.join(process.resourcesPath, "icons/icon.ico")
     : path.join(__dirname, "../../../public/images/PAK_JAPAN logo.png");
 
   mainWindow = new BrowserWindow({

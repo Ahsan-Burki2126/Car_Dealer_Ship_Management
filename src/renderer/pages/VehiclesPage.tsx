@@ -6,7 +6,6 @@ import type { Vehicle, VehicleStatus } from "../../shared/types";
 import { VEHICLE_STATUSES } from "../../shared/constants";
 import { FiPlus, FiSearch, FiEye, FiEdit, FiTrash2 } from "react-icons/fi";
 import { toast } from "react-toastify";
-import { confirmDeleteRecord } from "../utils/confirmDelete";
 import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 
 export default function VehiclesPage() {
@@ -40,7 +39,6 @@ export default function VehiclesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirmDeleteRecord()) return;
     const result = await window.api.deleteVehicle(user!.id, id);
     if (result.success) {
       toast.success("Vehicle deleted");

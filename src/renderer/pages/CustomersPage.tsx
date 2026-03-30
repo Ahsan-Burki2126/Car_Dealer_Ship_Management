@@ -12,7 +12,6 @@ import {
   FiChevronLeft,
   FiChevronRight,
 } from "react-icons/fi";
-import { confirmDeleteRecord } from "../utils/confirmDelete";
 import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 
 interface Customer {
@@ -51,7 +50,6 @@ export default function CustomersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirmDeleteRecord()) return;
     const result = await window.api.deleteCustomer(user!.id, id);
     if (result.success) {
       toast.success("Customer deleted");

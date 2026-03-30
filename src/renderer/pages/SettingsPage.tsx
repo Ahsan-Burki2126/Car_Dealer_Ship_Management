@@ -3,7 +3,6 @@ import { useSelector, useDispatch } from "react-redux";
 import type { RootState, AppDispatch } from "../store";
 import { toggleDarkMode, setTheme, type AppTheme } from "../store/slices/uiSlice";
 import { toast } from "react-toastify";
-import { confirmDeleteRecord } from "../utils/confirmDelete";
 import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
 import {
   FiSettings,
@@ -194,7 +193,6 @@ export default function SettingsPage() {
 
   const handleDeleteBank = async (accountId: string) => {
     if (!user) return;
-    if (!confirmDeleteRecord()) return;
     const result = await (window.api as any).deleteBankAccount(user.id, accountId);
     if (result.success) {
       toast.success("Bank account deleted");
