@@ -18,7 +18,7 @@ export default function VehiclesPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { requestAuth, PasswordModal } = useSuperadminAuth();
+  const { requestAuth, modal } = useSuperadminAuth();
 
   useEffect(() => {
     loadVehicles();
@@ -234,7 +234,7 @@ export default function VehiclesPage() {
           </div>
         )}
       </div>
-      <PasswordModal />
+      {modal}
     </div>
   );
 }

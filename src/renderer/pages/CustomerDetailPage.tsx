@@ -55,7 +55,7 @@ export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
-  const { requestAuth, PasswordModal } = useSuperadminAuth();
+  const { requestAuth, modal } = useSuperadminAuth();
   const [ledger, setLedger] = useState<LedgerData>({
     sales: [],
     payments: [],
@@ -321,7 +321,7 @@ export default function CustomerDetailPage() {
           </div>
         )}
       </div>
-      <PasswordModal />
+      {modal}
     </div>
   );
 }

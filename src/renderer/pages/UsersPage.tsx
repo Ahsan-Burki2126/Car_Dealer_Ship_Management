@@ -4,7 +4,6 @@ import type { RootState } from "../store";
 import { USER_ROLES } from "../../shared/constants";
 import { toast } from "react-toastify";
 import { FiPlus, FiEdit, FiTrash2, FiUsers } from "react-icons/fi";
-import { confirmDeleteRecord } from "../utils/confirmDelete";
 import { useAccessControl } from "../components/SuperadminPasswordModal";
 
 interface UserRecord {
@@ -23,7 +22,7 @@ export default function UsersPage() {
     canDelete,
     requestEditAction,
     requestDeleteAction,
-    PasswordModal,
+    modal,
   } = useAccessControl();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,7 +94,6 @@ export default function UsersPage() {
 
   const handleDelete = async (userId: string) => {
     if (!currentUser) return;
-    if (!confirmDeleteRecord()) return;
     const result = await window.api.deleteUser(currentUser.id, userId);
     if (result.success) {
       toast.success("User deleted permanently");
@@ -293,7 +291,7 @@ export default function UsersPage() {
           </table>
         </div>
       </div>
-      <PasswordModal />
+      {modal}
     </div>
   );
 }

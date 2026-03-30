@@ -18,7 +18,11 @@ export default function FormStepper({
   onStepClick,
 }: FormStepperProps) {
   return (
-    <nav className="card p-4 mb-6">
+    <nav className="card px-4 py-3 mb-6">
+      {/* Current step label shown above the dots */}
+      <p className="text-sm font-semibold text-primary-700 dark:text-primary-400 mb-2 text-center">
+        Step {currentStep + 1} of {steps.length}: {steps[currentStep]?.label}
+      </p>
       <ol className="flex items-center w-full">
         {steps.map((step, i) => {
           const isCompleted = i < currentStep;
@@ -34,10 +38,11 @@ export default function FormStepper({
                 type="button"
                 onClick={() => isClickable && onStepClick(i)}
                 disabled={!isClickable}
-                className={`flex items-center gap-2 group ${isClickable ? "cursor-pointer" : "cursor-default"}`}
+                title={step.label}
+                className={isClickable ? "cursor-pointer" : "cursor-default"}
               >
                 <span
-                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold shrink-0 transition-colors ${
+                  className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold shrink-0 transition-colors ${
                     isCompleted
                       ? "bg-green-500 text-white"
                       : isCurrent
@@ -45,24 +50,13 @@ export default function FormStepper({
                         : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
                   }`}
                 >
-                  {isCompleted ? <FiCheck size={16} /> : i + 1}
-                </span>
-                <span
-                  className={`text-sm font-medium hidden sm:inline whitespace-nowrap ${
-                    isCurrent
-                      ? "text-primary-700 dark:text-primary-400"
-                      : isCompleted
-                        ? "text-green-700 dark:text-green-400"
-                        : "text-gray-500 dark:text-gray-400"
-                  } ${isClickable ? "group-hover:underline" : ""}`}
-                >
-                  {step.label}
+                  {isCompleted ? <FiCheck size={13} /> : i + 1}
                 </span>
               </button>
 
               {i < steps.length - 1 && (
                 <div
-                  className={`flex-1 h-0.5 mx-3 rounded ${
+                  className={`flex-1 h-0.5 mx-1.5 rounded ${
                     i < currentStep
                       ? "bg-green-400 dark:bg-green-600"
                       : "bg-gray-200 dark:bg-gray-700"

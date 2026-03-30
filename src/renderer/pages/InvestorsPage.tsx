@@ -65,7 +65,7 @@ const emptyWithdrawal = {
 
 export default function InvestorsPage() {
   const { user } = useSelector((state: RootState) => state.auth);
-  const { requestAuth, PasswordModal } = useSuperadminAuth();
+  const { requestAuth, modal } = useSuperadminAuth();
   const [investors, setInvestors] = useState<Investor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -1021,7 +1021,7 @@ export default function InvestorsPage() {
         )}
       </div>
 
-      <PasswordModal />
+      {modal}
     </div>
   );
 }

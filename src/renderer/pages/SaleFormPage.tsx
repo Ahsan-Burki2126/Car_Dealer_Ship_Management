@@ -247,6 +247,8 @@ export default function SaleFormPage() {
       return;
     }
     if (scheduleLocked) return;
+    const parsedDate = new Date(form.installment_start_date);
+    if (!form.installment_start_date || isNaN(parsedDate.getTime())) return;
     const count = parseInt(form.installment_count) || 1;
     setInstallmentSchedule(
       buildSchedule(

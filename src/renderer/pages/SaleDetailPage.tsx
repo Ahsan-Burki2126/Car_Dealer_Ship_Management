@@ -68,7 +68,7 @@ export default function SaleDetailPage() {
     amount: number;
     max: number;
   } | null>(null);
-  const { requestAuth, PasswordModal } = useSuperadminAuth();
+  const { requestAuth, modal } = useSuperadminAuth();
 
   useEffect(() => {
     if (id) {
@@ -540,7 +540,7 @@ export default function SaleDetailPage() {
       )}
 
       {/* Superadmin password modal */}
-      <PasswordModal />
+      {modal}
     </div>
   );
 }

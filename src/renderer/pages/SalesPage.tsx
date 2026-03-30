@@ -39,7 +39,7 @@ const statusBadge: Record<string, string> = {
 export default function SalesPage() {
   const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
-  const { requestAuth, PasswordModal } = useSuperadminAuth();
+  const { requestAuth, modal } = useSuperadminAuth();
   const [sales, setSales] = useState<Sale[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -268,7 +268,7 @@ export default function SalesPage() {
           </div>
         )}
       </div>
-      <PasswordModal />
+      {modal}
     </div>
   );
 }

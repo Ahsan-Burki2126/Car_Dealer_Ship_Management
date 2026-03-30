@@ -24,7 +24,7 @@ interface Expense {
 
 export default function ExpensesPage() {
   const { user } = useSelector((state: RootState) => state.auth);
-  const { requestAuth, PasswordModal } = useSuperadminAuth();
+  const { requestAuth, modal } = useSuperadminAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -314,7 +314,7 @@ export default function ExpensesPage() {
           </div>
         )}
       </div>
-      <PasswordModal />
+      {modal}
     </div>
   );
 }

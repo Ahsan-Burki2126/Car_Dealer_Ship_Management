@@ -58,7 +58,7 @@ export default function SettingsPage() {
   const { darkMode, theme } = useSelector((state: RootState) => state.ui);
   const dispatch = useDispatch<AppDispatch>();
   const isSuperAdmin = user?.role === "super_admin";
-  const { requestAuth, PasswordModal } = useSuperadminAuth();
+  const { requestAuth, modal } = useSuperadminAuth();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
 
@@ -697,7 +697,7 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-      <PasswordModal />
+      {modal}
     </div>
   );
 }

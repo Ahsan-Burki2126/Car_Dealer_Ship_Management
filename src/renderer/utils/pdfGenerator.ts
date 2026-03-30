@@ -683,41 +683,44 @@ export function generateProfessionalInspectionReport(inspection: {
     return [220, 38, 38];
   };
 
-  const ratingColor = getRatingColor(inspection.overall_score);
+  // ── Header ──────────────────────────────────────────────────────────────
+  setColor(doc, BRAND, "fill");
+  doc.rect(0, 0, pw, 42, "F");
 
-  // Header background
-  setColor(doc, ratingColor, "fill");
-  doc.rect(0, 0, pw, 35, "F");
-
-  doc.setFontSize(24);
+  // Brand name — large, centered, prominent
+  doc.setFontSize(28);
   doc.setFont("helvetica", "bold");
   setColor(doc, WHITE);
-  doc.text("VEHICLE INSPECTION REPORT", pw / 2, 12, { align: "center" });
+  doc.text("PAK JAPAN MOTORS", pw / 2, 18, { align: "center" });
 
-  // Score circle
-  setColor(doc, WHITE, "fill");
-  doc.circle(pw - 18, 17.5, 8);
-  setColor(doc, ratingColor);
-  doc.setFontSize(18);
-  doc.text(inspection.overall_score.toFixed(1), pw - 18, 19.5, {
-    align: "center",
-  });
-  doc.setFontSize(9);
-  doc.text("/10", pw - 14, 19.5, { align: "left" });
+  // Decorative line below brand
+  setColor(doc, [255, 255, 255], "draw");
+  doc.setLineWidth(0.5);
+  doc.line(30, 22, pw - 30, 22);
 
-  y = 40;
+  // Report subtitle
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  setColor(doc, WHITE);
+  doc.text("VEHICLE INSPECTION REPORT", pw / 2, 30, { align: "center" });
 
-  // Vehicle Details
+  // Inspector & date line
+  doc.setFontSize(8);
+  doc.text(`Inspector: ${inspection.inspector_name}   |   Date: ${new Date(inspection.inspection_date).toLocaleDateString()}`, pw / 2, 37, { align: "center" });
+
+  y = 50;
+
+  // ── Vehicle Information ─────────────────────────────────────────────────
   setColor(doc, LIGHT_BG, "fill");
   doc.rect(12, y - 5, pw - 24, 45, "F");
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  setColor(doc, DARK);
+  setColor(doc, BRAND);
   doc.text("VEHICLE INFORMATION", 15, y);
 
   y += 8;
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
 
   const vehicleDetails = [
@@ -739,7 +742,7 @@ export function generateProfessionalInspectionReport(inspection: {
     doc.text(`${detail[0]}:`, 15, y + i * 5, { maxWidth: 40 });
     doc.setFont("helvetica", "bold");
     setColor(doc, DARK);
-    doc.text(detail[1], 60, y + i * 5);
+    doc.text(detail[1], 55, y + i * 5);
     doc.setFont("helvetica", "normal");
   });
 
@@ -748,54 +751,115 @@ export function generateProfessionalInspectionReport(inspection: {
     doc.text(`${detail[0]}:`, pw / 2 + 5, y + i * 5, { maxWidth: 40 });
     doc.setFont("helvetica", "bold");
     setColor(doc, DARK);
-    doc.text(detail[1], pw / 2 + 50, y + i * 5);
+    doc.text(detail[1], pw / 2 + 45, y + i * 5);
     doc.setFont("helvetica", "normal");
   });
 
   y += 25;
 
-  // Condition Summary
+  // ── Car Body Diagram ────────────────────────────────────────────────────
+  y += 4;
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  setColor(doc, DARK);
-  doc.text("OVERALL CONDITION", 15, y);
-  y += 7;
+  setColor(doc, BRAND);
+  doc.text("EXTERIOR DAMAGE DIAGRAM", 15, y);
+  y += 6;
 
-  const conditions: [string, number][] = [
-    [
-      "Exterior",
-      inspection.categories?.find((c) =>
-        c.name.toLowerCase().includes("exterior"),
-      )?.rating || 5,
-    ],
-    ["Interior", inspection.interior_rating || 5],
-    ["Mechanical", inspection.mechanical_rating || 5],
-  ];
-
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  conditions.forEach((cond) => {
-    if (y > 260) {
-      doc.addPage();
-      y = 15;
-    }
-
-    const condRating = cond[1];
-    const barColor = getRatingColor(condRating);
-    const barWidth = (condRating / 10) * 60;
-
-    setColor(doc, DARK);
-    doc.text(`${cond[0]}:`, 15, y + 2);
-    setColor(doc, [230, 230, 230], "fill");
-    doc.rect(50, y - 1, 60, 4);
-    setColor(doc, barColor, "fill");
-    doc.rect(50, y - 1, barWidth, 4, "F");
-    setColor(doc, DARK);
-    doc.text(`${condRating.toFixed(1)}/10`, 115, y + 2);
-    y += 7;
+  // Build a lookup: panel_id → status
+  const panelStatus: Record<string, string> = {};
+  (inspection.exterior_damages || []).forEach((d) => {
+    panelStatus[d.panel_id] = d.status;
   });
 
-  y += 5;
+  const statusColor = (status: string): RGB => {
+    if (status === "normal") return [34, 197, 94];
+    if (status === "scratch") return [245, 158, 11];
+    if (status === "dent") return [234, 88, 12];
+    if (status === "repainted") return [139, 92, 246];
+    if (status === "rust") return [220, 38, 38];
+    return [200, 200, 200]; // unknown / not inspected
+  };
+
+  // Draw a labelled coloured rectangle for each panel zone
+  // Layout: two columns spanning full page width
+  const cellW = (pw - 30 - 5) / 2; // ~87mm each, 5mm gap
+  const cellH = 14;
+  const col1x = 15;
+  const col2x = col1x + cellW + 5;
+
+  const leftPanels = [
+    { id: "front_bumper",      label: "Front Bumper" },
+    { id: "bonnet",            label: "Bonnet / Hood" },
+    { id: "roof",              label: "Roof" },
+    { id: "trunk",             label: "Trunk / Boot" },
+    { id: "rear_bumper",       label: "Rear Bumper" },
+    { id: "left_front_fender", label: "Left Front Fender" },
+    { id: "left_front_door",   label: "Left Front Door" },
+  ];
+  const rightPanels = [
+    { id: "right_front_fender", label: "Right Front Fender" },
+    { id: "right_front_door",   label: "Right Front Door" },
+    { id: "left_rear_door",     label: "Left Rear Door" },
+    { id: "left_rear_fender",   label: "Left Rear Fender" },
+    { id: "right_rear_door",    label: "Right Rear Door" },
+    { id: "right_rear_fender",  label: "Right Rear Fender" },
+  ];
+
+  const rows = Math.max(leftPanels.length, rightPanels.length);
+
+  for (let i = 0; i < rows; i++) {
+    const rowY = y + i * (cellH + 2);
+
+    if (leftPanels[i]) {
+      const col = statusColor(panelStatus[leftPanels[i].id] || "");
+      setColor(doc, col, "fill");
+      doc.roundedRect(col1x, rowY, cellW, cellH, 2, 2, "F");
+      setColor(doc, WHITE);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text(leftPanels[i].label, col1x + cellW / 2, rowY + 6, { align: "center" });
+      const st = panelStatus[leftPanels[i].id] || "Not Inspected";
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "normal");
+      doc.text(st.toUpperCase(), col1x + cellW / 2, rowY + 11, { align: "center" });
+    }
+
+    if (rightPanels[i]) {
+      const col = statusColor(panelStatus[rightPanels[i].id] || "");
+      setColor(doc, col, "fill");
+      doc.roundedRect(col2x, rowY, cellW, cellH, 2, 2, "F");
+      setColor(doc, WHITE);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text(rightPanels[i].label, col2x + cellW / 2, rowY + 6, { align: "center" });
+      const st = panelStatus[rightPanels[i].id] || "Not Inspected";
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "normal");
+      doc.text(st.toUpperCase(), col2x + cellW / 2, rowY + 11, { align: "center" });
+    }
+  }
+
+  y += rows * (cellH + 2) + 6;
+
+  // Legend
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  const legend: [string, RGB][] = [
+    ["Normal", [34, 197, 94]],
+    ["Scratch", [245, 158, 11]],
+    ["Dent", [234, 88, 12]],
+    ["Repainted", [139, 92, 246]],
+    ["Rust", [220, 38, 38]],
+  ];
+  let lx = 15;
+  legend.forEach(([label, col]) => {
+    setColor(doc, col, "fill");
+    doc.rect(lx, y, 4, 4, "F");
+    setColor(doc, DARK);
+    doc.text(label, lx + 5, y + 3);
+    lx += label.length * 2.2 + 8;
+  });
+  y += 10;
 
   // Recommendation
   if (inspection.recommendation) {
@@ -977,7 +1041,7 @@ export function generateVehiclePurchasePdf(vehicle: {
   doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
   setColor(doc, DARK);
-  doc.text("PAK JAPAN VEHICLES, LAYYAH", pw / 2, 18, { align: "center" });
+  doc.text("PAK JAPAN MOTORS", pw / 2, 18, { align: "center" });
 
   doc.setFontSize(11);
   setColor(doc, ACCENT);

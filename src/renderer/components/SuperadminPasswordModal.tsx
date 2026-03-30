@@ -106,7 +106,7 @@ export default function SuperadminPasswordModal({
  *   requestAuth(() => { performAction(); });
  *   // Render <PasswordModal /> in your component
  */
-export function useSuperadminAuth() {
+export function useSuperadminAuth(props?: { title?: string; message?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [openKey, setOpenKey] = useState(0);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
@@ -117,7 +117,7 @@ export function useSuperadminAuth() {
     setIsOpen(true);
   };
 
-  const PasswordModal = (props?: { title?: string; message?: string }) => (
+  const modal = (
     <SuperadminPasswordModal
       key={openKey}
       isOpen={isOpen}
@@ -135,7 +135,7 @@ export function useSuperadminAuth() {
     />
   );
 
-  return { requestAuth, PasswordModal };
+  return { requestAuth, modal };
 }
 
 /**
@@ -188,7 +188,7 @@ export function useAccessControl() {
     },
   };
 
-  const PasswordModal = () => (
+  const modal = (
     <SuperadminPasswordModal
       key={openKey}
       isOpen={isOpen}
@@ -212,6 +212,6 @@ export function useAccessControl() {
     canDelete,
     requestEditAction,
     requestDeleteAction,
-    PasswordModal,
+    modal,
   };
 }

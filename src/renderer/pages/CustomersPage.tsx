@@ -28,7 +28,7 @@ interface Customer {
 export default function CustomersPage() {
   const { user } = useSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
-  const { requestAuth, PasswordModal } = useSuperadminAuth();
+  const { requestAuth, modal } = useSuperadminAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -189,7 +189,7 @@ export default function CustomersPage() {
           </div>
         )}
       </div>
-      <PasswordModal />
+      {modal}
     </div>
   );
 }

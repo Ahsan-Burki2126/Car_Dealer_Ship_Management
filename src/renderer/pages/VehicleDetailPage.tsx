@@ -43,7 +43,7 @@ export default function VehicleDetailPage() {
   const [expenses, setExpenses] = useState<VehicleExpense[]>([]);
   const [showPrintReport, setShowPrintReport] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
-  const { requestAuth, PasswordModal } = useSuperadminAuth();
+  const { requestAuth, modal } = useSuperadminAuth();
   const [expenseForm, setExpenseForm] = useState({
     category: "paint_repair",
     amount: "",
@@ -577,7 +577,7 @@ export default function VehicleDetailPage() {
       )}
 
       {/* Superadmin password modal */}
-      <PasswordModal />
+      {modal}
     </div>
   );
 }

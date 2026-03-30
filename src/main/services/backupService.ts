@@ -11,7 +11,7 @@ import {
 import * as googleDriveService from "./googleDriveService";
 import type { BackupRecord } from "../../shared/types";
 
-const AUTO_BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const AUTO_BACKUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 let autoBackupTimer: NodeJS.Timeout | null = null;
 let autoGoogleDriveBackupTimer: NodeJS.Timeout | null = null;
 
@@ -225,7 +225,12 @@ function runAutomaticBackupIfDue(): void {
 
 export function startAutomaticBackups(): void {
   ensureBackupsDirectory();
-  runAutomaticBackupIfDue();
+  // Always create a backup on startup to ensure fresh recovery point
+  try {
+    createBackup("automatic");
+  } catch {
+    // Non-fatal
+  }
 
   if (autoBackupTimer) {
     return;

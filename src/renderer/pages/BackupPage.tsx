@@ -52,7 +52,7 @@ function formatBytes(bytes: string): string {
 
 export default function BackupPage() {
   const { user } = useSelector((state: RootState) => state.auth);
-  const { requestAuth, PasswordModal } = useSuperadminAuth();
+  const { requestAuth, modal } = useSuperadminAuth();
   const [backups, setBackups] = useState<BackupEntry[]>([]);
   const [googleBackups, setGoogleBackups] = useState<GoogleDriveBackup[]>([]);
   const [backupFolder, setBackupFolder] = useState("");
@@ -508,7 +508,7 @@ export default function BackupPage() {
           </div>
         )}
       </div>
-      <PasswordModal />
+      {modal}
     </>
   );
 }

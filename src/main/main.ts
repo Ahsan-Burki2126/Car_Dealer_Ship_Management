@@ -25,6 +25,7 @@ import {
   stopAutomaticBackups,
   startAutomaticGoogleDriveBackups,
   stopAutomaticGoogleDriveBackups,
+  createBackup,
 } from "./services/backupService";
 
 let mainWindow: BrowserWindow | null = null;
@@ -197,5 +198,10 @@ app.on("window-all-closed", () => {
 app.on("before-quit", () => {
   stopAutomaticBackups();
   stopAutomaticGoogleDriveBackups();
+  try {
+    createBackup("automatic");
+  } catch {
+    // Non-fatal: don't block shutdown
+  }
   closeDatabase();
 });
