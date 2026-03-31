@@ -289,14 +289,20 @@ export default function SaleDetailPage() {
             Financial
           </h3>
           <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
+            <div className="flex justify-between items-start">
               <dt className="text-gray-500">Sale Price</dt>
-              <dd className="font-bold">{formatCurrency(sale.sale_price)}</dd>
+              <div className="text-right">
+                <dd className="font-bold">{formatCurrency(sale.sale_price)}</dd>
+                <AmountWords value={sale.sale_price} />
+              </div>
             </div>
             {sale.payment_type === "installment" && (
-              <div className="flex justify-between">
+              <div className="flex justify-between items-start">
                 <dt className="text-gray-500">Down Payment</dt>
-                <dd>{formatCurrency(sale.down_payment)}</dd>
+                <div className="text-right">
+                  <dd>{formatCurrency(sale.down_payment)}</dd>
+                  <AmountWords value={sale.down_payment} />
+                </div>
               </div>
             )}
             {sale.payment_type === "cash" && (
@@ -309,15 +315,19 @@ export default function SaleDetailPage() {
                 </dd>
               </div>
             )}
-            <div className="flex justify-between">
+            <div className="flex justify-between items-start">
               <dt className="text-gray-500">Total Paid</dt>
-              <dd className="text-green-600">
-                {formatCurrency(sale.total_paid)}
-              </dd>
+              <div className="text-right">
+                <dd className="text-green-600">{formatCurrency(sale.total_paid)}</dd>
+                <AmountWords value={sale.total_paid} />
+              </div>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-start">
               <dt className="text-gray-500">Balance</dt>
-              <dd className="text-red-600">{formatCurrency(sale.balance)}</dd>
+              <div className="text-right">
+                <dd className="text-red-600">{formatCurrency(sale.balance)}</dd>
+                <AmountWords value={sale.balance} />
+              </div>
             </div>
           </dl>
           <div className="mt-3">

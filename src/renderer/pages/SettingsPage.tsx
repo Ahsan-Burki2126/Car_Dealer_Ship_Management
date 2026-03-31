@@ -68,6 +68,7 @@ export default function SettingsPage() {
     confirm: "",
   });
   const [changing, setChanging] = useState(false);
+  const [lowStockThreshold, setLowStockThreshold] = useState(5);
   const [bankAccounts, setBankAccounts] = useState<BankAccountRecord[]>([]);
   const [editingBankId, setEditingBankId] = useState<string | null>(null);
   const [bankForm, setBankForm] = useState({
@@ -91,8 +92,21 @@ export default function SettingsPage() {
   useEffect(() => {
     if (canManageBanks && user?.id) {
       loadBankAccounts();
+      loadLowStockThreshold();
     }
   }, [canManageBanks, user?.id]);
+
+  const loadLowStockThreshold = async () => {
+    const result = await (window.api as any).getLowStockThreshold();
+    if (result?.success) setLowStockThreshold(result.data);
+  };
+
+  const handleSaveLowStockThreshold = async () => {
+    if (!user) return;
+    const result = await (window.api as any).setLowStockThreshold(user.id, lowStockThreshold);
+    if (result?.success) toast.success("Low stock threshold saved");
+    else toast.error(result?.error || "Failed to save");
+  };
 
   useEffect(() => {
     if (isSuperAdmin && activeTab === "logs") {
@@ -373,6 +387,31 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+
+          {/* Low Stock Alert Threshold */}
+          {canManageBanks && (
+            <div className="card">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                Low Stock Alert
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                Show a warning on the dashboard when in-stock vehicles drop to or below this number.
+              </p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={lowStockThreshold}
+                  onChange={(e) => setLowStockThreshold(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="input-field w-28"
+                />
+                <button onClick={handleSaveLowStockThreshold} className="btn-primary">
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Change Password */}
           <div className="card">

@@ -12,6 +12,7 @@ import * as showroomExpenseService from "../services/showroomExpenseService";
 import * as reportService from "../services/reportService";
 import * as bankAccountService from "../services/bankAccountService";
 import * as backupService from "../services/backupService";
+import * as appSettingsService from "../services/appSettingsService";
 import type { UserRole } from "../../shared/types";
 
 function handleError(error: unknown): { success: false; error: string } {
@@ -1145,6 +1146,52 @@ export function registerIpcHandlers(): void {
         return handleError(e);
       }
     }
+  );
+
+  // =========== VEHICLE HISTORY ===========
+  ipcMain.handle("vehicles:getHistory", async (_event, vehicleId: string) => {
+    try {
+      const history = vehicleService.getVehicleHistory(vehicleId);
+      return { success: true, data: history };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  // =========== PROFIT/LOSS REPORT ===========
+  ipcMain.handle(
+    "vehicles:getProfitReport",
+    async (_event, userId: string, filters: any) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        const result = vehicleService.getVehicleProfitReport(filters || {});
+        return { success: true, data: result };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  // =========== APP SETTINGS ===========
+  ipcMain.handle("settings:getLowStockThreshold", async () => {
+    try {
+      return { success: true, data: appSettingsService.getLowStockThreshold() };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle(
+    "settings:setLowStockThreshold",
+    async (_event, userId: string, threshold: number) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        appSettingsService.setLowStockThreshold(threshold);
+        return { success: true };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
   );
 
   ipcMain.handle(

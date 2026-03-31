@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { toast } from "react-toastify";
-import { FiAlertTriangle, FiCheck, FiSearch } from "react-icons/fi";
+import { FiAlertTriangle, FiCheck, FiSearch, FiPrinter } from "react-icons/fi";
 import AmountWords from "../components/AmountWords";
+import { generatePaymentReceiptPdf } from "../utils/pdfGenerator";
 
 interface OverdueInstallment {
   id: string;
@@ -44,6 +45,8 @@ export default function InstallmentsPage() {
     id: string;
     amount: number;
     max: number;
+    inst: OverdueInstallment;
+    paid?: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -74,7 +77,7 @@ export default function InstallmentsPage() {
     );
     if (result.success) {
       toast.success("Payment recorded");
-      setPaymentModal(null);
+      setPaymentModal((prev) => prev ? { ...prev, paid: true } : null);
       loadAll();
     } else {
       toast.error(result.error);
@@ -307,6 +310,7 @@ export default function InstallmentsPage() {
                               id: inst.id,
                               amount: remaining,
                               max: remaining,
+                              inst,
                             })
                           }
                           className="btn-primary text-xs py-1 px-2 flex items-center gap-1"
@@ -327,54 +331,101 @@ export default function InstallmentsPage() {
       {paymentModal && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={() => setPaymentModal(null)}
+          onClick={() => !paymentModal.paid && setPaymentModal(null)}
         >
           <div
             className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Record Payment
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Amount (max: {fmt(paymentModal.max)})
-                </label>
-                <input
-                  type="number"
-                  value={paymentModal.amount}
-                  onChange={(e) =>
-                    setPaymentModal((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            amount: Math.min(
-                              parseFloat(e.target.value) || 0,
-                              prev.max,
-                            ),
-                          }
-                        : null,
-                    )
-                  }
-                  className="input-field"
-                  max={paymentModal.max}
-                  min={1}
-                />
-                <AmountWords value={paymentModal.amount} />
+            {paymentModal.paid ? (
+              /* ── Success / Receipt Screen ── */
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto">
+                  <FiCheck size={32} className="text-green-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Payment Recorded
+                </h3>
+                <div className="text-left bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Customer</span>
+                    <span className="font-medium">{paymentModal.inst.customer_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Vehicle</span>
+                    <span className="font-medium">{paymentModal.inst.vehicle_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Installment #</span>
+                    <span className="font-medium">{paymentModal.inst.installment_number}</span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1 mt-1 dark:border-gray-600">
+                    <span className="text-gray-500">Amount Paid</span>
+                    <span className="font-bold text-green-600">{fmt(paymentModal.amount)}</span>
+                  </div>
+                </div>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => {
+                      const doc = generatePaymentReceiptPdf({
+                        receiptNumber: `RCP-${paymentModal.inst.invoice_number}-${paymentModal.inst.installment_number}`,
+                        paymentDate: new Date().toISOString().split("T")[0],
+                        customerName: paymentModal.inst.customer_name,
+                        vehicleName: paymentModal.inst.vehicle_name,
+                        invoiceNumber: paymentModal.inst.invoice_number,
+                        installmentNumber: paymentModal.inst.installment_number,
+                        amountPaid: paymentModal.amount,
+                        receivedBy: user?.full_name || user?.username || "Staff",
+                      });
+                      doc.save(`Receipt_${paymentModal.inst.invoice_number}_Inst${paymentModal.inst.installment_number}.pdf`);
+                    }}
+                    className="btn-primary flex items-center gap-2"
+                  >
+                    <FiPrinter size={15} /> Print Receipt
+                  </button>
+                  <button onClick={() => setPaymentModal(null)} className="btn-secondary">
+                    Close
+                  </button>
+                </div>
               </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setPaymentModal(null)}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button onClick={handlePayment} className="btn-primary">
-                  Confirm Payment
-                </button>
-              </div>
-            </div>
+            ) : (
+              /* ── Payment Form ── */
+              <>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Record Payment
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Amount (max: {fmt(paymentModal.max)})
+                    </label>
+                    <input
+                      type="number"
+                      value={paymentModal.amount}
+                      onChange={(e) =>
+                        setPaymentModal((prev) =>
+                          prev
+                            ? { ...prev, amount: Math.min(parseFloat(e.target.value) || 0, prev.max) }
+                            : null,
+                        )
+                      }
+                      className="input-field"
+                      max={paymentModal.max}
+                      min={1}
+                    />
+                    <AmountWords value={paymentModal.amount} />
+                  </div>
+                  <div className="flex justify-end gap-3">
+                    <button onClick={() => setPaymentModal(null)} className="btn-secondary">
+                      Cancel
+                    </button>
+                    <button onClick={handlePayment} className="btn-primary">
+                      Confirm Payment
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

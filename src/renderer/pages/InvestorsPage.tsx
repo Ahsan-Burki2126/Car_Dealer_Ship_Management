@@ -363,6 +363,7 @@ export default function InvestorsPage() {
         </div>
         <div className="card text-center">
           <p className="text-xl font-bold text-blue-600">{fmt(totalInvestment)}</p>
+          <AmountWords value={totalInvestment} />
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Total Investment</p>
           {totalWithdrawn > 0 && (
             <p className="text-xs text-red-500 mt-0.5">− {fmt(totalWithdrawn)} withdrawn</p>
@@ -370,6 +371,7 @@ export default function InvestorsPage() {
         </div>
         <div className="card text-center">
           <p className="text-xl font-bold text-green-600">{fmt(netInvestment)}</p>
+          <AmountWords value={netInvestment} />
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Net Investment</p>
         </div>
       </div>

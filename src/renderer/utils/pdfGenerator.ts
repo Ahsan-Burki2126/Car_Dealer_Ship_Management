@@ -1479,3 +1479,116 @@ export function generatePurchaseReportPdf(vehicle: {
   addModernFooter(doc);
   return doc;
 }
+
+
+// ══════════════════════════════════════════════════════════════════════════
+//  PAYMENT RECEIPT PDF
+// ══════════════════════════════════════════════════════════════════════════
+
+export function generatePaymentReceiptPdf(receipt: {
+  receiptNumber: string;
+  paymentDate: string;
+  customerName: string;
+  vehicleName: string;
+  invoiceNumber: string;
+  installmentNumber: number;
+  amountPaid: number;
+  receivedBy: string;
+}): jsPDF {
+  const doc = new jsPDF();
+  const pw = doc.internal.pageSize.getWidth();
+
+  setColor(doc, BRAND, "fill");
+  doc.rect(0, 0, pw, 4, "F");
+
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, DARK);
+  doc.text("PAK JAPAN MOTORS", 15, 18);
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  setColor(doc, GRAY);
+  doc.text("Layyah — Automobile Sales & Services", 15, 24);
+
+  setColor(doc, BRAND_LIGHT, "fill");
+  setColor(doc, ACCENT, "draw");
+  doc.setLineWidth(0.3);
+  drawRoundedRect(doc, pw - 75, 8, 60, 20, 3, "FD");
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, ACCENT);
+  doc.text("RECEIPT", pw - 45, 15, { align: "center" });
+  doc.setFontSize(9);
+  setColor(doc, DARK);
+  doc.text(receipt.receiptNumber, pw - 45, 22, { align: "center" });
+
+  doc.setFontSize(8);
+  setColor(doc, GRAY);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Date: ${new Date(receipt.paymentDate).toLocaleDateString()}`, pw - 15, 34, { align: "right" });
+
+  setColor(doc, BRAND, "draw");
+  doc.setLineWidth(0.8);
+  doc.line(15, 30, 80, 30);
+
+  let y = 44;
+
+  setColor(doc, [220, 252, 231] as RGB, "fill");
+  setColor(doc, GREEN, "draw");
+  doc.setLineWidth(0.4);
+  drawRoundedRect(doc, 15, y, pw - 30, 18, 3, "FD");
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  setColor(doc, GREEN);
+  doc.text("PAYMENT RECEIVED", pw / 2, y + 7, { align: "center" });
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text(`PKR ${receipt.amountPaid.toLocaleString()}`, pw / 2, y + 13, { align: "center" });
+
+  y += 26;
+
+  const rowH = 10;
+  const rows: [string, string][] = [
+    ["Customer Name", receipt.customerName],
+    ["Vehicle", receipt.vehicleName],
+    ["Sale Invoice #", receipt.invoiceNumber],
+    ["Installment #", String(receipt.installmentNumber)],
+    ["Amount Paid", `PKR ${receipt.amountPaid.toLocaleString()}`],
+    ["Payment Date", new Date(receipt.paymentDate).toLocaleDateString()],
+    ["Received By", receipt.receivedBy],
+  ];
+
+  const tableTop = y;
+  for (let i = 0; i < rows.length; i++) {
+    const [label, value] = rows[i];
+    if (i % 2 === 0) {
+      setColor(doc, LIGHT_BG, "fill");
+      doc.rect(15, y, pw - 30, rowH, "F");
+    }
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    setColor(doc, GRAY);
+    doc.text(label, 20, y + 6.5);
+    doc.setFont("helvetica", "bold");
+    setColor(doc, DARK);
+    doc.text(String(value), 85, y + 6.5);
+    y += rowH;
+  }
+
+  setColor(doc, BORDER, "draw");
+  doc.setLineWidth(0.3);
+  doc.rect(15, tableTop, pw - 30, rows.length * rowH, "S");
+
+  y += 18;
+  setColor(doc, BORDER, "draw");
+  doc.setLineWidth(0.4);
+  doc.line(pw / 2 - 40, y, pw / 2 + 40, y);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  setColor(doc, GRAY);
+  doc.text("Authorized Signature", pw / 2, y + 5, { align: "center" });
+
+  addModernFooter(doc);
+  return doc;
+}

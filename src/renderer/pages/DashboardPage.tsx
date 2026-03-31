@@ -20,13 +20,20 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showcaseVehicles, setShowcaseVehicles] = useState<Vehicle[]>([]);
+  const [lowStockThreshold, setLowStockThreshold] = useState(5);
 
   useEffect(() => {
     if (user?.id) {
       loadDashboard();
       loadShowcase();
+      loadThreshold();
     }
   }, [user?.id]);
+
+  const loadThreshold = async () => {
+    const result = await (window.api as any).getLowStockThreshold();
+    if (result?.success) setLowStockThreshold(result.data);
+  };
 
   const loadDashboard = async () => {
     if (!user) return;
@@ -155,6 +162,17 @@ export default function DashboardPage() {
               </Link>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Low Stock Alert */}
+      {stats.vehiclesInStock <= lowStockThreshold && (
+        <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 rounded-xl px-4 py-3">
+          <FiAlertTriangle className="flex-shrink-0 text-amber-500" size={18} />
+          <p className="text-sm font-medium">
+            Low stock warning — only <span className="font-bold">{stats.vehiclesInStock}</span> vehicle{stats.vehiclesInStock !== 1 ? "s" : ""} in stock (threshold: {lowStockThreshold}).{" "}
+            <Link to="/vehicles" className="underline hover:no-underline">View inventory</Link>
+          </p>
         </div>
       )}
 

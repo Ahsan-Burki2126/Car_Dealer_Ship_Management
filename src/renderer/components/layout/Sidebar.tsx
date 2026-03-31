@@ -14,6 +14,7 @@ import {
   FiUserCheck,
   FiDatabase,
   FiTrendingUp,
+  FiPieChart,
 } from "react-icons/fi";
 
 const navItems = [
@@ -57,6 +58,12 @@ const navItems = [
     path: "/reports",
     label: "Reports",
     icon: FiBarChart2,
+    roles: ["super_admin", "admin"],
+  },
+  {
+    path: "/profit-loss",
+    label: "Profit / Loss",
+    icon: FiPieChart,
     roles: ["super_admin", "admin"],
   },
   {

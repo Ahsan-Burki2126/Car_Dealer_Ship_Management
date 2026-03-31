@@ -555,6 +555,144 @@ export function restoreVehicle(userId: string, id: string): void {
   ).run(uuidv4(), userId, user?.username || "", user?.role || "", id);
 }
 
+export interface VehicleHistoryEvent {
+  type: "purchase" | "expense" | "sale" | "payment";
+  date: string;
+  title: string;
+  description: string;
+  amount?: number;
+}
+
+export function getVehicleHistory(vehicleId: string): VehicleHistoryEvent[] {
+  const db = getDatabase();
+  const events: VehicleHistoryEvent[] = [];
+
+  const vehicle = db
+    .prepare("SELECT * FROM vehicles WHERE id = ? AND is_deleted = 0")
+    .get(vehicleId) as any;
+  if (!vehicle) return [];
+
+  events.push({
+    type: "purchase",
+    date: vehicle.purchase_date || vehicle.created_at.split("T")[0],
+    title: "Vehicle Purchased",
+    description: `Purchased from ${vehicle.seller_name || "Unknown"} for PKR ${(vehicle.purchase_price || 0).toLocaleString()}`,
+    amount: vehicle.purchase_price,
+  });
+
+  const expenses = db
+    .prepare("SELECT * FROM vehicle_expenses WHERE vehicle_id = ? ORDER BY date ASC")
+    .all(vehicleId) as any[];
+  for (const exp of expenses) {
+    events.push({
+      type: "expense",
+      date: exp.date,
+      title: `Expense: ${exp.category.replace(/_/g, " ")}`,
+      description: exp.notes || "",
+      amount: exp.amount,
+    });
+  }
+
+  const sales = db
+    .prepare(
+      `SELECT s.*, c.name as customer_name
+       FROM sales s
+       JOIN customers c ON s.customer_id = c.id
+       WHERE s.vehicle_id = ? AND s.is_deleted = 0
+       ORDER BY s.created_at ASC`,
+    )
+    .all(vehicleId) as any[];
+
+  for (const sale of sales) {
+    events.push({
+      type: "sale",
+      date: sale.date || sale.created_at.split("T")[0],
+      title: `Sold to ${sale.customer_name}`,
+      description: `Invoice: ${sale.invoice_number} | Type: ${sale.payment_type}${sale.status === "cancelled" ? " (Cancelled)" : ""}`,
+      amount: sale.vehicle_price,
+    });
+
+    const payments = db
+      .prepare(
+        `SELECT p.*, u.full_name as received_by_name
+         FROM payments p
+         LEFT JOIN users u ON p.received_by = u.id
+         WHERE p.sale_id = ?
+         ORDER BY p.payment_date ASC`,
+      )
+      .all(sale.id) as any[];
+
+    for (const payment of payments) {
+      events.push({
+        type: "payment",
+        date: payment.payment_date,
+        title: "Installment Payment Received",
+        description: `Method: ${payment.payment_method}${payment.received_by_name ? " | By: " + payment.received_by_name : ""}`,
+        amount: payment.amount,
+      });
+    }
+  }
+
+  return events.sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
+}
+
+export function getVehicleProfitReport(filters: {
+  search?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}): { data: any[]; total: number } {
+  const db = getDatabase();
+  const { search = "", status = "", page = 1, limit = 50 } = filters;
+  const offset = (page - 1) * limit;
+
+  const conditions = ["v.is_deleted = 0"];
+  const params: any[] = [];
+
+  if (search) {
+    conditions.push(
+      "(v.make LIKE ? OR v.model LIKE ? OR v.registration_number LIKE ? OR v.chassis_number LIKE ?)",
+    );
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+  }
+  if (status) {
+    conditions.push("v.status = ?");
+    params.push(status);
+  }
+
+  const where = conditions.join(" AND ");
+
+  const total = (
+    db
+      .prepare(`SELECT COUNT(*) as cnt FROM vehicles v WHERE ${where}`)
+      .get(...params) as any
+  ).cnt;
+
+  const rows = db
+    .prepare(
+      `SELECT v.id, v.make, v.model, v.year_of_manufacture as year,
+         v.registration_number, v.chassis_number, v.status,
+         v.purchase_price, v.total_expenses, v.total_cost, v.selling_price,
+         v.purchase_date, v.created_at,
+         (SELECT s.date FROM sales s WHERE s.vehicle_id = v.id AND s.is_deleted = 0 AND s.status != 'cancelled' ORDER BY s.created_at DESC LIMIT 1) as sale_date,
+         (SELECT c.name FROM sales s JOIN customers c ON s.customer_id = c.id WHERE s.vehicle_id = v.id AND s.is_deleted = 0 AND s.status != 'cancelled' ORDER BY s.created_at DESC LIMIT 1) as customer_name
+       FROM vehicles v
+       WHERE ${where}
+       ORDER BY v.created_at DESC
+       LIMIT ? OFFSET ?`,
+    )
+    .all(...params, limit, offset) as any[];
+
+  const data = rows.map((row) => ({
+    ...row,
+    profit: row.selling_price != null ? row.selling_price - row.total_cost : null,
+  }));
+
+  return { data, total };
+}
+
 function mapVehicleRow(row: any): Vehicle {
   let vehicleInspection = undefined;
   if (row.inspection_points) {

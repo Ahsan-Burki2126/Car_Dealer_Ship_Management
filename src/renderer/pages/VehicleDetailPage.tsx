@@ -7,7 +7,7 @@ import {
   VEHICLE_EXPENSE_CATEGORIES,
   VEHICLE_STATUSES,
 } from "../../shared/constants";
-import { FiEdit, FiPlus, FiTrash2, FiArrowLeft, FiPrinter, FiDownload } from "react-icons/fi";
+import { FiEdit, FiPlus, FiTrash2, FiArrowLeft, FiPrinter, FiDownload, FiClock, FiShoppingCart, FiTool, FiDollarSign } from "react-icons/fi";
 import { toast } from "react-toastify";
 import { toFileUrl } from "../utils/filePaths";
 import ErrorBoundary from "../components/ErrorBoundary";
@@ -41,6 +41,7 @@ export default function VehicleDetailPage() {
   const navigate = useNavigate();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [expenses, setExpenses] = useState<VehicleExpense[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [showPrintReport, setShowPrintReport] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const { requestAuth, modal } = useSuperadminAuth();
@@ -57,6 +58,7 @@ export default function VehicleDetailPage() {
     if (id) {
       loadVehicle();
       loadExpenses();
+      loadHistory();
     }
   }, [id, user?.id]);
 
@@ -69,6 +71,11 @@ export default function VehicleDetailPage() {
     if (!user) return;
     const result = await window.api.getVehicleExpenses(user!.id, id!);
     if (result.success) setExpenses(result.data);
+  };
+
+  const loadHistory = async () => {
+    const result = await (window.api as any).getVehicleHistory(id!);
+    if (result?.success) setHistory(result.data || []);
   };
 
   const handleAddExpense = async (e: React.FormEvent) => {
@@ -239,42 +246,44 @@ export default function VehicleDetailPage() {
             Financial Details
           </h2>
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+            <div className="flex justify-between items-start py-2 border-b border-gray-100 dark:border-gray-700">
               <span className="text-gray-500">Purchase Price</span>
-              <span className="font-semibold text-gray-900 dark:text-white">
-                Rs {vehicle.purchase_price?.toLocaleString()}
-              </span>
+              <div className="text-right">
+                <span className="font-semibold text-gray-900 dark:text-white">Rs {vehicle.purchase_price?.toLocaleString()}</span>
+                <AmountWords value={vehicle.purchase_price} />
+              </div>
             </div>
-            <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+            <div className="flex justify-between items-start py-2 border-b border-gray-100 dark:border-gray-700">
               <span className="text-gray-500">Total Expenses</span>
-              <span className="font-semibold text-orange-600">
-                Rs {vehicle.total_expenses?.toLocaleString()}
-              </span>
+              <div className="text-right">
+                <span className="font-semibold text-orange-600">Rs {vehicle.total_expenses?.toLocaleString()}</span>
+                <AmountWords value={vehicle.total_expenses} />
+              </div>
             </div>
-            <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+            <div className="flex justify-between items-start py-2 border-b border-gray-100 dark:border-gray-700">
               <span className="text-gray-500">Total Cost</span>
-              <span className="font-bold text-gray-900 dark:text-white">
-                Rs {vehicle.total_cost?.toLocaleString()}
-              </span>
+              <div className="text-right">
+                <span className="font-bold text-gray-900 dark:text-white">Rs {vehicle.total_cost?.toLocaleString()}</span>
+                <AmountWords value={vehicle.total_cost} />
+              </div>
             </div>
             {vehicle.selling_price && (
               <>
-                <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                <div className="flex justify-between items-start py-2 border-b border-gray-100 dark:border-gray-700">
                   <span className="text-gray-500">Selling Price</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    Rs {vehicle.selling_price?.toLocaleString()}
-                  </span>
+                  <div className="text-right">
+                    <span className="font-semibold text-gray-900 dark:text-white">Rs {vehicle.selling_price?.toLocaleString()}</span>
+                    <AmountWords value={vehicle.selling_price} />
+                  </div>
                 </div>
-                <div className="flex justify-between py-2">
+                <div className="flex justify-between items-start py-2">
                   <span className="text-gray-500">Profit</span>
-                  <span
-                    className={`font-bold ${vehicle.selling_price - vehicle.total_cost >= 0 ? "text-green-600" : "text-red-600"}`}
-                  >
-                    Rs{" "}
-                    {(
-                      vehicle.selling_price - vehicle.total_cost
-                    ).toLocaleString()}
-                  </span>
+                  <div className="text-right">
+                    <span className={`font-bold ${vehicle.selling_price - vehicle.total_cost >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      Rs {(vehicle.selling_price - vehicle.total_cost).toLocaleString()}
+                    </span>
+                    <AmountWords value={vehicle.selling_price - vehicle.total_cost} />
+                  </div>
                 </div>
               </>
             )}
@@ -520,6 +529,57 @@ export default function VehicleDetailPage() {
           <p className="text-sm text-gray-500 text-center py-4">No expenses recorded yet. Click "Add Expense" to add repair costs, travel expenses, or other costs.</p>
         )}
       </div>
+
+      {/* Vehicle History Timeline */}
+      {history.length > 0 && (
+        <div className="card">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <FiClock size={18} /> Vehicle History
+          </h2>
+          <div className="relative">
+            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700" />
+            <div className="space-y-4">
+              {history.map((event, idx) => {
+                const iconMap: Record<string, React.ReactNode> = {
+                  purchase: <FiShoppingCart size={14} />,
+                  expense: <FiTool size={14} />,
+                  sale: <FiShoppingCart size={14} />,
+                  payment: <FiDollarSign size={14} />,
+                };
+                const colorMap: Record<string, string> = {
+                  purchase: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400",
+                  expense: "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400",
+                  sale: "bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400",
+                  payment: "bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400",
+                };
+                return (
+                  <div key={idx} className="flex gap-4 pl-2">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${colorMap[event.type] || "bg-gray-100 text-gray-500"}`}>
+                      {iconMap[event.type] || <FiClock size={14} />}
+                    </div>
+                    <div className="flex-1 pb-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{event.title}</p>
+                        <span className="text-xs text-gray-400">
+                          {new Date(event.date).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {event.description && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{event.description}</p>
+                      )}
+                      {event.amount != null && (
+                        <p className={`text-xs font-semibold mt-0.5 ${event.type === "expense" ? "text-orange-600" : "text-green-600"}`}>
+                          PKR {event.amount.toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Vehicle Inspection Section */}
       {vehicle.vehicleInspection && (

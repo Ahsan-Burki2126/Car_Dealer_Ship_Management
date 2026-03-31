@@ -26,6 +26,7 @@ import UsersPage from "./pages/UsersPage";
 import SettingsPage from "./pages/SettingsPage";
 import BackupPage from "./pages/BackupPage";
 import InvestorsPage from "./pages/InvestorsPage";
+import ProfitLossPage from "./pages/ProfitLossPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useSelector(
@@ -157,6 +158,14 @@ export default function App() {
           element={
             <RoleRoute roles={["super_admin", "admin"]}>
               <ReportsPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="profit-loss"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <ProfitLossPage />
             </RoleRoute>
           }
         />

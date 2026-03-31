@@ -43,6 +43,10 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("vehicles:delete", userId, id),
   restoreVehicle: (userId: string, id: string) =>
     ipcRenderer.invoke("vehicles:restore", userId, id),
+  getVehicleHistory: (vehicleId: string) =>
+    ipcRenderer.invoke("vehicles:getHistory", vehicleId),
+  getVehicleProfitReport: (userId: string, filters: any) =>
+    ipcRenderer.invoke("vehicles:getProfitReport", userId, filters),
 
   // Vehicle Expenses
   addVehicleExpense: (userId: string, vehicleId: string, data: any) =>
@@ -205,6 +209,12 @@ contextBridge.exposeInMainWorld("api", {
   googleDriveUpdateSettings: (userId: string, settings: any) =>
     ipcRenderer.invoke("googledrive:updateSettings", userId, settings),
   googleDriveLogout: () => ipcRenderer.invoke("googledrive:logout"),
+
+  // App Settings
+  getLowStockThreshold: () =>
+    ipcRenderer.invoke("settings:getLowStockThreshold"),
+  setLowStockThreshold: (userId: string, threshold: number) =>
+    ipcRenderer.invoke("settings:setLowStockThreshold", userId, threshold),
 
   // File Operations
   saveImage: (sourcePath: string, category: string) =>
