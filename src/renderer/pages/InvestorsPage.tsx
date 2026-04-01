@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { toast } from "react-toastify";
+import { fmtDate, fmtDateOpts } from "../utils/dateUtils";
 import {
   FiPlus, FiTrash2, FiEdit2, FiX, FiCheck, FiTrendingUp,
   FiCamera, FiUser, FiDollarSign, FiArrowDownCircle, FiArrowUpCircle, FiChevronDown, FiChevronUp,
@@ -582,7 +583,7 @@ export default function InvestorsPage() {
                           {inv.total_withdrawn ? fmt(inv.total_withdrawn) : "-"}
                         </td>
                         <td className="table-cell text-right font-bold text-green-600">{fmt(net)}</td>
-                        <td className="table-cell text-gray-400 text-xs">{new Date(inv.created_at).toLocaleDateString()}</td>
+                        <td className="table-cell text-gray-400 text-xs">{fmtDate(inv.created_at)}</td>
                         <td className="table-cell">
                           <div className="flex items-center gap-1">
                             <button
@@ -690,7 +691,7 @@ export default function InvestorsPage() {
                                           <tr key={a.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
                                             <td className="px-3 py-2 text-gray-400 text-xs">{idx + 1}</td>
                                             <td className="px-3 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                                              {new Date(a.date).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" })}
+                                              {fmtDateOpts(a.date, { day: "2-digit", month: "short", year: "numeric" })}
                                             </td>
                                             <td className="px-3 py-2 text-right font-semibold text-green-600 whitespace-nowrap">
                                               + {fmt(a.amount)}
@@ -738,7 +739,7 @@ export default function InvestorsPage() {
                                           <tr key={w.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
                                             <td className="px-3 py-2 text-gray-400 text-xs">{idx + 1}</td>
                                             <td className="px-3 py-2 text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                                              {new Date(w.date).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" })}
+                                              {fmtDateOpts(w.date, { day: "2-digit", month: "short", year: "numeric" })}
                                             </td>
                                             <td className="px-3 py-2 text-right font-semibold text-red-500 whitespace-nowrap">
                                               − {fmt(w.amount)}
@@ -844,7 +845,7 @@ export default function InvestorsPage() {
                           <p className="text-sm font-semibold text-green-600">+ {fmt(a.amount)}</p>
                           <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{a.reason}</p>
                           {a.notes && <p className="text-xs text-gray-400 mt-0.5">{a.notes}</p>}
-                          <p className="text-xs text-gray-400 mt-0.5">{new Date(a.date).toLocaleDateString()}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{fmtDate(a.date)}</p>
                         </div>
                         <button
                           onClick={() => requestAuth(() => handleDeleteAddition(a.id))}
@@ -954,7 +955,7 @@ export default function InvestorsPage() {
                           <p className="text-sm font-semibold text-red-600">− {fmt(w.amount)}</p>
                           <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{w.reason}</p>
                           {w.notes && <p className="text-xs text-gray-400 mt-0.5">{w.notes}</p>}
-                          <p className="text-xs text-gray-400 mt-0.5">{new Date(w.date).toLocaleDateString()}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{fmtDate(w.date)}</p>
                         </div>
                         <button
                           onClick={() => requestAuth(() => handleDeleteWithdrawal(w.id))}

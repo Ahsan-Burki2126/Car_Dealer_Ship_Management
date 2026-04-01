@@ -15,6 +15,11 @@ const envPath = app.isPackaged
   ? path.join(process.resourcesPath, ".env")
   : path.join(__dirname, "../../../.env");
 dotenv.config({ path: envPath });
+
+// Force Pakistan Standard Time (UTC+5) for all Node.js Date operations,
+// node-cron scheduling, and SQLite's 'localtime' modifier.
+process.env.TZ = "Asia/Karachi";
+
 import http from "http";
 import fs from "fs";
 import { pathToFileURL } from "url";
@@ -31,6 +36,7 @@ import {
   startReminderScheduler,
   stopReminderScheduler,
 } from "./services/reminderScheduler";
+import { initializeWhatsApp } from "./services/whatsappService";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -183,6 +189,13 @@ app.whenReady().then(() => {
   registerIpcHandlers();
   registerLocalImageProtocol();
   createWindow();
+
+  // Auto-connect WhatsApp on every launch.
+  // If a saved session exists (LocalAuth), it reconnects silently — no QR needed.
+  // Only shows QR on the very first setup or after an explicit disconnect.
+  initializeWhatsApp().catch((e) =>
+    console.error("[WhatsApp] Auto-connect failed:", e),
+  );
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

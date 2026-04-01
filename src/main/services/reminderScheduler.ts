@@ -73,13 +73,13 @@ export async function sendInstallmentReminders(): Promise<{
     JOIN customers c ON s.customer_id = c.id
     JOIN vehicles v ON s.vehicle_id = v.id
     WHERE i.status = 'pending'
-      AND date(i.due_date) = date('now', '+3 days')
+      AND date(i.due_date) = date('now', 'localtime', '+3 days')
       AND c.phone IS NOT NULL
       AND c.phone != ''
       AND i.id NOT IN (
         SELECT installment_id
         FROM whatsapp_reminders
-        WHERE date(sent_at) = date('now')
+        WHERE date(sent_at) = date('now', 'localtime')
           AND status = 'sent'
       )
   `,

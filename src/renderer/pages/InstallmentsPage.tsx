@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { toast } from "react-toastify";
+import { fmtDate } from "../utils/dateUtils";
 import { FiAlertTriangle, FiCheck, FiSearch, FiPrinter } from "react-icons/fi";
 import AmountWords from "../components/AmountWords";
 import { generatePaymentReceiptPdf } from "../utils/pdfGenerator";
@@ -204,7 +205,7 @@ export default function InstallmentsPage() {
                       </td>
                       <td className="table-cell">
                         {s.next_due_date
-                          ? new Date(s.next_due_date).toLocaleDateString()
+                          ? fmtDate(s.next_due_date)
                           : "—"}
                       </td>
                       <td className="table-cell text-right">
@@ -289,7 +290,7 @@ export default function InstallmentsPage() {
                       <td className="table-cell">{inst.vehicle_name}</td>
                       <td className="table-cell">{inst.installment_number}</td>
                       <td className="table-cell">
-                        {new Date(inst.due_date).toLocaleDateString()}
+                        {fmtDate(inst.due_date)}
                       </td>
                       <td className="table-cell text-right">{fmt(inst.amount)}</td>
                       <td className="table-cell text-right text-green-600">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState, AppDispatch } from "../store";
+import { fmtDateTime } from "../utils/dateUtils";
 import { toggleDarkMode, setTheme, type AppTheme } from "../store/slices/uiSlice";
 import { toast } from "react-toastify";
 import { useSuperadminAuth } from "../components/SuperadminPasswordModal";
@@ -681,7 +682,7 @@ export default function SettingsPage() {
                         className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
                       >
                         <td className="table-cell text-sm whitespace-nowrap">
-                          {new Date(log.timestamp).toLocaleString()}
+                          {fmtDateTime(log.timestamp)}
                         </td>
                         <td className="table-cell font-medium">{log.username}</td>
                         <td className="table-cell">

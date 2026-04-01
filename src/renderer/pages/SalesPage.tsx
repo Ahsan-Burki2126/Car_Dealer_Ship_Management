@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { fmtDate } from "../utils/dateUtils";
 import type { RootState } from "../store";
 import {
   FiPlus,
@@ -207,7 +208,7 @@ export default function SalesPage() {
                       </span>
                     </td>
                     <td className="table-cell">
-                      {new Date(s.sale_date).toLocaleDateString()}
+                      {fmtDate(s.sale_date)}
                     </td>
                     <td className="table-cell">
                       <div className="flex items-center gap-2">

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import { toast } from "react-toastify";
+import { fmtDateTime } from "../utils/dateUtils";
 import {
   FiDatabase,
   FiRefreshCw,
@@ -393,7 +394,7 @@ export default function BackupPage() {
                         {backup.backup_type}
                       </td>
                       <td className="table-cell text-sm">
-                        {new Date(backup.created_at).toLocaleString()}
+                        {fmtDateTime(backup.created_at)}
                       </td>
                       <td className="table-cell">
                         <span
@@ -474,7 +475,7 @@ export default function BackupPage() {
                           {formatBytes(backup.size)}
                         </td>
                         <td className="table-cell text-sm">
-                          {new Date(backup.createdTime).toLocaleString()}
+                          {fmtDateTime(backup.createdTime)}
                         </td>
                         <td className="table-cell space-x-2">
                           <button

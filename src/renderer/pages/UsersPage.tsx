@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
+import { fmtDate } from "../utils/dateUtils";
 import { USER_ROLES } from "../../shared/constants";
 import { toast } from "react-toastify";
 import { FiPlus, FiEdit, FiTrash2, FiUsers } from "react-icons/fi";
@@ -258,7 +259,7 @@ export default function UsersPage() {
                         </span>
                       </td>
                       <td className="table-cell">
-                        {new Date(u.created_at).toLocaleDateString()}
+                        {fmtDate(u.created_at)}
                       </td>
                       <td className="table-cell">
                         {u.role !== "super_admin" && (

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { fmtDate } from "../utils/dateUtils";
 import type { RootState } from "../store";
 import { FiArrowLeft, FiEdit, FiFileText } from "react-icons/fi";
 import { toFileUrl } from "../utils/filePaths";
@@ -133,7 +134,7 @@ export default function CustomerDetailPage() {
               ["Notes", customer.notes || "-"],
               [
                 "Registered",
-                new Date(customer.created_at).toLocaleDateString(),
+                fmtDate(customer.created_at),
               ],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between">
@@ -295,7 +296,7 @@ export default function CustomerDetailPage() {
                       {l.year} {l.make} {l.model}
                     </td>
                     <td className="table-cell">
-                      {new Date(l.date).toLocaleDateString()}
+                      {fmtDate(l.date)}
                     </td>
                     <td className="table-cell capitalize">{l.payment_type}</td>
                     <td className="table-cell text-right">

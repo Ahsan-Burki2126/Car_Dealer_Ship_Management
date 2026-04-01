@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { fmtDate } from "../utils/dateUtils";
 import type { RootState } from "../store";
 import { toast } from "react-toastify";
 import { FiArrowLeft, FiCheck, FiPrinter, FiEdit, FiTrash2 } from "react-icons/fi";
@@ -278,7 +279,7 @@ export default function SaleDetailPage() {
             </div>
             <div className="flex justify-between">
               <dt className="text-gray-500">Sale Date</dt>
-              <dd>{new Date(sale.sale_date).toLocaleDateString()}</dd>
+              <dd>{fmtDate(sale.sale_date)}</dd>
             </div>
           </dl>
         </div>
@@ -378,7 +379,7 @@ export default function SaleDetailPage() {
                     >
                       <td className="table-cell">{inst.installment_number}</td>
                       <td className="table-cell">
-                        {new Date(inst.due_date).toLocaleDateString()}
+                        {fmtDate(inst.due_date)}
                       </td>
                       <td className="table-cell text-right">
                         {formatCurrency(inst.amount)}
@@ -406,7 +407,7 @@ export default function SaleDetailPage() {
                       </td>
                       <td className="table-cell">
                         {inst.paid_date
-                          ? new Date(inst.paid_date).toLocaleDateString()
+                          ? fmtDate(inst.paid_date)
                           : "-"}
                       </td>
                       <td className="table-cell">

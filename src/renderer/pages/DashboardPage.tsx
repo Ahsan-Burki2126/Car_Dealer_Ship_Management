@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { fmtDate } from "../utils/dateUtils";
 import type { RootState } from "../store";
 import {
   FiTruck,
@@ -150,7 +151,7 @@ export default function DashboardPage() {
                 className="block text-sm bg-red-700/50 rounded-lg p-2 mb-1 hover:bg-red-700"
               >
                 {alert.customer_name} — Rs {alert.amount.toLocaleString()} (Due:{" "}
-                {new Date(alert.due_date).toLocaleDateString()})
+                {fmtDate(alert.due_date)})
               </Link>
             ))}
             {stats.overdueAlerts.length > 3 && (
@@ -330,7 +331,7 @@ export default function DashboardPage() {
                 <p className="text-xs text-gray-600 dark:text-gray-300">
                   Installment overdue • Amount: Rs{" "}
                   {alert.amount.toLocaleString()} • Due:{" "}
-                  {new Date(alert.due_date).toLocaleDateString()}
+                  {fmtDate(alert.due_date)}
                 </p>
               </Link>
             ))}

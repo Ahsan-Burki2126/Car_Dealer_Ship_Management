@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
+import { fmtDate } from "../utils/dateUtils";
 import { SHOWROOM_EXPENSE_CATEGORIES } from "../../shared/constants";
 import { toast } from "react-toastify";
 import {
@@ -265,7 +266,7 @@ export default function ExpensesPage() {
                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   >
                     <td className="table-cell">
-                      {new Date(e.date).toLocaleDateString()}
+                      {fmtDate(e.date)}
                     </td>
                     <td className="table-cell capitalize">
                       {e.category.replace(/_/g, " ")}

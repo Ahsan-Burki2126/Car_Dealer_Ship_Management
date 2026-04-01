@@ -1,6 +1,7 @@
 import React, { useEffect, useState, Suspense } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { fmtDate } from "../utils/dateUtils";
 import type { RootState } from "../store";
 import type { Vehicle, VehicleExpense } from "../../shared/types";
 import {
@@ -561,7 +562,7 @@ export default function VehicleDetailPage() {
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-semibold text-gray-900 dark:text-white">{event.title}</p>
                         <span className="text-xs text-gray-400">
-                          {new Date(event.date).toLocaleDateString()}
+                          {fmtDate(event.date)}
                         </span>
                       </div>
                       {event.description && (

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
+import { fmtDate } from "../utils/dateUtils";
 import { VEHICLE_STATUSES } from "../../shared/constants";
 import { FiSearch, FiTrendingUp, FiTrendingDown, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import AmountWords from "../components/AmountWords";
@@ -174,7 +175,7 @@ export default function ProfitLossPage() {
                       )}
                     </td>
                     <td className="table-cell text-sm">{row.customer_name || "—"}</td>
-                    <td className="table-cell text-sm">{row.sale_date ? new Date(row.sale_date).toLocaleDateString() : "—"}</td>
+                    <td className="table-cell text-sm">{row.sale_date ? fmtDate(row.sale_date) : "—"}</td>
                   </tr>
                 ))
               )}

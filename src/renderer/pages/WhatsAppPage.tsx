@@ -11,6 +11,7 @@ import {
   FiLoader,
 } from "react-icons/fi";
 import { toast } from "react-toastify";
+import { fmtDate, fmtDateTime } from "../utils/dateUtils";
 
 type WAStatus = "disconnected" | "connecting" | "qr" | "connected" | "auth_failure";
 
@@ -232,38 +233,29 @@ export default function WhatsAppPage() {
           )}
 
           <div className="flex gap-3">
-            {status === "disconnected" || status === "auth_failure" ? (
-              <button
-                onClick={handleConnect}
-                disabled={connecting}
-                className="btn-primary flex items-center gap-2"
-              >
-                {connecting ? (
-                  <FiLoader className="animate-spin" />
-                ) : (
-                  <FiWifi />
-                )}
-                Connect WhatsApp
-              </button>
-            ) : status === "connected" ? (
+            {status === "connected" ? (
               <button
                 onClick={handleDisconnect}
                 className="btn-danger flex items-center gap-2"
               >
                 <FiWifiOff /> Disconnect
               </button>
-            ) : (
+            ) : status === "disconnected" || status === "auth_failure" ? (
               <button
-                onClick={handleDisconnect}
-                className="btn-secondary flex items-center gap-2"
+                onClick={handleConnect}
+                disabled={connecting}
+                className="btn-primary flex items-center gap-2"
               >
-                Cancel
+                {connecting ? <FiLoader className="animate-spin" /> : <FiWifi />}
+                Reconnect
               </button>
-            )}
+            ) : null}
           </div>
 
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            Session is saved — scan once and it reconnects automatically on next launch.
+            {status === "connecting" || status === "qr"
+              ? "Connecting automatically — scan QR only on first-time setup."
+              : "WhatsApp connects automatically on every app launch after the first scan."}
           </p>
         </div>
 
@@ -419,11 +411,11 @@ export default function WhatsAppPage() {
                     </td>
                     <td className="table-cell">
                       {log.due_date
-                        ? new Date(log.due_date).toLocaleDateString()
+                        ? fmtDate(log.due_date)
                         : "—"}
                     </td>
                     <td className="table-cell text-sm">
-                      {new Date(log.sent_at).toLocaleString()}
+                      {fmtDateTime(log.sent_at)}
                     </td>
                     <td className="table-cell">
                       {log.status === "sent" ? (

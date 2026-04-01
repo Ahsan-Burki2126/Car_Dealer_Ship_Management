@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
+import { fmtDateTime } from "../utils/dateUtils";
 import {
   FiChevronLeft,
   FiChevronRight,
@@ -133,7 +134,7 @@ export default function AuditLogsPage() {
                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   >
                     <td className="table-cell text-sm whitespace-nowrap">
-                      {new Date(log.timestamp).toLocaleString()}
+                      {fmtDateTime(log.timestamp)}
                     </td>
                     <td className="table-cell font-medium">{log.username}</td>
                     <td className="table-cell">
