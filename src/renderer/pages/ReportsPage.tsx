@@ -26,6 +26,8 @@ import {
   Area,
 } from "recharts";
 import { generateSalesReportPdf } from "../utils/reportPdfGenerator";
+import { getChartColors } from "../utils/themeUtils";
+import AmountWords from "../components/AmountWords";
 
 type ReportTab = "sales" | "profit" | "inventory" | "vehicle_search";
 
@@ -97,6 +99,7 @@ const PERIOD_LABELS: Record<string, string> = {
 
 export default function ReportsPage() {
   const { user } = useSelector((state: RootState) => state.auth);
+  const c = getChartColors();
   const [tab, setTab] = useState<ReportTab>("sales");
   const [period, setPeriod] = useState("monthly");
   const [dateFrom, setDateFrom] = useState("");
@@ -321,25 +324,28 @@ export default function ReportsPage() {
               <p className="text-3xl font-bold text-blue-600">
                 {salesReport.total_sales}
               </p>
-              <p className="text-sm text-gray-500">Total Sales</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Sales</p>
             </div>
             <div className="card text-center">
               <p className="text-xl font-bold text-green-600">
                 {formatCurrency(salesReport.total_revenue)}
               </p>
-              <p className="text-sm text-gray-500">Total Revenue</p>
+              <AmountWords value={salesReport.total_revenue} />
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Revenue</p>
             </div>
             <div className="card text-center">
               <p className="text-xl font-bold text-purple-600">
                 {formatCurrency(salesReport.total_collected)}
               </p>
-              <p className="text-sm text-gray-500">Collected</p>
+              <AmountWords value={salesReport.total_collected} />
+              <p className="text-sm text-gray-500 dark:text-gray-400">Collected</p>
             </div>
             <div className="card text-center">
               <p className="text-xl font-bold text-red-600">
                 {formatCurrency(salesReport.total_pending)}
               </p>
-              <p className="text-sm text-gray-500">Pending</p>
+              <AmountWords value={salesReport.total_pending} />
+              <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
             </div>
           </div>
 
@@ -357,12 +363,13 @@ export default function ReportsPage() {
                       <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={formatShort} tick={{ fontSize: 11 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={c.gridStroke} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: c.axisText }} />
+                  <YAxis tickFormatter={formatShort} tick={{ fontSize: 11, fill: c.axisText }} />
                   <Tooltip
                     formatter={(value: number) => formatCurrency(value)}
                     labelStyle={{ fontWeight: "bold" }}
+                    contentStyle={{ backgroundColor: c.tooltipBg, border: `1px solid ${c.tooltipBorder}` }}
                   />
                   <Area
                     type="monotone"
@@ -386,11 +393,11 @@ export default function ReportsPage() {
               </h3>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={salesReport.chart_data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Legend />
+                  <CartesianGrid strokeDasharray="3 3" stroke={c.gridStroke} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: c.axisText }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: c.axisText }} />
+                  <Tooltip contentStyle={{ backgroundColor: c.tooltipBg, border: `1px solid ${c.tooltipBorder}` }} />
+                  <Legend wrapperStyle={{ color: c.legendText }} />
                   <Bar dataKey="cash" stackId="a" fill="#3b82f6" name="Cash" radius={[0, 0, 0, 0]} />
                   <Bar dataKey="installment" stackId="a" fill="#8b5cf6" name="Installment" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -462,15 +469,15 @@ export default function ReportsPage() {
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
                   <p className="text-lg font-bold text-orange-600">{formatCurrency(salesReport.expense_summary.vehicle_expenses)}</p>
-                  <p className="text-xs text-gray-500">Vehicle Expenses</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Vehicle Expenses</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-red-600">{formatCurrency(salesReport.expense_summary.showroom_expenses)}</p>
-                  <p className="text-xs text-gray-500">Showroom Expenses</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Showroom Expenses</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(salesReport.expense_summary.total)}</p>
-                  <p className="text-xs text-gray-500">Total Expenses</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Total Expenses</p>
                 </div>
               </div>
             </div>
@@ -525,13 +532,15 @@ export default function ReportsPage() {
               <p className="text-2xl font-bold text-green-600">
                 {formatCurrency(totalProfit)}
               </p>
-              <p className="text-sm text-gray-500">Total Profit / Loss</p>
+              <AmountWords value={totalProfit} />
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Profit / Loss</p>
             </div>
             <div className="card text-center">
               <p className="text-2xl font-bold text-blue-600">
                 {formatCurrency(totalInvested)}
               </p>
-              <p className="text-sm text-gray-500">Total Invested</p>
+              <AmountWords value={totalInvested} />
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Invested</p>
             </div>
             <div className="card text-center">
               <p className="text-2xl font-bold text-purple-600">
@@ -540,7 +549,7 @@ export default function ReportsPage() {
                   : "0"}
                 %
               </p>
-              <p className="text-sm text-gray-500">ROI</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">ROI</p>
             </div>
           </div>
 
@@ -552,11 +561,11 @@ export default function ReportsPage() {
               </h3>
               <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={profitChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis type="number" tickFormatter={formatShort} tick={{ fontSize: 10 }} />
-                  <YAxis dataKey="name" type="category" width={160} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                  <Legend />
+                  <CartesianGrid strokeDasharray="3 3" stroke={c.gridStroke} />
+                  <XAxis type="number" tickFormatter={formatShort} tick={{ fontSize: 10, fill: c.axisText }} />
+                  <YAxis dataKey="name" type="category" width={160} tick={{ fontSize: 10, fill: c.axisText }} />
+                  <Tooltip formatter={(value: number) => formatCurrency(value)} contentStyle={{ backgroundColor: c.tooltipBg, border: `1px solid ${c.tooltipBorder}` }} />
+                  <Legend wrapperStyle={{ color: c.legendText }} />
                   <Bar dataKey="cost" fill="#ef4444" name="Total Cost" radius={[0, 0, 0, 0]} />
                   <Bar dataKey="sale" fill="#10b981" name="Sale Price" radius={[0, 4, 4, 0]} />
                 </BarChart>
@@ -632,23 +641,23 @@ export default function ReportsPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div className="card text-center">
               <p className="text-3xl font-bold text-blue-600">{inventoryReport.total_vehicles}</p>
-              <p className="text-sm text-gray-500">Total Purchased</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Purchased</p>
             </div>
             <div className="card text-center">
               <p className="text-3xl font-bold text-green-600">{inventoryReport.in_stock}</p>
-              <p className="text-sm text-gray-500">Cars in Stock</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Cars in Stock</p>
             </div>
             <div className="card text-center">
               <p className="text-3xl font-bold text-purple-600">{inventoryReport.sold}</p>
-              <p className="text-sm text-gray-500">Total Sold</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Sold</p>
             </div>
             <div className="card text-center">
               <p className="text-3xl font-bold text-yellow-600">{inventoryReport.on_installments}</p>
-              <p className="text-sm text-gray-500">On Installments</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">On Installments</p>
             </div>
             <div className="card text-center">
               <p className="text-3xl font-bold text-orange-600">{inventoryReport.long_staying}</p>
-              <p className="text-sm text-gray-500">Long Staying (60+ days)</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Long Staying (60+ days)</p>
             </div>
           </div>
 
@@ -743,7 +752,7 @@ export default function ReportsPage() {
                     <div className="flex items-center justify-between cursor-pointer" onClick={() => setExpandedVehicle(isExpanded ? null : (v.id as string))}>
                       <div>
                         <h4 className="font-semibold text-gray-900 dark:text-white">{(v as any).year_of_manufacture || v.year} {v.make} {v.model}</h4>
-                        <p className="text-sm text-gray-500">Reg: {v.registration_number || "N/A"} | Chassis: {v.chassis_number || "N/A"} | Status: {v.status}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Reg: {v.registration_number || "N/A"} | Chassis: {v.chassis_number || "N/A"} | Status: {v.status}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">Cost: {formatCurrency(result.totalCost)}</p>

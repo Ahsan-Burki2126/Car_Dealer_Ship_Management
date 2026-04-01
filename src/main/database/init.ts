@@ -519,6 +519,26 @@ export function initializeDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_investor_additions_investor ON investor_additions(investor_id);
   `);
 
+  // WhatsApp reminders table — drop+recreate because early failed runs may have left a broken schema
+  database.exec(`DROP TABLE IF EXISTS whatsapp_reminders`);
+  database.exec(`
+    CREATE TABLE whatsapp_reminders (
+      id TEXT PRIMARY KEY,
+      installment_id TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      sent_at TEXT DEFAULT (datetime('now')),
+      status TEXT DEFAULT 'sent',
+      message TEXT,
+      FOREIGN KEY (installment_id) REFERENCES installments(id)
+    )
+  `);
+  database.exec(
+    `CREATE INDEX IF NOT EXISTS idx_whatsapp_reminders_installment ON whatsapp_reminders(installment_id)`,
+  );
+  database.exec(
+    `CREATE INDEX IF NOT EXISTS idx_whatsapp_reminders_sent_at ON whatsapp_reminders(sent_at)`,
+  );
+
   // Create default super admin if not exists
   const existingAdmin = database
     .prepare("SELECT id FROM users WHERE role = ?")

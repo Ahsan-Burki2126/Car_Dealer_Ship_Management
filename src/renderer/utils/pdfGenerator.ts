@@ -862,6 +862,7 @@ export function generateProfessionalInspectionReport(inspection: {
   y += 10;
 
   // Recommendation
+  const ratingColor = getRatingColor(inspection.overall_score);
   if (inspection.recommendation) {
     if (y > 250) {
       doc.addPage();

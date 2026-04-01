@@ -188,7 +188,7 @@ export default function SaleDetailPage() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
           >
             <FiArrowLeft />
           </button>
@@ -196,7 +196,7 @@ export default function SaleDetailPage() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               {sale.invoice_number}
             </h1>
-            <p className="text-sm text-gray-500">Sale Details</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Sale Details</p>
           </div>
         </div>
         <span

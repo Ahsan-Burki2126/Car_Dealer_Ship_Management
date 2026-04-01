@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, IpcRendererEvent } from "electron";
 
 contextBridge.exposeInMainWorld("api", {
   // Auth
@@ -255,4 +255,35 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("investorAdditions:getByInvestor", userId, investorId),
   deleteInvestorAddition: (userId: string, additionId: string) =>
     ipcRenderer.invoke("investorAdditions:delete", userId, additionId),
+
+  // WhatsApp
+  whatsappGetStatus: () => ipcRenderer.invoke("whatsapp:getStatus"),
+  whatsappInitialize: () => ipcRenderer.invoke("whatsapp:initialize"),
+  whatsappDisconnect: (userId: string) =>
+    ipcRenderer.invoke("whatsapp:disconnect", userId),
+  whatsappSendTest: (userId: string, phone: string) =>
+    ipcRenderer.invoke("whatsapp:sendTest", userId, phone),
+  whatsappSendRemindersNow: (userId: string) =>
+    ipcRenderer.invoke("whatsapp:sendRemindersNow", userId),
+  whatsappGetLogs: (userId: string) =>
+    ipcRenderer.invoke("whatsapp:getLogs", userId),
+  whatsappGetSettings: () => ipcRenderer.invoke("whatsapp:getSettings"),
+  whatsappUpdateSettings: (userId: string, data: any) =>
+    ipcRenderer.invoke("whatsapp:updateSettings", userId, data),
+
+  // WhatsApp push events (main → renderer)
+  onWhatsAppStatus: (
+    callback: (data: { status: string }) => void,
+  ) => {
+    const listener = (_: IpcRendererEvent, data: any) => callback(data);
+    ipcRenderer.on("whatsapp:status", listener);
+    return () => ipcRenderer.removeListener("whatsapp:status", listener);
+  },
+  onWhatsAppQR: (
+    callback: (data: { qr: string | null }) => void,
+  ) => {
+    const listener = (_: IpcRendererEvent, data: any) => callback(data);
+    ipcRenderer.on("whatsapp:qr", listener);
+    return () => ipcRenderer.removeListener("whatsapp:qr", listener);
+  },
 });

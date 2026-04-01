@@ -1,5 +1,6 @@
 import React from "react";
 import type { InspectionMarker } from "../../../shared/types";
+import { getThemeAwareColor } from "../../utils/themeUtils";
 
 interface Props {
   marker: InspectionMarker;
@@ -56,7 +57,7 @@ export default function DamageMarker({
           cy={marker.y}
           r={R + 20}
           fill="none"
-          stroke="#1e40af"
+          stroke={getThemeAwareColor("#1e40af", "#60a5fa")}
           strokeWidth={10}
           strokeDasharray="20 8"
           opacity={0.8}

@@ -27,6 +27,7 @@ import SettingsPage from "./pages/SettingsPage";
 import BackupPage from "./pages/BackupPage";
 import InvestorsPage from "./pages/InvestorsPage";
 import ProfitLossPage from "./pages/ProfitLossPage";
+import WhatsAppPage from "./pages/WhatsAppPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user } = useSelector(
@@ -190,6 +191,14 @@ export default function App() {
           }
         />
         <Route path="settings" element={<SettingsPage />} />
+        <Route
+          path="whatsapp"
+          element={
+            <RoleRoute roles={["super_admin", "admin"]}>
+              <WhatsAppPage />
+            </RoleRoute>
+          }
+        />
         <Route
           path="investors"
           element={

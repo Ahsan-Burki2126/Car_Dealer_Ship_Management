@@ -118,7 +118,7 @@ export default function GoogleDriveSetupWizard({
             <div className="space-y-4 text-center py-4">
               <div className="flex justify-center">
                 <div className="animate-spin">
-                  <FiCloud size={48} className="text-blue-600" />
+                  <FiCloud size={48} className="text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
               <div>

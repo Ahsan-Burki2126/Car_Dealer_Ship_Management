@@ -126,7 +126,7 @@ export default function VehicleDetailPage() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate("/vehicles")}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
           >
             <FiArrowLeft />
           </button>

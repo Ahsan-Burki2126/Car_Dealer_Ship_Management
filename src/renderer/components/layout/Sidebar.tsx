@@ -15,6 +15,7 @@ import {
   FiDatabase,
   FiTrendingUp,
   FiPieChart,
+  FiMessageCircle,
 } from "react-icons/fi";
 
 const navItems = [
@@ -76,6 +77,12 @@ const navItems = [
     path: "/backup",
     label: "Backup",
     icon: FiDatabase,
+    roles: ["super_admin", "admin"],
+  },
+  {
+    path: "/whatsapp",
+    label: "WhatsApp",
+    icon: FiMessageCircle,
     roles: ["super_admin", "admin"],
   },
   { path: "/users", label: "Users", icon: FiUserCheck, roles: ["super_admin"] },

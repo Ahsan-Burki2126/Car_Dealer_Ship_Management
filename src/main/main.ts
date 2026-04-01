@@ -27,6 +27,10 @@ import {
   stopAutomaticGoogleDriveBackups,
   createBackup,
 } from "./services/backupService";
+import {
+  startReminderScheduler,
+  stopReminderScheduler,
+} from "./services/reminderScheduler";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -175,6 +179,7 @@ app.whenReady().then(() => {
   initializeDatabase();
   startAutomaticBackups();
   startAutomaticGoogleDriveBackups();
+  startReminderScheduler();
   registerIpcHandlers();
   registerLocalImageProtocol();
   createWindow();
@@ -189,6 +194,7 @@ app.whenReady().then(() => {
 app.on("window-all-closed", () => {
   stopAutomaticBackups();
   stopAutomaticGoogleDriveBackups();
+  stopReminderScheduler();
   closeDatabase();
   if (process.platform !== "darwin") {
     app.quit();

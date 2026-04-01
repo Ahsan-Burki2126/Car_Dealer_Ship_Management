@@ -122,6 +122,18 @@ export interface ElectronAPI {
   selectBackupFile: (userId?: string) => Promise<any>;
   saveBackupAs: (userId: string, defaultName: string) => Promise<any>;
   savePdf: (pdfData: Uint8Array, defaultName: string) => Promise<any>;
+
+  // WhatsApp
+  whatsappGetStatus: () => Promise<any>;
+  whatsappInitialize: () => Promise<any>;
+  whatsappDisconnect: (userId: string) => Promise<any>;
+  whatsappSendTest: (userId: string, phone: string) => Promise<any>;
+  whatsappSendRemindersNow: (userId: string) => Promise<any>;
+  whatsappGetLogs: (userId: string) => Promise<any>;
+  whatsappGetSettings: () => Promise<any>;
+  whatsappUpdateSettings: (userId: string, data: any) => Promise<any>;
+  onWhatsAppStatus: (callback: (data: { status: string }) => void) => () => void;
+  onWhatsAppQR: (callback: (data: { qr: string | null }) => void) => () => void;
 }
 
 declare global {

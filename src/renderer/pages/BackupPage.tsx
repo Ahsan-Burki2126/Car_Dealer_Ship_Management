@@ -242,7 +242,7 @@ export default function BackupPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <FiDatabase className="text-blue-600" size={24} />
+            <FiDatabase className="text-blue-600 dark:text-blue-400" size={24} />
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Backup & Recovery
             </h1>
@@ -373,7 +373,7 @@ export default function BackupPage() {
                   <tr>
                     <td
                       colSpan={5}
-                      className="table-cell text-center py-4 text-gray-500"
+                      className="table-cell text-center py-4 text-gray-500 dark:text-gray-400"
                     >
                       No backups found
                     </td>
@@ -428,7 +428,7 @@ export default function BackupPage() {
           <div className="card">
             <div className="mb-4">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <FiCloud className="text-blue-600" /> Cloud Backups (Google
+                <FiCloud className="text-blue-600 dark:text-blue-400" /> Cloud Backups (Google
                 Drive)
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">

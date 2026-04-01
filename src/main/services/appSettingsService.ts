@@ -27,3 +27,29 @@ export function setLowStockThreshold(threshold: number): void {
   settings.lowStockThreshold = Math.max(1, Math.round(threshold));
   writeSettings(settings);
 }
+
+export function getWhatsAppSettings(): {
+  remindersEnabled: boolean;
+  reminderDaysBefore: number;
+} {
+  const s = readSettings();
+  return {
+    remindersEnabled: s.whatsappRemindersEnabled ?? true,
+    reminderDaysBefore: s.whatsappReminderDaysBefore ?? 3,
+  };
+}
+
+export function setWhatsAppSettings(data: {
+  remindersEnabled?: boolean;
+  reminderDaysBefore?: number;
+}): void {
+  const settings = readSettings();
+  if (data.remindersEnabled !== undefined)
+    settings.whatsappRemindersEnabled = data.remindersEnabled;
+  if (data.reminderDaysBefore !== undefined)
+    settings.whatsappReminderDaysBefore = Math.max(
+      1,
+      Math.round(data.reminderDaysBefore),
+    );
+  writeSettings(settings);
+}

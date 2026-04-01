@@ -7,13 +7,11 @@ import { formatCnic, isValidCnic, CNIC_PLACEHOLDER } from "../../shared/constant
 import { toast } from "react-toastify";
 import { FiArrowLeft, FiFileText, FiUploadCloud, FiSkipForward } from "react-icons/fi";
 import { toFileUrl } from "../utils/filePaths";
+import { generatePlaceholderSVG } from "../utils/themeUtils";
 import ErrorBoundary from "../components/ErrorBoundary";
 import FormStepper, { StepNavigation } from "../components/FormStepper";
 import { generatePurchaseReportPdf } from "../utils/pdfGenerator";
 import AmountWords from "../components/AmountWords";
-
-const IMG_PLACEHOLDER =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='140'%3E%3Crect width='200' height='140' fill='%23e5e7eb'/%3E%3Ctext x='100' y='76' text-anchor='middle' fill='%239ca3af' font-size='13' font-family='sans-serif'%3ENo image%3C/text%3E%3C/svg%3E";
 
 const VehicleInspectionSVG = React.lazy(() =>
   import("../components/inspection/VehicleInspectionSVG").catch((err) => {
@@ -354,7 +352,7 @@ export default function VehicleFormPage() {
                 src={toFileUrl(form.photo_path)}
                 alt="Vehicle"
                 className="w-48 h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                onError={(e) => { (e.target as HTMLImageElement).src = generatePlaceholderSVG(200, 140, "No image"); }}
               />
               <button
                 type="button"
@@ -708,7 +706,7 @@ export default function VehicleFormPage() {
                   src={toFileUrl(form.seller_photo_path)}
                   alt="Seller"
                   className="w-28 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = generatePlaceholderSVG(200, 140, "No image"); }}
                 />
                 <button
                   type="button"
@@ -735,7 +733,7 @@ export default function VehicleFormPage() {
                   src={toFileUrl(form.seller_cnic_photo_path)}
                   alt="Seller CNIC Front"
                   className="w-44 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = generatePlaceholderSVG(200, 140, "No image"); }}
                 />
                 <button
                   type="button"
@@ -762,7 +760,7 @@ export default function VehicleFormPage() {
                   src={toFileUrl(form.seller_cnic_photo_back_path)}
                   alt="Seller CNIC Back"
                   className="w-44 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = generatePlaceholderSVG(200, 140, "No image"); }}
                 />
                 <button
                   type="button"
@@ -966,7 +964,7 @@ export default function VehicleFormPage() {
               src={toFileUrl(form.photo_path)}
               alt="Vehicle"
               className="w-48 h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700 mb-4"
-              onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+              onError={(e) => { (e.target as HTMLImageElement).src = generatePlaceholderSVG(200, 140, "No image"); }}
             />
           )}
           {reviewRow("Make", form.make)}
@@ -1066,7 +1064,7 @@ export default function VehicleFormPage() {
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
         >
           <FiArrowLeft />
         </button>

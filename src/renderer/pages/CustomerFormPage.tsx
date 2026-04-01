@@ -6,10 +6,8 @@ import { formatCnic, isValidCnic, CNIC_PLACEHOLDER } from "../../shared/constant
 import { toast } from "react-toastify";
 import { FiArrowLeft } from "react-icons/fi";
 import { toFileUrl } from "../utils/filePaths";
+import { generatePlaceholderSVG } from "../utils/themeUtils";
 import FormStepper, { StepNavigation } from "../components/FormStepper";
-
-const IMG_PLACEHOLDER =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='140'%3E%3Crect width='200' height='140' fill='%23e5e7eb'/%3E%3Ctext x='100' y='76' text-anchor='middle' fill='%239ca3af' font-size='13' font-family='sans-serif'%3ENo image%3C/text%3E%3C/svg%3E";
 
 const STEPS = [
   { label: "Personal Info" },
@@ -251,7 +249,7 @@ export default function CustomerFormPage() {
                   src={toFileUrl(form.photo_path)}
                   alt="Customer"
                   className="w-28 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = generatePlaceholderSVG(200, 140, "No image"); }}
                 />
                 <button
                   type="button"
@@ -280,7 +278,7 @@ export default function CustomerFormPage() {
                   src={toFileUrl(form.cnic_photo_path)}
                   alt="Customer CNIC Front"
                   className="w-44 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = generatePlaceholderSVG(200, 140, "No image"); }}
                 />
                 <button
                   type="button"
@@ -309,7 +307,7 @@ export default function CustomerFormPage() {
                   src={toFileUrl(form.cnic_photo_back_path)}
                   alt="Customer CNIC Back"
                   className="w-44 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = generatePlaceholderSVG(200, 140, "No image"); }}
                 />
                 <button
                   type="button"
@@ -409,7 +407,7 @@ export default function CustomerFormPage() {
                   src={toFileUrl(form.photo_path)}
                   alt="Customer"
                   className="w-28 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = generatePlaceholderSVG(200, 140, "No image"); }}
                 />
               </div>
             )}
@@ -420,7 +418,7 @@ export default function CustomerFormPage() {
                   src={toFileUrl(form.cnic_photo_path)}
                   alt="CNIC Front"
                   className="w-44 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = generatePlaceholderSVG(200, 140, "No image"); }}
                 />
               </div>
             )}
@@ -431,7 +429,7 @@ export default function CustomerFormPage() {
                   src={toFileUrl(form.cnic_photo_back_path)}
                   alt="CNIC Back"
                   className="w-44 h-28 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
-                  onError={(e) => { (e.target as HTMLImageElement).src = IMG_PLACEHOLDER; }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = generatePlaceholderSVG(200, 140, "No image"); }}
                 />
               </div>
             )}
@@ -450,7 +448,7 @@ export default function CustomerFormPage() {
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate(-1)}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
         >
           <FiArrowLeft />
         </button>

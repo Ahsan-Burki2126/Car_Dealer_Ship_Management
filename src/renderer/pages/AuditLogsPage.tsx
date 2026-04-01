@@ -64,11 +64,11 @@ export default function AuditLogsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <FiShield className="text-blue-600" size={24} />
+        <FiShield className="text-blue-600 dark:text-blue-400" size={24} />
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           System Activity Logs
         </h1>
-        <span className="text-sm text-gray-500">({total} entries)</span>
+        <span className="text-sm text-gray-500 dark:text-gray-400">({total} entries)</span>
       </div>
 
       <div className="card">
@@ -121,7 +121,7 @@ export default function AuditLogsPage() {
                 <tr>
                   <td
                     colSpan={5}
-                    className="table-cell text-center text-gray-500"
+                    className="table-cell text-center text-gray-500 dark:text-gray-400"
                   >
                     No logs found
                   </td>
@@ -138,7 +138,7 @@ export default function AuditLogsPage() {
                     <td className="table-cell font-medium">{log.username}</td>
                     <td className="table-cell">
                       <span
-                        className={`text-xs px-2 py-0.5 rounded font-medium ${actionBadge[log.action_type] || "bg-gray-100 text-gray-700"}`}
+                        className={`text-xs px-2 py-0.5 rounded font-medium ${actionBadge[log.action_type] || "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300"}`}
                       >
                         {log.action_type}
                       </span>

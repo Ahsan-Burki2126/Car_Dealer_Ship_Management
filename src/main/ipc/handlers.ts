@@ -1172,6 +1172,100 @@ export function registerIpcHandlers(): void {
     },
   );
 
+  // =========== WHATSAPP ===========
+  ipcMain.handle("whatsapp:getStatus", async () => {
+    try {
+      const whatsappService = require("../services/whatsappService");
+      return { success: true, data: whatsappService.getStatus() };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("whatsapp:initialize", async () => {
+    try {
+      const whatsappService = require("../services/whatsappService");
+      const result = await whatsappService.initializeWhatsApp();
+      return result.success
+        ? { success: true }
+        : { success: false, error: result.error };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("whatsapp:disconnect", async (_event, userId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const whatsappService = require("../services/whatsappService");
+      await whatsappService.disconnectWhatsApp();
+      return { success: true };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle(
+    "whatsapp:sendTest",
+    async (_event, userId: string, phone: string) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        const whatsappService = require("../services/whatsappService");
+        const result = await whatsappService.sendMessage(
+          phone,
+          "✅ *Test Message*\nYeh Pak Japan Motors ka test message hai. WhatsApp reminders chal rahay hain! 🎉",
+        );
+        return result.success
+          ? { success: true }
+          : { success: false, error: result.error };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
+  ipcMain.handle("whatsapp:sendRemindersNow", async (_event, userId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const reminderScheduler = require("../services/reminderScheduler");
+      const result = await reminderScheduler.sendInstallmentReminders();
+      return { success: true, data: result };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("whatsapp:getLogs", async (_event, userId: string) => {
+    try {
+      requireRole(userId, ["super_admin", "admin"]);
+      const reminderScheduler = require("../services/reminderScheduler");
+      return { success: true, data: reminderScheduler.getReminderLogs(50) };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle("whatsapp:getSettings", async () => {
+    try {
+      return { success: true, data: appSettingsService.getWhatsAppSettings() };
+    } catch (e) {
+      return handleError(e);
+    }
+  });
+
+  ipcMain.handle(
+    "whatsapp:updateSettings",
+    async (_event, userId: string, data: any) => {
+      try {
+        requireRole(userId, ["super_admin", "admin"]);
+        appSettingsService.setWhatsAppSettings(data);
+        return { success: true };
+      } catch (e) {
+        return handleError(e);
+      }
+    },
+  );
+
   // =========== APP SETTINGS ===========
   ipcMain.handle("settings:getLowStockThreshold", async () => {
     try {
