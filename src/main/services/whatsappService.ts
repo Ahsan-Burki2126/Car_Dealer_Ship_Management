@@ -25,6 +25,8 @@ export type WAStatus =
 
 let client: any = null;
 let currentStatus: WAStatus = "disconnected";
+let manualDisconnect = false;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function getStatus(): WAStatus {
   return currentStatus;
@@ -33,6 +35,16 @@ export function getStatus(): WAStatus {
 function setStatus(s: WAStatus) {
   currentStatus = s;
   emit("whatsapp:status", { status: s });
+}
+
+function scheduleReconnect(delayMs = 10_000) {
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    initializeWhatsApp().catch((e) =>
+      console.error("[WhatsApp] Auto-reconnect failed:", e),
+    );
+  }, delayMs);
 }
 
 async function loadLibrary(): Promise<boolean> {
@@ -82,6 +94,7 @@ export async function initializeWhatsApp(): Promise<{
   success: boolean;
   error?: string;
 }> {
+  manualDisconnect = false;
   if (client) return { success: true };
 
   const loaded = await loadLibrary();
@@ -144,11 +157,16 @@ export async function initializeWhatsApp(): Promise<{
     client.on("auth_failure", () => {
       client = null;
       setStatus("auth_failure");
+      // Auth failure = session expired; auto-reconnect will show QR again
+      scheduleReconnect();
     });
 
     client.on("disconnected", () => {
       client = null;
       setStatus("disconnected");
+      if (!manualDisconnect) {
+        scheduleReconnect();
+      }
     });
 
     // initialize() is non-blocking — Puppeteer starts in background
@@ -168,6 +186,11 @@ export async function initializeWhatsApp(): Promise<{
 }
 
 export async function disconnectWhatsApp(): Promise<void> {
+  manualDisconnect = true;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   if (client) {
     try {
       await client.destroy();
@@ -177,6 +200,7 @@ export async function disconnectWhatsApp(): Promise<void> {
     client = null;
   }
   setStatus("disconnected");
+  manualDisconnect = false;
 }
 
 export async function sendMessage(

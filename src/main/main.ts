@@ -119,7 +119,7 @@ async function createWindow(): Promise<void> {
   Menu.setApplicationMenu(null);
 
   const iconPath = app.isPackaged
-    ? path.join(process.resourcesPath, "icons/icon.ico")
+    ? path.join(process.resourcesPath, "icons/icon.png")
     : path.join(__dirname, "../../../public/images/PAK_JAPAN logo.png");
 
   mainWindow = new BrowserWindow({
@@ -142,8 +142,8 @@ async function createWindow(): Promise<void> {
   // Vite injects inline scripts for HMR, so 'unsafe-inline' is required.
   const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
   const scriptSrc = isDev
-    ? "script-src 'self' 'unsafe-inline';"
-    : "script-src 'self';";
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval';"
+    : "script-src 'self' 'unsafe-eval';";
   mainWindow.webContents.session.webRequest.onHeadersReceived(
     (details, callback) => {
       callback({
