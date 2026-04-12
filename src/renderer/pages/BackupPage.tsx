@@ -88,9 +88,6 @@ export default function BackupPage() {
     if (folderResult.success) {
       setBackupFolder(folderResult.data || "");
     }
-    if (gdAuthResult.success) {
-      setIsGdAuthenticated(gdAuthResult.data);
-    }
     if (gdSettingsResult.success) {
       setSettings(
         gdSettingsResult.data || {
@@ -98,6 +95,20 @@ export default function BackupPage() {
           autoUploadToGoogleDrive: false,
         },
       );
+    }
+
+    const authenticated = gdAuthResult.success && gdAuthResult.data;
+    setIsGdAuthenticated(authenticated);
+
+    if (authenticated) {
+      const gdResult = await window.api.googleDriveListBackups(user.id);
+      if (gdResult.success) {
+        setGoogleBackups(gdResult.data || []);
+      } else if (gdResult.error?.includes("INVALID_GRANT")) {
+        setIsGdAuthenticated(false);
+        setGoogleBackups([]);
+        toast.error("Google Drive session expired. Please reconnect.");
+      }
     }
 
     setLoading(false);
@@ -111,7 +122,13 @@ export default function BackupPage() {
     if (result.success) {
       setGoogleBackups(result.data || []);
     } else {
-      toast.error(result.error || "Failed to load Google Drive backups");
+      if (result.error?.includes("INVALID_GRANT")) {
+        setIsGdAuthenticated(false);
+        setGoogleBackups([]);
+        toast.error("Google Drive session expired. Please reconnect.");
+      } else {
+        toast.error(result.error || "Failed to load Google Drive backups");
+      }
     }
 
     setLoading(false);

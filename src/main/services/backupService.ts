@@ -109,18 +109,18 @@ function checkpointDatabase(): void {
   db.pragma("wal_checkpoint(TRUNCATE)");
 }
 
-export function createBackup(
+export async function createBackup(
   backupType: "automatic" | "manual",
   createdBy?: string,
   targetPath?: string,
-): BackupRecord {
+): Promise<BackupRecord> {
   checkpointDatabase();
   const sourceDbPath = getDatabasePath();
 
   const destinationPath =
     targetPath || path.join(ensureBackupsDirectory(), buildBackupFileName());
 
-  fs.copyFileSync(sourceDbPath, destinationPath);
+  await fs.promises.copyFile(sourceDbPath, destinationPath);
   return insertBackupRecord(destinationPath, backupType, createdBy);
 }
 
@@ -216,32 +216,28 @@ function shouldRunAutomaticBackup(): boolean {
     : Date.now() - lastBackupTime >= AUTO_BACKUP_INTERVAL_MS;
 }
 
-function runAutomaticBackupIfDue(): void {
+async function runAutomaticBackupIfDue(): Promise<void> {
   if (!shouldRunAutomaticBackup()) {
     return;
   }
-  createBackup("automatic");
+  await createBackup("automatic");
 }
 
 export function startAutomaticBackups(): void {
   ensureBackupsDirectory();
   // Always create a backup on startup to ensure fresh recovery point
-  try {
-    createBackup("automatic");
-  } catch {
+  createBackup("automatic").catch(() => {
     // Non-fatal
-  }
+  });
 
   if (autoBackupTimer) {
     return;
   }
 
   autoBackupTimer = setInterval(() => {
-    try {
-      createBackup("automatic");
-    } catch {
+    createBackup("automatic").catch(() => {
       // Non-fatal by design: failed auto backup should not crash app.
-    }
+    });
   }, AUTO_BACKUP_INTERVAL_MS);
 }
 

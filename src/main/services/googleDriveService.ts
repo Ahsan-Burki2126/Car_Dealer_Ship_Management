@@ -329,6 +329,14 @@ export async function uploadBackupToGoogleDrive(
   return response.data.id;
 }
 
+function handleOAuthError(err: any): never {
+  if (err?.response?.data?.error === "invalid_grant" || err?.message?.includes("invalid_grant")) {
+    logout();
+    throw new Error("INVALID_GRANT: Google Drive session expired. Please reconnect.");
+  }
+  throw err;
+}
+
 export async function listGoogleDriveBackups(): Promise<GoogleDriveBackup[]> {
   if (!isAuthenticated())
     throw new Error("Not authenticated with Google Drive");
@@ -336,23 +344,27 @@ export async function listGoogleDriveBackups(): Promise<GoogleDriveBackup[]> {
   const client = initializeOAuth2Client();
   const drive = google.drive({ version: "v3", auth: client as any });
 
-  const folderId = await getOrCreateBackupFolder();
-  const response = await drive.files.list({
-    q: `'${folderId}' in parents and trashed=false`,
-    spaces: "drive",
-    fields: "files(id, name, createdTime, size, mimeType)",
-    orderBy: "createdTime desc",
-    pageSize: 50,
-  });
+  try {
+    const folderId = await getOrCreateBackupFolder();
+    const response = await drive.files.list({
+      q: `'${folderId}' in parents and trashed=false`,
+      spaces: "drive",
+      fields: "files(id, name, createdTime, size, mimeType)",
+      orderBy: "createdTime desc",
+      pageSize: 50,
+    });
 
-  if (!response.data.files) return [];
-  return response.data.files.map((file: any) => ({
-    id: file.id!,
-    name: file.name!,
-    createdTime: file.createdTime!,
-    size: file.size || "0",
-    mimeType: file.mimeType!,
-  }));
+    if (!response.data.files) return [];
+    return response.data.files.map((file: any) => ({
+      id: file.id!,
+      name: file.name!,
+      createdTime: file.createdTime!,
+      size: file.size || "0",
+      mimeType: file.mimeType!,
+    }));
+  } catch (err: any) {
+    handleOAuthError(err);
+  }
 }
 
 export async function downloadBackupFromGoogleDrive(

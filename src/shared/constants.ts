@@ -8,6 +8,25 @@ export const CNIC_REGEX = /^\d{5}-\d{7}-\d$/;
 export const CNIC_PLACEHOLDER = "XXXXX-XXXXXXX-X";
 
 /**
+ * Pakistani phone number validation.
+ * Accepts: 03XX-XXXXXXX, 03XXXXXXXXX, +923XXXXXXXXX, 923XXXXXXXXX
+ */
+export const PHONE_REGEX = /^(\+92|92|0)3[0-9]{9}$/;
+export const PHONE_PLACEHOLDER = "03XX-XXXXXXX";
+
+export function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 4) return digits;
+  return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+}
+
+export function isValidPhone(value: string): boolean {
+  if (!value) return true; // optional field
+  const normalized = value.replace(/[-\s]/g, "");
+  return PHONE_REGEX.test(normalized);
+}
+
+/**
  * Auto-format a CNIC value as the user types.
  * Strips non-digits, inserts dashes at positions 5 and 13, caps at 15 chars.
  */

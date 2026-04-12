@@ -14,11 +14,44 @@ import * as bankAccountService from "../services/bankAccountService";
 import * as backupService from "../services/backupService";
 import * as appSettingsService from "../services/appSettingsService";
 import type { UserRole } from "../../shared/types";
+import { isValidPhone } from "../../shared/constants";
 
 function handleError(error: unknown): { success: false; error: string } {
   const message =
     error instanceof Error ? error.message : "An unexpected error occurred";
   return { success: false, error: message };
+}
+
+// Simple in-memory login rate limiter: max 5 attempts per 15 minutes per username
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
+function checkLoginRateLimit(username: string): void {
+  const now = Date.now();
+  const entry = loginAttempts.get(username);
+  if (entry && now < entry.resetAt) {
+    if (entry.count >= LOGIN_MAX_ATTEMPTS) {
+      const minutesLeft = Math.ceil((entry.resetAt - now) / 60_000);
+      throw new Error(
+        `Too many failed login attempts. Try again in ${minutesLeft} minute(s).`,
+      );
+    }
+  }
+}
+
+function recordFailedLogin(username: string): void {
+  const now = Date.now();
+  const entry = loginAttempts.get(username);
+  if (!entry || now >= entry.resetAt) {
+    loginAttempts.set(username, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+  } else {
+    entry.count += 1;
+  }
+}
+
+function clearLoginAttempts(username: string): void {
+  loginAttempts.delete(username);
 }
 
 function getUserRole(userId: string): UserRole {
@@ -46,9 +79,14 @@ export function registerIpcHandlers(): void {
     "auth:login",
     async (_event, username: string, password: string) => {
       try {
+        checkLoginRateLimit(username);
         const result = authService.login(username, password);
+        clearLoginAttempts(username);
         return { success: true, data: result };
       } catch (e) {
+        if (!(e instanceof Error && e.message.startsWith("Too many"))) {
+          recordFailedLogin(username);
+        }
         return handleError(e);
       }
     },
@@ -290,6 +328,9 @@ export function registerIpcHandlers(): void {
   ipcMain.handle("customers:add", async (_event, userId: string, data: any) => {
     try {
       requireRole(userId, ["super_admin", "admin"]);
+      if (data.contact_number && !isValidPhone(data.contact_number)) {
+        return { success: false, error: "Invalid phone number. Use Pakistani format e.g. 03XX-XXXXXXX" };
+      }
       const customer = customerService.addCustomer(userId, data);
       return { success: true, data: customer };
     } catch (e) {
@@ -318,6 +359,9 @@ export function registerIpcHandlers(): void {
     async (_event, userId: string, id: string, data: any) => {
       try {
         requireRole(userId, ["super_admin", "admin"]);
+        if (data.contact_number && !isValidPhone(data.contact_number)) {
+          return { success: false, error: "Invalid phone number. Use Pakistani format e.g. 03XX-XXXXXXX" };
+        }
         const customer = customerService.updateCustomer(userId, id, data);
         return { success: true, data: customer };
       } catch (e) {
@@ -684,7 +728,7 @@ export function registerIpcHandlers(): void {
     async (_event, userId: string, targetPath?: string) => {
       try {
         requireRole(userId, ["super_admin", "admin"]);
-        const backup = backupService.createBackup("manual", userId, targetPath);
+        const backup = await backupService.createBackup("manual", userId, targetPath);
         return { success: true, data: backup };
       } catch (e) {
         return handleError(e);
@@ -877,15 +921,25 @@ export function registerIpcHandlers(): void {
     "files:saveImage",
     async (_event, sourceFilePath: string, category: string) => {
       try {
-        const imagesDir = path.join(
-          app.getPath("userData"),
-          "images",
-          category,
-        );
+        const ALLOWED_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp"]);
+        const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+        const ext = path.extname(sourceFilePath).toLowerCase();
+        if (!ALLOWED_EXTENSIONS.has(ext)) {
+          return { success: false, error: "Invalid file type. Only JPG, PNG, GIF, and WebP images are allowed." };
+        }
+
+        const stat = fs.statSync(sourceFilePath);
+        if (stat.size > MAX_FILE_SIZE_BYTES) {
+          return { success: false, error: "Image file is too large. Maximum allowed size is 10 MB." };
+        }
+
+        // Sanitize category to prevent path traversal
+        const safeCategory = path.basename(category);
+        const imagesDir = path.join(app.getPath("userData"), "images", safeCategory);
         if (!fs.existsSync(imagesDir)) {
           fs.mkdirSync(imagesDir, { recursive: true });
         }
-        const ext = path.extname(sourceFilePath);
         const fileName = `${uuidv4()}${ext}`;
         const destPath = path.join(imagesDir, fileName);
         fs.copyFileSync(sourceFilePath, destPath);

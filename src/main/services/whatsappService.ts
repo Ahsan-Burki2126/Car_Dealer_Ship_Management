@@ -27,6 +27,9 @@ let client: any = null;
 let currentStatus: WAStatus = "disconnected";
 let manualDisconnect = false;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectAttempts = 0;
+const RECONNECT_BASE_MS = 10_000;
+const RECONNECT_MAX_MS = 5 * 60_000; // cap at 5 minutes
 
 export function getStatus(): WAStatus {
   return currentStatus;
@@ -37,14 +40,20 @@ function setStatus(s: WAStatus) {
   emit("whatsapp:status", { status: s });
 }
 
-function scheduleReconnect(delayMs = 10_000) {
+function scheduleReconnect() {
   if (reconnectTimer) clearTimeout(reconnectTimer);
+  const delay = Math.min(
+    RECONNECT_BASE_MS * Math.pow(2, reconnectAttempts),
+    RECONNECT_MAX_MS,
+  );
+  reconnectAttempts += 1;
+  console.log(`[WhatsApp] Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts})`);
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     initializeWhatsApp().catch((e) =>
       console.error("[WhatsApp] Auto-reconnect failed:", e),
     );
-  }, delayMs);
+  }, delay);
 }
 
 async function loadLibrary(): Promise<boolean> {
@@ -147,6 +156,7 @@ export async function initializeWhatsApp(): Promise<{
     });
 
     client.on("ready", () => {
+      reconnectAttempts = 0;
       setStatus("connected");
     });
 

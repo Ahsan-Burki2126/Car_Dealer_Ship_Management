@@ -4,7 +4,8 @@ import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import type { User, AuthPayload, UserRole } from "../../shared/types";
 
-const JWT_SECRET = "dms-secure-key-change-in-production-2024";
+const JWT_SECRET =
+  process.env.JWT_SECRET || "dms-secure-key-change-in-production-2024";
 const TOKEN_EXPIRY = "24h";
 
 export function login(

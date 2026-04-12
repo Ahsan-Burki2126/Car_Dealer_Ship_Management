@@ -7,6 +7,7 @@ import { setDarkMode, setTheme } from "./store/slices/uiSlice";
 // Layout
 import MainLayout from "./components/layout/MainLayout";
 import LoginPage from "./pages/LoginPage";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Pages
 import DashboardPage from "./pages/DashboardPage";
@@ -59,6 +60,7 @@ export default function App() {
   }, []);
 
   return (
+    <ErrorBoundary>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route
@@ -209,5 +211,6 @@ export default function App() {
         />
       </Route>
     </Routes>
+    </ErrorBoundary>
   );
 }

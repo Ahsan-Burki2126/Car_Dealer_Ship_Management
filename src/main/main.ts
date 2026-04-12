@@ -30,7 +30,6 @@ import {
   stopAutomaticBackups,
   startAutomaticGoogleDriveBackups,
   stopAutomaticGoogleDriveBackups,
-  createBackup,
 } from "./services/backupService";
 import {
   startReminderScheduler,
@@ -217,10 +216,12 @@ app.on("window-all-closed", () => {
 app.on("before-quit", () => {
   stopAutomaticBackups();
   stopAutomaticGoogleDriveBackups();
+  // Flush WAL to the main DB file before closing — async backup runs hourly
   try {
-    createBackup("automatic");
+    const { getDatabase } = require("./database/init");
+    getDatabase().pragma("wal_checkpoint(TRUNCATE)");
   } catch {
-    // Non-fatal: don't block shutdown
+    // Non-fatal
   }
   closeDatabase();
 });
